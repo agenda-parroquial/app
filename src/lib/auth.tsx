@@ -3,6 +3,7 @@ import type { Session } from '@supabase/supabase-js';
 import { db, vaciarLocal } from './db';
 import { supabase } from './supabase';
 import { esErrorDeRed } from './sync';
+import { desactivarPush } from './push';
 import type { Perfil } from '../types';
 
 interface Resultado {
@@ -135,6 +136,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return {};
       },
       cerrarSesion: async () => {
+        // Este teléfono deja de recibir los avisos de esta cuenta (si no hay internet, se omite).
+        await Promise.race([desactivarPush().catch(() => {}), new Promise((ok) => setTimeout(ok, 3000))]);
         await supabase.auth.signOut({ scope: 'local' });
         await vaciarLocal();
         usuarioRef.current = null;

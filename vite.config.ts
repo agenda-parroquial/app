@@ -6,6 +6,10 @@ export default defineConfig({
   plugins: [
     react(),
     VitePWA({
+      // Service worker propio (src/sw.ts): modo sin conexión + avisos push.
+      strategies: 'injectManifest',
+      srcDir: 'src',
+      filename: 'sw.ts',
       // 'prompt': la app avisa cuando hay versión nueva y el usuario decide
       // cuándo recargar (así no se pierde un formulario a medio llenar).
       registerType: 'prompt',
@@ -27,9 +31,8 @@ export default defineConfig({
           { src: 'maskable-icon-512x512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
         ],
       },
-      workbox: {
+      injectManifest: {
         globPatterns: ['**/*.{js,css,html,svg,png,ico,woff2}'],
-        navigateFallback: '/index.html',
       },
     }),
   ],

@@ -1,5 +1,5 @@
 import Dexie, { type Table } from 'dexie';
-import type { Conflicto, Evento, Lugar, MisaFija, Notificacion, OpPendiente, Perfil } from '../types';
+import type { Conflicto, Evento, Intencion, Lugar, MisaFija, Notificacion, OpPendiente, Perfil } from '../types';
 
 /**
  * Copia local de la agenda. Toda la interfaz lee de aquí, así la app
@@ -12,6 +12,7 @@ class AgendaDB extends Dexie {
   perfiles!: Table<Perfil, string>;
   conflictos!: Table<Conflicto, string>;
   notificaciones!: Table<Notificacion, string>;
+  intenciones!: Table<Intencion, string>;
   outbox!: Table<OpPendiente, number>;
   meta!: Table<{ key: string; value: unknown }, string>;
 
@@ -27,6 +28,8 @@ class AgendaDB extends Dexie {
       outbox: '++seq, rowId, estado',
       meta: 'key',
     });
+    // v2: intenciones de cada evento (las tablas existentes se conservan).
+    this.version(2).stores({ intenciones: 'id, evento_id' });
   }
 }
 

@@ -6,6 +6,8 @@ App web instalable (PWA) para llevar la agenda de la parroquia entre la secretar
 - **Avisos al instante** cuando alguien agrega, cambia o cancela algo (con la app abierta y con internet).
 - **Detección de empalmes:** si dos eventos coinciden en horario y lugar (o con el mismo sacerdote), ambos se marcan en conflicto y se avisa a todos para resolverlo.
 - **Misas fijas** que aparecen solas en la agenda: todas las semanas o **alternas** (una sí, una no; también cada 3 o 4 semanas). Para dos misas que se turnan a la misma hora, se crean dos con «Cada 2 semanas» y fechas de inicio con una semana de diferencia.
+- **Intenciones de cada misa o evento:** el botón **🙏 Intenciones** de cada tarjeta muestra la lista (por los difuntos, acción de gracias y por la salud de) **en solo lectura**, con opción de copiarla para leerla. Se capturan, editan y quitan desde **Editar evento**, una por línea, y solo puede hacerlo la secretaria (en todas las misas) o el párroco/vicario en las misas que tienen asignadas. Funciona sin internet.
+- **Avisos push:** llegan al teléfono aunque la app esté cerrada (ver «Avisos push» más abajo).
 - **Roles:** párroco, secretaria y vicario; el párroco aprueba las cuentas.
 
 Tecnología: React + Vite (PWA) · Dexie/IndexedDB (copia local) · Supabase (base de datos, usuarios y tiempo real) · Netlify (hosting).
@@ -40,6 +42,17 @@ npm run dev
 
 **Sitio actual:** <https://agenda-parroquial.netlify.app> · **Código:** <https://github.com/agenda-parroquial/app>
 
+## 3b. Avisos push (una sola vez)
+
+Para que los avisos lleguen con la app cerrada hace falta una función en Supabase:
+
+1. **Edge Functions → Deploy a new function → Via Editor.** Ponle el nombre **`enviar-push`**, pega el contenido de [`supabase/functions/enviar-push/index.ts`](supabase/functions/enviar-push/index.ts) y pulsa **Deploy function**.
+2. En la pestaña **Settings** de esa función, apaga **«Verify JWT with legacy secret»** y guarda. (Quien la llama —la base de datos y el navegador— no envía JWT; la función se protege con un secreto compartido que la base de datos genera sola.)
+3. Si instalaste con `schema.sql`, cambia en la tabla `config` el valor de `funciones_url` por la dirección de tu proyecto (`https://TU-PROYECTO.supabase.co/functions/v1`). Con la migración ya viene puesta.
+4. Cada persona abre la app, va a **Avisos** y pulsa **Activar avisos** (en iPhone, antes hay que instalar la app en la pantalla de inicio: iOS 16.4 o superior). El botón **«Mandarme un aviso de prueba»** comprueba que todo funciona.
+
+Las claves del servicio de avisos (VAPID) se generan solas la primera vez y se guardan en la tabla `push_config`, que ningún usuario puede leer. Para no saturar, si llegan varios avisos del mismo tipo en menos de 20 segundos solo se envía el primero al teléfono; el resto se ve dentro de la app.
+
 ## 4. Primer uso
 
 1. **El párroco se registra primero** desde la dirección de Netlify. El primer usuario que se registra queda automáticamente como párroco y con acceso.
@@ -51,6 +64,8 @@ npm run dev
 |---|:-:|:-:|:-:|
 | Ver la agenda y los conflictos | ✔ | ✔ | ✔ |
 | Crear, editar y cancelar eventos | ✔ | ✔ | ✔ |
+| Ver las intenciones de cualquier evento | ✔ | ✔ | ✔ |
+| Capturar o editar intenciones | solo en sus misas | en todas | solo en sus misas |
 | Lugares y misas fijas | ✔ | ✔ | solo ver |
 | Aprobar cuentas y asignar roles | ✔ | — | — |
 
@@ -75,7 +90,7 @@ La regla de empalme: se cruzan en el tiempo **y** comparten lugar (de la lista) 
 
 ## Límites actuales y siguientes pasos
 
-- **Avisos con la app cerrada (push):** hoy los avisos llegan al instante **solo mientras la app está abierta en pantalla**. Si el teléfono la suspende o está cerrada, los avisos se ven al abrirla. Para que suenen con la app cerrada (sobre todo en iPhone) falta la fase de *notificaciones push*.
+- **Avisos push en iPhone:** solo funcionan con la app instalada en la pantalla de inicio (iOS 16.4 o superior) y aceptando el permiso. En Android funcionan también desde Chrome.
 - **Mapa de capillas:** la tabla de lugares ya guarda latitud y longitud. Falta la pantalla con mapa (Leaflet + OpenStreetMap, gratis).
 - **PDF/impresión semanal** para el tablón: pendiente.
 - **Supabase gratis** pausa un proyecto tras una semana sin actividad; con uso diario no ocurre. El plan gratis **no incluye respaldos automáticos**: conviene exportar las tablas `eventos`, `lugares` y `misas_fijas` a CSV de vez en cuando (Table Editor → Export).
@@ -86,6 +101,8 @@ La regla de empalme: se cruzan en el tiempo **y** comparten lugar (de la lista) 
 ```
 supabase/schema.sql        tablas, roles, seguridad, detección de empalmes, misas fijas (instalación nueva)
 supabase/migrations/       cambios para bases ya creadas (ejecutar en orden en el SQL Editor)
+supabase/functions/        función que envía los avisos push (se despliega desde el panel de Supabase)
+src/sw.ts                  service worker: modo sin conexión y recepción de avisos
 src/lib/db.ts              copia local (Dexie)
 src/lib/store.ts           escrituras "local primero" + cola de cambios pendientes
 src/lib/sync.ts            enviar pendientes, traer cambios, tiempo real

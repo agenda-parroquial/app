@@ -5,14 +5,15 @@ import {
   claveDia, deClave, diaCorto, diaLargo, fechaDe, hoyClave, inicioSemana, mesAnio, sumarDias,
 } from '../lib/fechas';
 import { ir, useIdsPendientes, useLugares, usePerfiles } from '../lib/hooks';
-import type { Evento } from '../types';
+import { puedeEditarIntenciones, type Evento, type Perfil } from '../types';
 import { EventoForm } from './EventoForm';
+import { Intenciones } from './Intenciones';
 import { TarjetaEvento } from './TarjetaEvento';
 
 const SIN_EVENTOS: Evento[] = [];
 
 /** Ruta: agenda/<fecha>/<nuevo | id de evento> */
-export function Agenda({ ruta }: { ruta: string[] }) {
+export function Agenda({ ruta, perfil }: { ruta: string[]; perfil: Perfil }) {
   const fecha = /^\d{4}-\d{2}-\d{2}$/.test(ruta[1] ?? '') ? ruta[1] : hoyClave();
   const accion = ruta[2];
   const [modo, setModo] = useState<'dia' | 'semana'>('dia');
@@ -41,6 +42,22 @@ export function Agenda({ ruta }: { ruta: string[] }) {
   const evAbierto = useLiveQuery(
     () => (accion && accion !== 'nuevo' ? db.eventos.get(accion) : undefined),
     [accion],
+  );
+  // .../intenciones = lista de solo lectura (botón de la tarjeta, para todos)
+  // .../editar-intenciones = capturar y editar (desde «Editar evento», solo quien tiene permiso)
+  const verIntenciones = ruta[3] === 'intenciones' || ruta[3] === 'editar-intenciones';
+  const puedeEditar = !!evAbierto && puedeEditarIntenciones(perfil, evAbierto);
+
+  // Cuántas intenciones tiene cada evento visible (para el botón de la tarjeta).
+  const idsVisibles = eventos.map((e) => e.id);
+  const conteo = useLiveQuery(
+    async () => {
+      const m = new Map<string, number>();
+      const todas = await db.intenciones.where('evento_id').anyOf(idsVisibles).filter((i) => i.activa).toArray();
+      todas.forEach((i) => m.set(i.evento_id, (m.get(i.evento_id) ?? 0) + 1));
+      return m;
+    },
+    [idsVisibles.join(',')], new Map<string, number>(),
   );
 
   const irDia = (k: string) => ir(`agenda/${k}`);
@@ -87,6 +104,7 @@ export function Agenda({ ruta }: { ruta: string[] }) {
               <TarjetaEvento
                 key={e.id} evento={e} lugares={lugares} perfiles={perfiles}
                 sinEnviar={pendientes.has(e.id)} onClick={() => ir(`agenda/${fecha}/${e.id}`)}
+                nIntenciones={conteo.get(e.id) ?? 0} onIntenciones={() => ir(`agenda/${fecha}/${e.id}/intenciones`)}
               />
             ))}
           </section>
@@ -96,7 +114,18 @@ export function Agenda({ ruta }: { ruta: string[] }) {
       <button className="fab" onClick={() => ir(`agenda/${fecha}/nuevo`)} aria-label="Nuevo evento">+</button>
 
       {accion === 'nuevo' && <EventoForm fecha={fecha} onCerrar={() => irDia(fecha)} />}
-      {evAbierto && <EventoForm key={evAbierto.id} evento={evAbierto} fecha={fecha} onCerrar={() => irDia(fecha)} />}
+      {evAbierto && !verIntenciones && (
+        <EventoForm
+          key={evAbierto.id} evento={evAbierto} fecha={fecha} onCerrar={() => irDia(fecha)}
+          onIntenciones={puedeEditar ? () => ir(`agenda/${fecha}/${evAbierto.id}/editar-intenciones`) : undefined}
+        />
+      )}
+      {evAbierto && verIntenciones && (
+        <Intenciones
+          key={evAbierto.id + ruta[3]} evento={evAbierto} onCerrar={() => irDia(fecha)}
+          editable={ruta[3] === 'editar-intenciones' && puedeEditar}
+        />
+      )}
     </>
   );
 }

@@ -1,7 +1,7 @@
 import { db } from './db';
 import { supabase } from './supabase';
 import { sincronizar } from './sync';
-import type { DatosEvento, Evento, Lugar, MisaFija, OpPendiente, Perfil, Tabla } from '../types';
+import type { DatosEvento, Evento, Intencion, Lugar, MisaFija, OpPendiente, Perfil, Tabla } from '../types';
 
 /**
  * Operaciones de escritura "local primero": se aplican de inmediato en la
@@ -75,6 +75,12 @@ async function guardarCatalogo<T extends { id: string }>(tabla: Tabla, datos: Pa
 export const guardarLugar = (datos: Partial<Lugar>, id?: string) => guardarCatalogo<Lugar>('lugares', datos, id);
 export const guardarMisaFija = (datos: Partial<MisaFija>, id?: string) =>
   guardarCatalogo<MisaFija>('misas_fijas', datos, id);
+
+// ---------- Intenciones ------------------------------------------------
+export const guardarIntencion = (datos: Partial<Intencion>, id?: string) =>
+  guardarCatalogo<Intencion>('intenciones', datos, id);
+/** Quitar = desactivar (queda en la base de datos, pero ya no se muestra). */
+export const quitarIntencion = (id: string) => guardarIntencion({ activa: false }, id);
 
 // ---------- Choques de edición ----------------------------------------
 /** "Conservar la mía": se vuelve a intentar sobre la versión actual del servidor. */

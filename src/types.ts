@@ -77,7 +77,7 @@ export interface Conflicto {
 export interface Notificacion {
   id: string;
   usuario_id: string;
-  tipo: 'evento_nuevo' | 'evento_editado' | 'evento_cancelado' | 'conflicto';
+  tipo: 'evento_nuevo' | 'evento_editado' | 'evento_cancelado' | 'conflicto' | 'prueba';
   evento_id: string | null;
   conflicto_id: string | null;
   mensaje: string;
@@ -92,7 +92,20 @@ export type DatosEvento = Pick<
   | 'intencion' | 'contacto_nombre' | 'contacto_telefono' | 'notas'
 >;
 
-export type Tabla = 'eventos' | 'lugares' | 'misas_fijas';
+export type TipoIntencion = 'difunto' | 'accion_gracias' | 'salud';
+
+export interface Intencion {
+  id: string;
+  evento_id: string;
+  tipo: TipoIntencion;
+  texto: string; // nombre(s) o descripción
+  activa: boolean; // false = quitada
+  creado_por: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export type Tabla = 'eventos' | 'lugares' | 'misas_fijas' | 'intenciones';
 
 /** Un cambio hecho en este dispositivo que aún no llega al servidor. */
 export interface OpPendiente {
@@ -125,6 +138,12 @@ export const TIPOS_LUGAR: Record<TipoLugar, string> = {
   otro: 'Otro',
 };
 
+export const TIPOS_INTENCION: Record<TipoIntencion, { titulo: string; icono: string }> = {
+  difunto: { titulo: 'Por los difuntos', icono: '✝️' },
+  accion_gracias: { titulo: 'Acción de gracias', icono: '🙏' },
+  salud: { titulo: 'Por la salud de', icono: '❤️' },
+};
+
 export const ROLES: Record<Rol, string> = {
   parroco: 'Párroco',
   vicario: 'Vicario',
@@ -135,3 +154,10 @@ export const DIAS = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Vier
 
 export const puedeEditarCatalogos = (rol: Rol | undefined) => rol === 'parroco' || rol === 'secretaria';
 export const esSacerdote = (p: Perfil) => p.rol === 'parroco' || p.rol === 'vicario';
+
+/**
+ * Quién captura o edita las intenciones de un evento: la secretaria en todos, y el párroco o
+ * el vicario solo en los que tienen asignados. (Todos pueden verlas.) Misma regla que en la base de datos.
+ */
+export const puedeEditarIntenciones = (perfil: Perfil | undefined, evento: Pick<Evento, 'asignado_a'>) =>
+  !!perfil && (perfil.rol === 'secretaria' || (evento.asignado_a !== null && evento.asignado_a === perfil.id));

@@ -6,6 +6,7 @@ import { AuthProvider, useAuth } from './lib/auth';
 import { avisoDelSistema } from './lib/avisos';
 import { configurado } from './lib/supabase';
 import { iniciarSync } from './lib/sync';
+import { esIPhone, estaInstalada, estadoPush, sincronizarPush } from './lib/push';
 import { ir, useContadorConflictos, useNoLeidas, useRuta } from './lib/hooks';
 import type { Notificacion, Perfil } from './types';
 import { Agenda } from './components/Agenda';
@@ -54,6 +55,29 @@ const TITULOS: Record<string, string> = {
   lugares: 'Lugares', misas: 'Misas fijas', usuarios: 'Usuarios',
 };
 
+/** Invitación (descartable) a activar los avisos en este teléfono. */
+function InvitacionAvisos() {
+  const [ver, setVer] = useState(false);
+  useEffect(() => {
+    let descartada = false;
+    try { descartada = localStorage.getItem('avisos-descartado') === '1'; } catch { /* sin almacenamiento */ }
+    if (descartada) return;
+    void estadoPush().then((s) => setVer(s === 'inactivo' || (s === 'no-soportado' && esIPhone() && !estaInstalada())));
+  }, []);
+  if (!ver) return null;
+  const cerrar = () => {
+    try { localStorage.setItem('avisos-descartado', '1'); } catch { /* sin almacenamiento */ }
+    setVer(false);
+  };
+  return (
+    <div className="actualizar" style={{ gap: 8, flexWrap: 'wrap' }}>
+      🔔 Activa los avisos para enterarte al instante
+      <button onClick={() => { cerrar(); ir('avisos'); }}>Activar</button>
+      <button style={{ background: 'transparent', color: 'inherit', textDecoration: 'underline' }} onClick={cerrar}>Ahora no</button>
+    </div>
+  );
+}
+
 function Shell({ perfil }: { perfil: Perfil }) {
   const ruta = useRuta();
   const seccion = ruta[0];
@@ -65,10 +89,27 @@ function Shell({ perfil }: { perfil: Perfil }) {
     () =>
       iniciarSync(perfil.id, (n) => {
         setToast(n);
-        if (document.visibilityState === 'hidden') void avisoDelSistema('Agenda Parroquial', n.mensaje);
+        // Si los avisos push están activos, el sistema ya muestra el suyo: no se duplica.
+        if (document.visibilityState === 'hidden') {
+          void estadoPush().then((s) => {
+            if (s !== 'activo') void avisoDelSistema('Agenda Parroquial', n.mensaje);
+          });
+        }
       }),
     [perfil.id],
   );
+
+  // Este teléfono queda registrado a nombre de quien entró (y se renueva si cambió).
+  useEffect(() => { void sincronizarPush().catch(() => {}); }, [perfil.id]);
+
+  // Al tocar un aviso con la app ya abierta, el service worker pide cambiar de pantalla.
+  useEffect(() => {
+    const alMensaje = (e: MessageEvent) => {
+      if (e.data?.tipo === 'IR' && typeof e.data.hash === 'string') location.hash = e.data.hash;
+    };
+    navigator.serviceWorker?.addEventListener('message', alMensaje);
+    return () => navigator.serviceWorker?.removeEventListener('message', alMensaje);
+  }, []);
 
   useEffect(() => {
     if (!toast) return;
@@ -80,6 +121,7 @@ function Shell({ perfil }: { perfil: Perfil }) {
 
   return (
     <div className="app">
+      <InvitacionAvisos />
       <header className="top">
         <h1>{TITULOS[seccion] ?? 'Agenda'}</h1>
         <EstadoSync />
@@ -103,7 +145,7 @@ function Shell({ perfil }: { perfil: Perfil }) {
           : seccion === 'lugares' ? <Lugares perfil={perfil} />
           : seccion === 'misas' ? <MisasFijas perfil={perfil} />
           : seccion === 'usuarios' && perfil.rol === 'parroco' ? <Usuarios perfil={perfil} />
-          : <Agenda ruta={ruta} />}
+          : <Agenda ruta={ruta} perfil={perfil} />}
       </main>
 
       {toast && (

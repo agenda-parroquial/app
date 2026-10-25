@@ -116,7 +116,7 @@ async function enviarPendientes() {
 // ---------------------------------------------------------------------
 //  2. Traer del servidor lo que cambió
 // ---------------------------------------------------------------------
-const INCREMENTALES = ['perfiles', 'lugares', 'misas_fijas', 'eventos', 'conflictos'] as const;
+const INCREMENTALES = ['perfiles', 'lugares', 'misas_fijas', 'eventos', 'conflictos', 'intenciones'] as const;
 const PAGINA = 1000;
 const MARGEN_MS = 120_000; // se vuelve a pedir 2 min hacia atrás por si alguna transacción se confirmó tarde
 
@@ -170,7 +170,10 @@ async function conciliar() {
   const pendientes = await idsPendientes();
   const sobrantes = (await db.eventos.where('inicio').aboveOrEqual(limite).primaryKeys())
     .filter((id) => !enServidor.has(id) && !pendientes.has(id));
-  if (sobrantes.length) await db.eventos.bulkDelete(sobrantes);
+  if (sobrantes.length) {
+    await db.eventos.bulkDelete(sobrantes);
+    await db.intenciones.where('evento_id').anyOf(sobrantes).delete(); // se borran en cascada en el servidor
+  }
 }
 
 /** Una vez al día pide al servidor que genere las misas fijas de los próximos 90 días. */
@@ -242,7 +245,7 @@ export function iniciarSync(usuarioId: string, alNotificar: (n: Notificacion) =>
   conciliarPendiente = true;
 
   const canal = supabase.channel('agenda');
-  for (const tabla of ['perfiles', 'lugares', 'misas_fijas', 'eventos', 'conflictos']) {
+  for (const tabla of ['perfiles', 'lugares', 'misas_fijas', 'eventos', 'conflictos', 'intenciones']) {
     canal.on('postgres_changes', { event: '*', schema: 'public', table: tabla },
       (p) => void aplicarCambio(tabla, p as unknown as Cambio));
   }

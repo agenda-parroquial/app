@@ -12,6 +12,8 @@ interface Props {
   evento?: Evento;
   fecha: string; // día sugerido para un evento nuevo
   onCerrar: () => void;
+  /** Abre el editor de intenciones. Solo se pasa si el usuario puede editarlas (secretaria, o quien celebra). */
+  onIntenciones?: () => void;
 }
 
 const minutos = (h: string) => {
@@ -20,7 +22,7 @@ const minutos = (h: string) => {
 };
 const limpio = (s: string) => s.trim() || null;
 
-export function EventoForm({ evento, fecha, onCerrar }: Props) {
+export function EventoForm({ evento, fecha, onCerrar, onIntenciones }: Props) {
   const lugares = useLugares();
   const perfiles = usePerfiles();
   const sacerdotes = useMemo(() => perfiles.filter((p) => p.activo && esSacerdote(p)), [perfiles]);
@@ -166,8 +168,19 @@ export function EventoForm({ evento, fecha, onCerrar }: Props) {
           {sacerdotes.map((p) => <option key={p.id} value={p.id}>{p.nombre || p.email}</option>)}
         </select>
 
-        <label htmlFor="intencion">Intención o motivo</label>
-        <textarea id="intencion" value={intencion} onChange={(e) => setIntencion(e.target.value)} placeholder="Ej.: Por el eterno descanso de Don Pedro" />
+        <label htmlFor="intencion">Motivo (resumen corto)</label>
+        <textarea id="intencion" value={intencion} onChange={(e) => setIntencion(e.target.value)} placeholder="Ej.: Misa de XV años de Sofía" />
+        {!evento ? (
+          <p className="ayuda" style={{ marginBottom: 0 }}>Después de guardar podrás agregar las intenciones: difuntos, acción de gracias y salud.</p>
+        ) : onIntenciones ? (
+          <button type="button" className="btn sec ancho" style={{ marginTop: 8 }} onClick={onIntenciones}>
+            🙏 Agregar o editar intenciones (difuntos, acción de gracias, salud)
+          </button>
+        ) : (
+          <p className="ayuda" style={{ marginBottom: 0 }}>
+            Las intenciones las agrega la secretaria o quien celebra esta misa. Las puedes ver con el botón 🙏 de la tarjeta.
+          </p>
+        )}
 
         <div className="dos">
           <div>

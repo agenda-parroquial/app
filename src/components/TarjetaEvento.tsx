@@ -7,13 +7,16 @@ interface Props {
   perfiles: Perfil[];
   sinEnviar: boolean;
   onClick?: () => void;
+  /** Si se pasa, la tarjeta muestra el botón de intenciones con su cantidad. */
+  onIntenciones?: () => void;
+  nIntenciones?: number;
   children?: React.ReactNode;
 }
 
 export const nombreLugar = (e: Evento, lugares: Lugar[]) =>
   (e.lugar_id && lugares.find((l) => l.id === e.lugar_id)?.nombre) || e.lugar_texto || 'Sin lugar';
 
-export function TarjetaEvento({ evento: e, lugares, perfiles, sinEnviar, onClick, children }: Props) {
+export function TarjetaEvento({ evento: e, lugares, perfiles, sinEnviar, onClick, onIntenciones, nIntenciones = 0, children }: Props) {
   const asignado = e.asignado_a ? perfiles.find((p) => p.id === e.asignado_a)?.nombre : null;
   const clases = ['tarjeta', e.misa_fija_id ? 'fija' : '', e.estado === 'en_conflicto' ? 'conflicto' : '', e.estado === 'cancelado' ? 'cancelado' : '']
     .filter(Boolean).join(' ');
@@ -41,6 +44,14 @@ export function TarjetaEvento({ evento: e, lugares, perfiles, sinEnviar, onClick
           {e.estado === 'cancelado' && <span className="etq cancelado">CANCELADO</span>}
           {sinEnviar && <span className="etq pendiente">Sin enviar</span>}
         </div>
+      )}
+      {onIntenciones && e.estado !== 'cancelado' && (
+        <button
+          className={`btn chico ${nIntenciones ? '' : 'sec'}`} style={{ marginTop: 10 }}
+          onClick={(ev) => { ev.stopPropagation(); onIntenciones(); }}
+        >
+          🙏 Intenciones{nIntenciones ? ` (${nIntenciones})` : ''}
+        </button>
       )}
       {children}
     </div>
