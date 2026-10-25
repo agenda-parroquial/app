@@ -88,7 +88,14 @@ input, select, textarea {
 }
 textarea { min-height: 84px; resize: vertical; }
 input:focus, select:focus, textarea:focus { outline: 3px solid rgba(201,162,75,.55); border-color: var(--vino); }
-.dos { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.dos { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 10px; }
+.dos > div { min-width: 0; }
+/* Safari de iPhone da a los campos de fecha/hora un ancho propio que desborda la columna. */
+input[type='date'], input[type='time'] {
+  min-width: 0; max-width: 100%; display: block;
+  -webkit-appearance: none; appearance: none; text-align: left;
+}
+input[type='date']::-webkit-date-and-time-value, input[type='time']::-webkit-date-and-time-value { text-align: left; }
 .check { display: flex; gap: 10px; align-items: center; margin-top: 14px; font-weight: 500; }
 .check input { width: 24px; min-height: 24px; height: 24px; }
 

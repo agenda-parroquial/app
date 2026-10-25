@@ -1,13 +1,26 @@
 import { useState, type FormEvent } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '../lib/db';
-import { hhmm } from '../lib/fechas';
+import { deClave, diaBreve, hhmm, proximasFechas, proximoDia } from '../lib/fechas';
 import { useLugares, usePerfiles } from '../lib/hooks';
 import { guardarMisaFija } from '../lib/store';
 import { DIAS, esSacerdote, puedeEditarCatalogos, type MisaFija, type Perfil } from '../types';
 
 const DURACIONES = [30, 45, 60, 75, 90, 120];
+const FRECUENCIAS: Record<number, string> = {
+  1: 'Todas las semanas',
+  2: 'Cada 2 semanas (una sí, una no)',
+  3: 'Cada 3 semanas',
+  4: 'Cada 4 semanas',
+};
 const SIN_MISAS: MisaFija[] = [];
+
+/** Texto corto de la frecuencia para la lista: «Cada 2 semanas · próx. dom, 8 nov». */
+const textoFrecuencia = (m: MisaFija) => {
+  const cada = m.cada_semanas ?? 1;
+  if (cada <= 1 || !m.desde) return '';
+  return `Cada ${cada} semanas · próx. ${diaBreve(proximasFechas(m.desde, cada, 1)[0])}`;
+};
 
 function FormMisa({ misa, onCerrar }: { misa?: MisaFija; onCerrar: () => void }) {
   const lugares = useLugares().filter((l) => l.activo || l.id === misa?.lugar_id);
@@ -19,11 +32,26 @@ function FormMisa({ misa, onCerrar }: { misa?: MisaFija; onCerrar: () => void })
   const [asignado, setAsignado] = useState(misa?.asignado_a ?? '');
   const [intencion, setIntencion] = useState(misa?.intencion ?? '');
   const [activo, setActivo] = useState(misa?.activo ?? true);
+  const [cada, setCada] = useState(misa?.cada_semanas ?? 1);
+  const [desde, setDesde] = useState(misa?.desde ?? proximoDia(misa?.dia_semana ?? 0));
+
+  // Con frecuencia alterna, la fecha de inicio manda: el día de la semana sale de ella.
+  function cambiarDia(d: number) {
+    setDia(d);
+    setDesde(proximoDia(d));
+  }
+  function cambiarDesde(f: string) {
+    setDesde(f);
+    if (f) setDia(deClave(f).getDay());
+  }
 
   async function guardar(e: FormEvent) {
     e.preventDefault();
     await guardarMisaFija(
-      { dia_semana: dia, hora, duracion_min: duracion, lugar_id: lugarId, asignado_a: asignado || null, intencion: intencion.trim() || null, activo },
+      {
+        dia_semana: dia, hora, duracion_min: duracion, lugar_id: lugarId, asignado_a: asignado || null,
+        intencion: intencion.trim() || null, activo, cada_semanas: cada, desde: cada > 1 ? desde : null,
+      },
       misa?.id,
     );
     onCerrar();
@@ -37,9 +65,33 @@ function FormMisa({ misa, onCerrar }: { misa?: MisaFija; onCerrar: () => void })
           <button type="button" onClick={onCerrar} aria-label="Cerrar">×</button>
         </div>
         <label htmlFor="md">Día de la semana</label>
-        <select id="md" value={dia} onChange={(e) => setDia(Number(e.target.value))}>
+        <select id="md" value={dia} onChange={(e) => cambiarDia(Number(e.target.value))}>
           {DIAS.map((d, i) => <option key={d} value={i}>{d}</option>)}
         </select>
+
+        <label htmlFor="mf">Frecuencia</label>
+        <select
+          id="mf" value={cada}
+          onChange={(e) => {
+            const n = Number(e.target.value);
+            setCada(n);
+            if (n > 1 && !desde) setDesde(proximoDia(dia));
+          }}
+        >
+          {Object.entries(FRECUENCIAS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+        </select>
+        {cada > 1 && (
+          <>
+            <label htmlFor="ms">Primera fecha en que se celebra</label>
+            <input id="ms" type="date" value={desde} onChange={(e) => cambiarDesde(e.target.value)} required />
+            {desde && (
+              <p className="ayuda" style={{ marginBottom: 0 }}>
+                Se celebrará: <b>{proximasFechas(desde, cada, 4).map(diaBreve).join(' · ')}</b>…<br />
+                {cada === 2 && 'Para alternar con otra misa a la misma hora, crea la otra con la fecha de inicio una semana después.'}
+              </p>
+            )}
+          </>
+        )}
         <div className="dos">
           <div>
             <label htmlFor="mh">Hora</label>
@@ -112,6 +164,7 @@ export function MisasFijas({ perfil }: { perfil: Perfil }) {
                   <div>
                     <b>{hhmm(m.hora)}</b> · {lugares.find((l) => l.id === m.lugar_id)?.nombre ?? '—'}{!m.activo && ' (inactiva)'}
                     <div className="ayuda">
+                      {textoFrecuencia(m) && <b>{textoFrecuencia(m)} · </b>}
                       {m.duracion_min} min
                       {m.asignado_a ? ` · ${perfiles.find((p) => p.id === m.asignado_a)?.nombre ?? ''}` : ''}
                       {m.intencion ? ` · ${m.intencion}` : ''}

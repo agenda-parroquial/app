@@ -5,7 +5,7 @@ App web instalable (PWA) para llevar la agenda de la parroquia entre la secretar
 - **Funciona sin internet** en el teléfono y en la PC: se puede abrir, consultar y agregar eventos. Al volver la señal se sincroniza sola.
 - **Avisos al instante** cuando alguien agrega, cambia o cancela algo (con la app abierta y con internet).
 - **Detección de empalmes:** si dos eventos coinciden en horario y lugar (o con el mismo sacerdote), ambos se marcan en conflicto y se avisa a todos para resolverlo.
-- **Misas fijas** semanales que aparecen solas en la agenda.
+- **Misas fijas** que aparecen solas en la agenda: todas las semanas o **alternas** (una sí, una no; también cada 3 o 4 semanas). Para dos misas que se turnan a la misma hora, se crean dos con «Cada 2 semanas» y fechas de inicio con una semana de diferencia.
 - **Roles:** párroco, secretaria y vicario; el párroco aprueba las cuentas.
 
 Tecnología: React + Vite (PWA) · Dexie/IndexedDB (copia local) · Supabase (base de datos, usuarios y tiempo real) · Netlify (hosting).
@@ -84,7 +84,8 @@ La regla de empalme: se cruzan en el tiempo **y** comparten lugar (de la lista) 
 ## Estructura
 
 ```
-supabase/schema.sql        tablas, roles, seguridad, detección de empalmes, misas fijas
+supabase/schema.sql        tablas, roles, seguridad, detección de empalmes, misas fijas (instalación nueva)
+supabase/migrations/       cambios para bases ya creadas (ejecutar en orden en el SQL Editor)
 src/lib/db.ts              copia local (Dexie)
 src/lib/store.ts           escrituras "local primero" + cola de cambios pendientes
 src/lib/sync.ts            enviar pendientes, traer cambios, tiempo real

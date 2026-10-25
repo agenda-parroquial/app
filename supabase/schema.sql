@@ -55,8 +55,15 @@ create table misas_fijas (
   asignado_a   uuid references perfiles (id),
   intencion    text,
   activo       boolean not null default true,
+  -- Frecuencia: 1 = todas las semanas; 2 = una sí y una no (alternas), etc.
+  -- Con más de 1 se indica "desde": la primera fecha en que se celebra
+  -- (debe caer en el día de la semana de la misa).
+  cada_semanas smallint not null default 1 check (cada_semanas between 1 and 8),
+  desde        date,
   created_at   timestamptz not null default now(),
-  updated_at   timestamptz not null default now()
+  updated_at   timestamptz not null default now(),
+  constraint misas_fijas_alterna_ok check (
+    cada_semanas = 1 or (desde is not null and extract(dow from desde)::int = dia_semana))
 );
 
 -- ---------- Eventos (la agenda) ---------------------------------------
@@ -219,6 +226,9 @@ begin
   select * into e from eventos where id = p_id;
   if not found then return; end if;
 
+  -- Marca "cambio interno": los updates de más abajo no suben versión ni se reprocesan.
+  perform set_config('agenda.interno', '1', true);
+
   -- 1. Cerrar conflictos abiertos que ya no aplican (cancelado o movido)
   update conflictos c
      set estado = 'resuelto',
@@ -269,6 +279,8 @@ begin
            select 1 from conflictos c
             where c.estado = 'abierto' and x.id in (c.evento_a, c.evento_b))
          then 'en_conflicto'::estado_evento else 'confirmado'::estado_evento end;
+
+  perform set_config('agenda.interno', '', true);
 end $$;
 
 revoke all on function revisar_conflictos(uuid) from public, anon, authenticated;
@@ -302,13 +314,14 @@ begin
     end if;
   else
     new.modificado_por := coalesce(auth.uid(), new.modificado_por);
-    -- Solo las ediciones directas de un usuario suben la versión; los
-    -- cambios automáticos de estado (traslapes) no, para no provocar
-    -- falsos choques de edición en los teléfonos.
-    if pg_trigger_depth() = 1 then
-      new.version := old.version + 1;
-    else
+    -- Solo las ediciones de un usuario suben la versión; los cambios
+    -- automáticos de estado (traslapes) no, para no provocar falsos
+    -- choques de edición en los teléfonos. Esos cambios van marcados con
+    -- 'agenda.interno' (ver revisar_conflictos).
+    if coalesce(current_setting('agenda.interno', true), '') = '1' then
       new.version := old.version;
+    else
+      new.version := old.version + 1;
     end if;
   end if;
   return new;
@@ -319,7 +332,8 @@ create trigger eventos_antes before insert or update on eventos
 create function trg_eventos_despues() returns trigger
 language plpgsql security definer set search_path = public as $$
 begin
-  if pg_trigger_depth() > 1 then return null; end if;   -- cambios internos
+  -- Los cambios de estado que hace el propio recalculo de conflictos no se reprocesan.
+  if coalesce(current_setting('agenda.interno', true), '') = '1' then return null; end if;
 
   if tg_op = 'INSERT' then
     if new.misa_fija_id is null then
@@ -348,6 +362,7 @@ create trigger eventos_despues after insert or update on eventos
 create function trg_eventos_borrar() returns trigger
 language plpgsql security definer set search_path = public as $$
 begin
+  perform set_config('agenda.interno', '1', true);
   update eventos x set estado = 'confirmado'
    where x.estado = 'en_conflicto'
      and x.id in (
@@ -357,6 +372,7 @@ begin
        select 1 from conflictos c2
         where c2.estado = 'abierto' and x.id in (c2.evento_a, c2.evento_b)
           and old.id not in (c2.evento_a, c2.evento_b));
+  perform set_config('agenda.interno', '', true);
   return old;
 end $$;
 create trigger eventos_borrar before delete on eventos
@@ -382,6 +398,8 @@ begin
            ((now() at time zone tz)::date + p_dias)::timestamp,
            interval '1 day') d
    where m.activo and extract(dow from d) = m.dia_semana
+     and (m.cada_semanas = 1
+          or (d::date >= m.desde and ((d::date - m.desde) / 7) % m.cada_semanas = 0))
   on conflict (misa_fija_id, fecha_origen) where misa_fija_id is not null do nothing;
   get diagnostics n = row_count;
   return n;

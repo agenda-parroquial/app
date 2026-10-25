@@ -34,6 +34,8 @@ export interface MisaFija {
   asignado_a: string | null;
   intencion: string | null;
   activo: boolean;
+  cada_semanas: number; // 1 = todas las semanas; 2 = una sí y una no...
+  desde: string | null; // 'YYYY-MM-DD': primera fecha (obligatoria si cada_semanas > 1)
   created_at: string;
   updated_at: string;
 }

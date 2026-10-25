@@ -34,5 +34,21 @@ export const mesAnio = (d: Date) => d.toLocaleDateString('es', { month: 'long', 
 export const fechaHoraCorta = (iso: string) =>
   new Date(iso).toLocaleString('es', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
 
+/** Primer día (hoy incluido) que cae en ese día de la semana (0 = domingo). */
+export const proximoDia = (dow: number, hoy = new Date()) => claveDia(sumarDias(hoy, (dow - hoy.getDay() + 7) % 7));
+
+/** Próximas `n` fechas (desde hoy) de una serie que se repite cada `cada` semanas a partir de `desde`. */
+export function proximasFechas(desde: string, cada: number, n: number, hoy = new Date()): string[] {
+  let d = deClave(desde);
+  const inicio = new Date(hoy.getFullYear(), hoy.getMonth(), hoy.getDate());
+  const paso = Math.max(cada, 1) * 7;
+  if (d < inicio) d = sumarDias(d, Math.ceil((inicio.getTime() - d.getTime()) / 86_400_000 / paso) * paso);
+  return Array.from({ length: n }, (_, i) => claveDia(sumarDias(d, i * paso)));
+}
+
+/** 'dom, 8 nov' */
+export const diaBreve = (k: string) =>
+  deClave(k).toLocaleDateString('es', { weekday: 'short', day: 'numeric', month: 'short' }).replace('.', '');
+
 /** 'HH:MM:SS' (columna time de Postgres) → 'HH:MM' */
 export const hhmm = (t: string) => t.slice(0, 5);
