@@ -32,10 +32,13 @@ npm run dev
 ## 3. Publicarla en Netlify (gratis)
 
 1. Sube esta carpeta a un repositorio de GitHub (el archivo `.env` **no** se sube).
-2. En <https://netlify.com> → **Add new site → Import from Git** y elige el repositorio. La configuración de compilación ya viene en `netlify.toml`.
-3. **Site configuration → Environment variables**: agrega `VITE_SUPABASE_URL` y `VITE_SUPABASE_ANON_KEY` con los mismos valores del `.env`.
-4. Despliega. Netlify te da una dirección tipo `https://agenda-parroquia.netlify.app` (puedes cambiar el nombre en *Domain management*).
-5. En Supabase → **Authentication → URL Configuration**, pon esa dirección en **Site URL**.
+   - **Importante:** Netlify solo despliega gratis un repositorio *privado* si es de una cuenta personal. Si el repositorio es de una **organización**, debe ser **público** (aquí no hay secretos: las claves van como variables de entorno) o hay que pagar el plan Pro.
+2. En <https://netlify.com> → **Add new project → Import from Git** y elige el repositorio. Si es de una organización, primero instala la app de Netlify en esa organización desde GitHub. La configuración de compilación ya viene en `netlify.toml`.
+3. En la misma pantalla, **Environment variables**: agrega `VITE_SUPABASE_URL` y `VITE_SUPABASE_ANON_KEY` con los mismos valores del `.env`.
+4. Despliega. Cada cambio que se suba a la rama `main` se publica solo.
+5. Opcional: en Supabase → **Authentication → URL Configuration**, pon la dirección del sitio en **Site URL**. Hoy la app no envía correos, así que solo importará si más adelante agregas recuperación de contraseña.
+
+**Sitio actual:** <https://agenda-parroquial.netlify.app> · **Código:** <https://github.com/agenda-parroquial/app>
 
 ## 4. Primer uso
 
