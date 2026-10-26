@@ -8,7 +8,11 @@ App web instalable (PWA) para llevar la agenda de la parroquia entre la secretar
 - **Misas fijas** que aparecen solas en la agenda: todas las semanas o **alternas** (una sí, una no; también cada 3 o 4 semanas). Para dos misas que se turnan a la misma hora, se crean dos con «Cada 2 semanas» y fechas de inicio con una semana de diferencia.
 - **Intenciones de cada misa o evento:** el botón **🙏 Intenciones** de cada tarjeta muestra la lista (por los difuntos, acción de gracias y por la salud de) **en solo lectura**, con opción de copiarla para leerla. Se capturan, editan y quitan desde **Editar evento**, una por línea, y solo puede hacerlo la secretaria (en todas las misas) o el párroco/vicario en las misas que tienen asignadas. Funciona sin internet.
 - **Avisos push:** llegan al teléfono aunque la app esté cerrada (ver «Avisos push» más abajo).
-- **Roles:** párroco, secretaria y vicario; el párroco aprueba las cuentas.
+- **Avisos parroquiales:** la pestaña **📣 Avisos** muestra los anuncios para la comunidad, los que se leen en misa. Cada aviso tiene título, texto y fechas de vigencia; los vigentes se pueden copiar de un solo toque para leerlos. Los crean y editan el párroco y la secretaria, y al crearlos se puede avisar a todos con una notificación.
+- **Ajustes:** nombre propio, notificaciones del teléfono, lugares, misas fijas, tipos de evento y, para el párroco, usuarios e invitaciones.
+- **Tipo de evento a tu medida:** al elegir **«Otro»** se escribe el tipo; si se marca «Guardar este tipo», queda en la lista para la próxima vez, y si no, solo se usa para ese evento.
+- **Quién creó cada evento:** cada persona tiene su nombre y las tarjetas muestran «Creado por …». El celebrante de cada evento es quien lo atiende.
+- **Roles:** párroco, secretaria y vicario; el párroco aprueba las cuentas o invita a las personas con un código.
 
 Tecnología: React + Vite (PWA) · Dexie/IndexedDB (copia local) · Supabase (base de datos, usuarios y tiempo real) · Netlify (hosting).
 
@@ -46,10 +50,10 @@ npm run dev
 
 Para que los avisos lleguen con la app cerrada hace falta una función en Supabase:
 
-1. **Edge Functions → Deploy a new function → Via Editor.** Ponle el nombre **`enviar-push`**, pega el contenido de [`supabase/functions/enviar-push/index.ts`](supabase/functions/enviar-push/index.ts) y pulsa **Deploy function**.
+1. **Edge Functions → Deploy a new function → Via Editor.** (Si la función ya existe, abre `enviar-push` → Code, pega el contenido nuevo y pulsa **Deploy updates**; después revisa que «Verify JWT with legacy secret» siga apagado.) Ponle el nombre **`enviar-push`**, pega el contenido de [`supabase/functions/enviar-push/index.ts`](supabase/functions/enviar-push/index.ts) y pulsa **Deploy function**.
 2. En la pestaña **Settings** de esa función, apaga **«Verify JWT with legacy secret»** y guarda. (Quien la llama —la base de datos y el navegador— no envía JWT; la función se protege con un secreto compartido que la base de datos genera sola.)
 3. Si instalaste con `schema.sql`, cambia en la tabla `config` el valor de `funciones_url` por la dirección de tu proyecto (`https://TU-PROYECTO.supabase.co/functions/v1`). Con la migración ya viene puesta.
-4. Cada persona abre la app, va a **Avisos** y pulsa **Activar avisos** (en iPhone, antes hay que instalar la app en la pantalla de inicio: iOS 16.4 o superior). El botón **«Mandarme un aviso de prueba»** comprueba que todo funciona.
+4. Cada persona abre la app, va a **Ajustes → Notificaciones en este teléfono** y pulsa **Activar notificaciones** (en iPhone, antes hay que instalar la app en la pantalla de inicio: iOS 16.4 o superior). El botón **«Mandarme una notificación de prueba»** comprueba que todo funciona.
 
 Las claves del servicio de avisos (VAPID) se generan solas la primera vez y se guardan en la tabla `push_config`, que ningún usuario puede leer. Para no saturar, si llegan varios avisos del mismo tipo en menos de 20 segundos solo se envía el primero al teléfono; el resto se ve dentro de la app.
 
@@ -58,7 +62,7 @@ Las claves del servicio de avisos (VAPID) se generan solas la primera vez y se g
 1. **El párroco se registra primero** desde la dirección de Netlify. El primer usuario que se registra queda automáticamente como párroco y con acceso.
 2. En **Más → Lugares** agrega la parroquia, las capillas y la oficina.
 3. En **Más → Misas fijas** agrega los horarios semanales.
-4. La secretaria y el vicario se registran ellos mismos; el párroco los aprueba en **Más → Usuarios** y les asigna su rol.
+4. Para sumar a la secretaria o al vicario, el párroco va a **Ajustes → Usuarios e invitaciones**, escribe su nombre, correo y rol y pulsa **Crear invitación**. La app genera un código y un mensaje listo para mandar por WhatsApp. La persona abre la app, toca **«No tengo cuenta · Registrarme»**, usa ese mismo correo, el código y elige su contraseña; entra directo, ya con su rol. Quien se registra sin código queda pendiente hasta que el párroco la apruebe en la misma pantalla.
 
 | | Párroco | Secretaria | Vicario |
 |---|:-:|:-:|:-:|
@@ -67,6 +71,11 @@ Las claves del servicio de avisos (VAPID) se generan solas la primera vez y se g
 | Ver las intenciones de cualquier evento | ✔ | ✔ | ✔ |
 | Capturar o editar intenciones | solo en sus misas | en todas | solo en sus misas |
 | Lugares y misas fijas | ✔ | ✔ | solo ver |
+| Avisos parroquiales: ver | ✔ | ✔ | ✔ |
+| Avisos parroquiales: crear y editar | ✔ | ✔ | — |
+| Tipos de evento guardados: crear | ✔ | ✔ | ✔ |
+| Tipos de evento guardados: quitar | ✔ | ✔ | — |
+| Invitar usuarios | ✔ | — | — |
 | Aprobar cuentas y asignar roles | ✔ | — | — |
 
 ## 5. Instalar en el teléfono

@@ -116,7 +116,9 @@ async function enviarPendientes() {
 // ---------------------------------------------------------------------
 //  2. Traer del servidor lo que cambió
 // ---------------------------------------------------------------------
-const INCREMENTALES = ['perfiles', 'lugares', 'misas_fijas', 'eventos', 'conflictos', 'intenciones'] as const;
+const INCREMENTALES = [
+  'perfiles', 'lugares', 'misas_fijas', 'tipos_evento', 'avisos_parroquiales', 'eventos', 'conflictos', 'intenciones',
+] as const;
 const PAGINA = 1000;
 const MARGEN_MS = 120_000; // se vuelve a pedir 2 min hacia atrás por si alguna transacción se confirmó tarde
 
@@ -245,7 +247,7 @@ export function iniciarSync(usuarioId: string, alNotificar: (n: Notificacion) =>
   conciliarPendiente = true;
 
   const canal = supabase.channel('agenda');
-  for (const tabla of ['perfiles', 'lugares', 'misas_fijas', 'eventos', 'conflictos', 'intenciones']) {
+  for (const tabla of ['perfiles', 'lugares', 'misas_fijas', 'tipos_evento', 'avisos_parroquiales', 'eventos', 'conflictos', 'intenciones']) {
     canal.on('postgres_changes', { event: '*', schema: 'public', table: tabla },
       (p) => void aplicarCambio(tabla, p as unknown as Cambio));
   }

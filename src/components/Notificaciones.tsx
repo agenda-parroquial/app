@@ -10,12 +10,13 @@ export async function abrirNotificacion(n: Notificacion) {
   await marcarLeida(n.id);
   if (n.tipo === 'prueba') return;
   if (n.tipo === 'conflicto') return ir('conflictos');
+  if (n.tipo === 'aviso_parroquial') return ir('parroquiales');
   const e = n.evento_id ? await db.eventos.get(n.evento_id) : undefined;
   ir(e ? `agenda/${fechaDe(e.inicio)}/${e.id}` : 'agenda');
 }
 
 const ICONO: Record<Notificacion['tipo'], string> = {
-  evento_nuevo: '🆕', evento_editado: '✏️', evento_cancelado: '🚫', conflicto: '⚠️', prueba: '🔔',
+  evento_nuevo: '🆕', evento_editado: '✏️', evento_cancelado: '🚫', conflicto: '⚠️', aviso_parroquial: '📣', prueba: '🔔',
 };
 const SIN_NOTIFICACIONES: Notificacion[] = [];
 
@@ -25,7 +26,7 @@ export function Notificaciones({ usuarioId }: { usuarioId: string }) {
   return (
     <>
       <div className="fila entre" style={{ marginBottom: 12 }}>
-        <h2>Avisos</h2>
+        <h2>Notificaciones</h2>
         {lista.some((n) => !n.leida) && (
           <button className="btn sec chico" onClick={() => void marcarTodasLeidas(usuarioId)}>Marcar todo como leído</button>
         )}
@@ -33,7 +34,7 @@ export function Notificaciones({ usuarioId }: { usuarioId: string }) {
 
       <AvisosPush />
 
-      {lista.length === 0 && <div className="vacio">Todavía no hay avisos.</div>}
+      {lista.length === 0 && <div className="vacio">Todavía no hay notificaciones.</div>}
       <div className="lista">
         {lista.map((n) => (
           <div key={n.id} className={`item clic ${n.leida ? '' : 'noleida'}`} onClick={() => void abrirNotificacion(n)}>

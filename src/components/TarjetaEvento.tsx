@@ -1,5 +1,5 @@
 import { horaDe } from '../lib/fechas';
-import { TIPOS_EVENTO, type Evento, type Lugar, type Perfil } from '../types';
+import { nombrePerfil, nombreTipo, type Evento, type Lugar, type Perfil } from '../types';
 
 interface Props {
   evento: Evento;
@@ -17,16 +17,18 @@ export const nombreLugar = (e: Evento, lugares: Lugar[]) =>
   (e.lugar_id && lugares.find((l) => l.id === e.lugar_id)?.nombre) || e.lugar_texto || 'Sin lugar';
 
 export function TarjetaEvento({ evento: e, lugares, perfiles, sinEnviar, onClick, onIntenciones, nIntenciones = 0, children }: Props) {
-  const asignado = e.asignado_a ? perfiles.find((p) => p.id === e.asignado_a)?.nombre : null;
+  const celebrante = e.asignado_a ? nombrePerfil(perfiles.find((p) => p.id === e.asignado_a)) : null;
+  const creador = !e.misa_fija_id && e.creado_por ? nombrePerfil(perfiles.find((p) => p.id === e.creado_por)) : null;
+  const tipo = nombreTipo(e);
   const clases = ['tarjeta', e.misa_fija_id ? 'fija' : '', e.estado === 'en_conflicto' ? 'conflicto' : '', e.estado === 'cancelado' ? 'cancelado' : '']
     .filter(Boolean).join(' ');
 
   return (
     <div className={clases} onClick={onClick}>
       <div className="hora">{horaDe(e.inicio)} – {horaDe(e.fin)}</div>
-      <div className="titulo">{e.titulo || TIPOS_EVENTO[e.tipo]}{e.titulo ? ` · ${TIPOS_EVENTO[e.tipo]}` : ''}</div>
+      <div className="titulo">{e.titulo || tipo}{e.titulo ? ` · ${tipo}` : ''}</div>
       {e.intencion && <div className="meta">🙏 {e.intencion}</div>}
-      <div className="meta">📍 {nombreLugar(e, lugares)}{asignado ? ` · ${asignado}` : ''}</div>
+      <div className="meta">📍 {nombreLugar(e, lugares)}{celebrante ? ` · Celebrante: ${celebrante}` : ''}</div>
       {(e.contacto_nombre || e.contacto_telefono) && (
         <div className="meta">
           👤 {e.contacto_nombre}
@@ -38,6 +40,7 @@ export function TarjetaEvento({ evento: e, lugares, perfiles, sinEnviar, onClick
           )}
         </div>
       )}
+      {creador && <div className="meta">✍️ Creado por {creador}</div>}
       {(e.estado !== 'confirmado' || sinEnviar) && (
         <div className="etiquetas">
           {e.estado === 'en_conflicto' && <span className="etq conflicto">EN CONFLICTO</span>}

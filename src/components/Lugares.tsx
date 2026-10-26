@@ -2,6 +2,7 @@ import { useState, type FormEvent } from 'react';
 import { useLugares } from '../lib/hooks';
 import { guardarLugar } from '../lib/store';
 import { puedeEditarCatalogos, TIPOS_LUGAR, type Lugar, type Perfil, type TipoLugar } from '../types';
+import { VolverAjustes } from './VolverAjustes';
 
 function FormLugar({ lugar, onCerrar }: { lugar?: Lugar; onCerrar: () => void }) {
   const [nombre, setNombre] = useState(lugar?.nombre ?? '');
@@ -53,6 +54,7 @@ export function Lugares({ perfil }: { perfil: Perfil }) {
 
   return (
     <>
+      <VolverAjustes />
       <div className="fila entre" style={{ marginBottom: 12 }}>
         <h2>Lugares</h2>
         {puede && <button className="btn" onClick={() => setEditando('nuevo')}>+ Agregar</button>}

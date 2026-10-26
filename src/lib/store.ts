@@ -1,7 +1,10 @@
 import { db } from './db';
 import { supabase } from './supabase';
 import { sincronizar } from './sync';
-import type { DatosEvento, Evento, Intencion, Lugar, MisaFija, OpPendiente, Perfil, Tabla } from '../types';
+import type {
+  AvisoParroquial, DatosEvento, Evento, Intencion, Invitacion, Lugar, MisaFija, OpPendiente, Perfil, Rol, Tabla,
+  TipoEventoGuardado,
+} from '../types';
 
 /**
  * Operaciones de escritura "local primero": se aplican de inmediato en la
@@ -82,6 +85,15 @@ export const guardarIntencion = (datos: Partial<Intencion>, id?: string) =>
 /** Quitar = desactivar (queda en la base de datos, pero ya no se muestra). */
 export const quitarIntencion = (id: string) => guardarIntencion({ activa: false }, id);
 
+// ---------- Tipos de evento guardados y avisos parroquiales ------------
+export const guardarTipoEvento = (datos: Partial<TipoEventoGuardado>, id?: string) =>
+  guardarCatalogo<TipoEventoGuardado>('tipos_evento', datos, id);
+
+export const guardarAviso = (datos: Partial<AvisoParroquial>, id?: string) =>
+  guardarCatalogo<AvisoParroquial>('avisos_parroquiales', datos, id);
+/** Quitar = desactivar (queda en la base de datos, pero ya no se muestra). */
+export const quitarAviso = (id: string) => guardarAviso({ activo: false }, id);
+
 // ---------- Choques de edición ----------------------------------------
 /** "Conservar la mía": se vuelve a intentar sobre la versión actual del servidor. */
 export async function conservarMiVersion(op: OpPendiente) {
@@ -123,6 +135,35 @@ export async function actualizarPerfil(id: string, cambios: Partial<Pick<Perfil,
   const { data, error } = await supabase.from('perfiles').update(cambios).eq('id', id).select().single();
   if (error) throw error;
   await db.perfiles.put(data as Perfil);
+}
+
+/** Cada quien pone su propio nombre (el que aparece como «creado por»). */
+export async function actualizarMiNombre(nombre: string) {
+  const limpio = nombre.trim();
+  const { error } = await supabase.rpc('actualizar_mi_nombre', { p_nombre: limpio });
+  if (error) throw error;
+  const id = (await db.meta.get('usuarioId'))?.value as string | undefined;
+  if (id) await db.perfiles.update(id, { nombre: limpio });
+}
+
+// ---------- Invitaciones (solo el párroco; requieren internet) --------------
+export async function invitarUsuario(d: { email: string; nombre: string; rol: Rol }): Promise<Invitacion> {
+  const { data, error } = await supabase
+    .from('invitaciones').insert({ email: d.email.trim(), nombre: d.nombre.trim(), rol: d.rol }).select().single();
+  if (error) throw error;
+  return data as Invitacion;
+}
+
+export async function listarInvitaciones(): Promise<Invitacion[]> {
+  const { data, error } = await supabase
+    .from('invitaciones').select('*').eq('activa', true).is('usada_por', null).order('created_at', { ascending: false });
+  if (error) throw error;
+  return data as Invitacion[];
+}
+
+export async function cancelarInvitacion(id: string) {
+  const { error } = await supabase.from('invitaciones').update({ activa: false }).eq('id', id);
+  if (error) throw error;
 }
 
 // Las consultas de supabase-js no se envían hasta que se les hace await/then.

@@ -40,9 +40,45 @@ export interface MisaFija {
   updated_at: string;
 }
 
+/** Invitación del párroco: nombre, correo y rol; la persona se registra con el código. */
+export interface Invitacion {
+  id: string;
+  email: string;
+  nombre: string;
+  rol: Rol;
+  codigo: string;
+  activa: boolean;
+  usada_por: string | null;
+  created_at: string;
+}
+
+/** Tipo de evento que la parroquia creó con «Otro» + guardar. */
+export interface TipoEventoGuardado {
+  id: string;
+  nombre: string;
+  activo: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+/** Aviso parroquial: un anuncio que se lee en misa. */
+export interface AvisoParroquial {
+  id: string;
+  titulo: string;
+  texto: string;
+  desde: string; // 'YYYY-MM-DD'
+  hasta: string | null;
+  notificar: boolean;
+  activo: boolean;
+  creado_por: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface Evento {
   id: string;
   tipo: TipoEvento;
+  tipo_texto: string | null; // nombre del tipo cuando tipo = 'otro'
   titulo: string | null;
   inicio: string; // ISO
   fin: string; // ISO
@@ -77,7 +113,7 @@ export interface Conflicto {
 export interface Notificacion {
   id: string;
   usuario_id: string;
-  tipo: 'evento_nuevo' | 'evento_editado' | 'evento_cancelado' | 'conflicto' | 'prueba';
+  tipo: 'evento_nuevo' | 'evento_editado' | 'evento_cancelado' | 'conflicto' | 'aviso_parroquial' | 'prueba';
   evento_id: string | null;
   conflicto_id: string | null;
   mensaje: string;
@@ -88,7 +124,7 @@ export interface Notificacion {
 /** Campos de un evento que edita el usuario (lo único que viaja al servidor). */
 export type DatosEvento = Pick<
   Evento,
-  | 'tipo' | 'titulo' | 'inicio' | 'fin' | 'lugar_id' | 'lugar_texto' | 'asignado_a'
+  | 'tipo' | 'tipo_texto' | 'titulo' | 'inicio' | 'fin' | 'lugar_id' | 'lugar_texto' | 'asignado_a'
   | 'intencion' | 'contacto_nombre' | 'contacto_telefono' | 'notas'
 >;
 
@@ -105,7 +141,7 @@ export interface Intencion {
   updated_at: string;
 }
 
-export type Tabla = 'eventos' | 'lugares' | 'misas_fijas' | 'intenciones';
+export type Tabla = 'eventos' | 'lugares' | 'misas_fijas' | 'intenciones' | 'tipos_evento' | 'avisos_parroquiales';
 
 /** Un cambio hecho en este dispositivo que aún no llega al servidor. */
 export interface OpPendiente {
@@ -154,6 +190,13 @@ export const DIAS = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Vier
 
 export const puedeEditarCatalogos = (rol: Rol | undefined) => rol === 'parroco' || rol === 'secretaria';
 export const esSacerdote = (p: Perfil) => p.rol === 'parroco' || p.rol === 'vicario';
+
+/** Nombre a mostrar de una persona (si aún no puso el suyo, el inicio de su correo). */
+export const nombrePerfil = (p: Perfil | undefined) => p?.nombre?.trim() || p?.email?.split('@')[0] || 'alguien';
+
+/** Nombre del tipo de un evento: el escrito a mano si es «Otro», o el de la lista. */
+export const nombreTipo = (e: Pick<Evento, 'tipo' | 'tipo_texto'>) =>
+  e.tipo === 'otro' && e.tipo_texto?.trim() ? e.tipo_texto.trim() : TIPOS_EVENTO[e.tipo];
 
 /**
  * Quién captura o edita las intenciones de un evento: la secretaria en todos, y el párroco o

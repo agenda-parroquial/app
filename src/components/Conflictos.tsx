@@ -7,20 +7,20 @@ import { useEstadoSync, esErrorDeRed, mensajeDeError } from '../lib/sync';
 import {
   cancelarEvento, conservarMiVersion, descartarOp, reintentarOp, resolverConflicto, usarVersionServidor,
 } from '../lib/store';
-import { TIPOS_EVENTO, type Evento, type Lugar, type OpPendiente, type Perfil } from '../types';
+import { nombrePerfil, TIPOS_EVENTO, type Evento, type Lugar, type OpPendiente, type Perfil } from '../types';
 import { TarjetaEvento } from './TarjetaEvento';
 
 const ETIQUETAS: Record<string, string> = {
   tipo: 'Tipo', titulo: 'Título', inicio: 'Inicio', fin: 'Fin', lugar_id: 'Lugar', lugar_texto: 'Lugar (texto)',
-  asignado_a: 'Atiende', intencion: 'Intención', contacto_nombre: 'Contacto', contacto_telefono: 'Teléfono',
-  notas: 'Notas', estado: 'Estado',
+  asignado_a: 'Celebrante', intencion: 'Intención', contacto_nombre: 'Contacto', contacto_telefono: 'Teléfono',
+  notas: 'Notas', estado: 'Estado', tipo_texto: 'Tipo (nombre)',
 };
 
 function valor(campo: string, v: unknown, lugares: Lugar[], perfiles: Perfil[]): string {
   if (v === null || v === undefined || v === '') return '—';
   if (campo === 'inicio' || campo === 'fin') return fechaHoraCorta(String(v));
   if (campo === 'lugar_id') return lugares.find((l) => l.id === v)?.nombre ?? '—';
-  if (campo === 'asignado_a') return perfiles.find((p) => p.id === v)?.nombre ?? '—';
+  if (campo === 'asignado_a') return nombrePerfil(perfiles.find((p) => p.id === v));
   if (campo === 'tipo') return TIPOS_EVENTO[v as Evento['tipo']] ?? String(v);
   return String(v);
 }

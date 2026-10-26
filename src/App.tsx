@@ -10,14 +10,16 @@ import { esIPhone, estaInstalada, estadoPush, sincronizarPush } from './lib/push
 import { ir, useContadorConflictos, useNoLeidas, useRuta } from './lib/hooks';
 import type { Notificacion, Perfil } from './types';
 import { Agenda } from './components/Agenda';
+import { Ajustes } from './components/Ajustes';
 import { Conflictos } from './components/Conflictos';
 import { EstadoSync } from './components/EstadoSync';
 import { Login } from './components/Login';
 import { Lugares } from './components/Lugares';
-import { Mas } from './components/Mas';
 import { MisasFijas } from './components/MisasFijas';
 import { abrirNotificacion, Notificaciones } from './components/Notificaciones';
+import { Parroquiales } from './components/Parroquiales';
 import { Pendiente } from './components/Pendiente';
+import { TiposEvento } from './components/TiposEvento';
 import { Usuarios } from './components/Usuarios';
 
 function ConfigFaltante() {
@@ -50,12 +52,13 @@ function BannerActualizacion() {
   );
 }
 
+// (la ruta «avisos» es la de notificaciones; se conserva porque los avisos push ya enviados apuntan a ella)
 const TITULOS: Record<string, string> = {
-  agenda: 'Agenda', conflictos: 'Conflictos', avisos: 'Avisos', mas: 'Más',
-  lugares: 'Lugares', misas: 'Misas fijas', usuarios: 'Usuarios',
+  agenda: 'Agenda', conflictos: 'Conflictos', avisos: 'Notificaciones', parroquiales: 'Avisos',
+  ajustes: 'Ajustes', mas: 'Ajustes', lugares: 'Lugares', misas: 'Misas fijas', tipos: 'Tipos de evento', usuarios: 'Usuarios',
 };
 
-/** Invitación (descartable) a activar los avisos en este teléfono. */
+/** Invitación (descartable) a activar las notificaciones en este teléfono. */
 function InvitacionAvisos() {
   const [ver, setVer] = useState(false);
   useEffect(() => {
@@ -71,7 +74,7 @@ function InvitacionAvisos() {
   };
   return (
     <div className="actualizar" style={{ gap: 8, flexWrap: 'wrap' }}>
-      🔔 Activa los avisos para enterarte al instante
+      🔔 Activa las notificaciones para enterarte al instante
       <button onClick={() => { cerrar(); ir('avisos'); }}>Activar</button>
       <button style={{ background: 'transparent', color: 'inherit', textDecoration: 'underline' }} onClick={cerrar}>Ahora no</button>
     </div>
@@ -117,7 +120,7 @@ function Shell({ perfil }: { perfil: Perfil }) {
     return () => window.clearTimeout(t);
   }, [toast]);
 
-  const enMas = ['mas', 'lugares', 'misas', 'usuarios'].includes(seccion);
+  const enAjustes = ['ajustes', 'mas', 'lugares', 'misas', 'tipos', 'usuarios'].includes(seccion);
 
   return (
     <div className="app">
@@ -125,25 +128,28 @@ function Shell({ perfil }: { perfil: Perfil }) {
       <header className="top">
         <h1>{TITULOS[seccion] ?? 'Agenda'}</h1>
         <EstadoSync />
-        <button onClick={() => ir('avisos')} aria-label="Avisos">
+        <button onClick={() => ir('avisos')} aria-label="Notificaciones">
           🔔{noLeidas > 0 && <span className="contador">{noLeidas}</span>}
         </button>
       </header>
 
       <nav className="tabs">
         <a href="#/agenda" className={seccion === 'agenda' ? 'activa' : ''}><span>📅</span>Agenda</a>
+        <a href="#/parroquiales" className={seccion === 'parroquiales' ? 'activa' : ''}><span>📣</span>Avisos</a>
         <a href="#/conflictos" className={seccion === 'conflictos' ? 'activa' : ''}>
           <span>⚠️</span>Conflictos{conflictos > 0 && <b className="contador">{conflictos}</b>}
         </a>
-        <a href="#/mas" className={enMas ? 'activa' : ''}><span>☰</span>Más</a>
+        <a href="#/ajustes" className={enAjustes ? 'activa' : ''}><span>⚙️</span>Ajustes</a>
       </nav>
 
       <main>
         {seccion === 'conflictos' ? <Conflictos />
           : seccion === 'avisos' ? <Notificaciones usuarioId={perfil.id} />
-          : seccion === 'mas' ? <Mas perfil={perfil} />
+          : seccion === 'parroquiales' ? <Parroquiales perfil={perfil} />
+          : seccion === 'ajustes' || seccion === 'mas' ? <Ajustes perfil={perfil} />
           : seccion === 'lugares' ? <Lugares perfil={perfil} />
           : seccion === 'misas' ? <MisasFijas perfil={perfil} />
+          : seccion === 'tipos' ? <TiposEvento perfil={perfil} />
           : seccion === 'usuarios' && perfil.rol === 'parroco' ? <Usuarios perfil={perfil} />
           : <Agenda ruta={ruta} perfil={perfil} />}
       </main>

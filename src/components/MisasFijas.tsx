@@ -4,7 +4,8 @@ import { db } from '../lib/db';
 import { deClave, diaBreve, hhmm, proximasFechas, proximoDia } from '../lib/fechas';
 import { useLugares, usePerfiles } from '../lib/hooks';
 import { guardarMisaFija } from '../lib/store';
-import { DIAS, esSacerdote, puedeEditarCatalogos, type MisaFija, type Perfil } from '../types';
+import { DIAS, esSacerdote, nombrePerfil, puedeEditarCatalogos, type MisaFija, type Perfil } from '../types';
+import { VolverAjustes } from './VolverAjustes';
 
 const DURACIONES = [30, 45, 60, 75, 90, 120];
 const FRECUENCIAS: Record<number, string> = {
@@ -109,10 +110,10 @@ function FormMisa({ misa, onCerrar }: { misa?: MisaFija; onCerrar: () => void })
           <option value="">— Elegir —</option>
           {lugares.map((l) => <option key={l.id} value={l.id}>{l.nombre}</option>)}
         </select>
-        <label htmlFor="ma">Quién la celebra (opcional)</label>
+        <label htmlFor="ma">Celebrante (opcional)</label>
         <select id="ma" value={asignado} onChange={(e) => setAsignado(e.target.value)}>
           <option value="">Sin asignar</option>
-          {sacerdotes.map((p) => <option key={p.id} value={p.id}>{p.nombre || p.email}</option>)}
+          {sacerdotes.map((p) => <option key={p.id} value={p.id}>{nombrePerfil(p)}</option>)}
         </select>
         <label htmlFor="mi">Intención habitual (opcional)</label>
         <input id="mi" value={intencion} onChange={(e) => setIntencion(e.target.value)} placeholder="Ej.: Por la comunidad" />
@@ -143,6 +144,7 @@ export function MisasFijas({ perfil }: { perfil: Perfil }) {
 
   return (
     <>
+      <VolverAjustes />
       <div className="fila entre" style={{ marginBottom: 12 }}>
         <h2>Misas fijas</h2>
         {puede && <button className="btn" onClick={() => setEditando('nueva')} disabled={!lugares.some((l) => l.activo)}>+ Agregar</button>}
@@ -166,7 +168,7 @@ export function MisasFijas({ perfil }: { perfil: Perfil }) {
                     <div className="ayuda">
                       {textoFrecuencia(m) && <b>{textoFrecuencia(m)} · </b>}
                       {m.duracion_min} min
-                      {m.asignado_a ? ` · ${perfiles.find((p) => p.id === m.asignado_a)?.nombre ?? ''}` : ''}
+                      {m.asignado_a ? ` · Celebrante: ${nombrePerfil(perfiles.find((p) => p.id === m.asignado_a))}` : ''}
                       {m.intencion ? ` · ${m.intencion}` : ''}
                     </div>
                   </div>

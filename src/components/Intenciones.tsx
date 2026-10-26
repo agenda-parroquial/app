@@ -4,7 +4,7 @@ import { db } from '../lib/db';
 import { diaBreve, fechaDe, horaDe } from '../lib/fechas';
 import { useLugares } from '../lib/hooks';
 import { guardarIntencion, quitarIntencion } from '../lib/store';
-import { TIPOS_EVENTO, TIPOS_INTENCION, type Evento, type Intencion, type TipoIntencion } from '../types';
+import { nombreTipo, TIPOS_INTENCION, type Evento, type Intencion, type TipoIntencion } from '../types';
 import { nombreLugar } from './TarjetaEvento';
 
 const SIN_INTENCIONES: Intencion[] = [];
@@ -27,7 +27,7 @@ export function Intenciones({ evento, onCerrar, editable = false }: { evento: Ev
   const [textoEdit, setTextoEdit] = useState('');
   const [copiado, setCopiado] = useState(false);
 
-  const titulo = `${evento.titulo || TIPOS_EVENTO[evento.tipo]} · ${diaBreve(fechaDe(evento.inicio))} · ${horaDe(evento.inicio)}`;
+  const titulo = `${evento.titulo || nombreTipo(evento)} ·${diaBreve(fechaDe(evento.inicio))} · ${horaDe(evento.inicio)}`;
 
   async function agregar(e: FormEvent) {
     e.preventDefault();

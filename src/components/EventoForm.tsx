@@ -1,11 +1,13 @@
-import { useMemo, useState, type FormEvent } from 'react';
+import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '../lib/db';
-import { aISO, deClave, fechaDe, horaDe, sumarDias, sumarMinutos } from '../lib/fechas';
-import { useLugares, usePerfiles } from '../lib/hooks';
-import { cancelarEvento, crearEvento, editarEvento, reactivarEvento } from '../lib/store';
+import { aISO, deClave, fechaDe, fechaHoraCorta, horaDe, sumarDias, sumarMinutos } from '../lib/fechas';
+import { useLugares, usePerfiles, useTiposEvento } from '../lib/hooks';
+import { cancelarEvento, crearEvento, editarEvento, guardarTipoEvento, reactivarEvento } from '../lib/store';
 import { buscarTraslapes } from '../lib/traslapes';
-import { esSacerdote, TIPOS_EVENTO, type DatosEvento, type Evento, type TipoEvento } from '../types';
+import {
+  esSacerdote, nombrePerfil, nombreTipo, TIPOS_EVENTO, type DatosEvento, type Evento, type TipoEvento,
+} from '../types';
 import { nombreLugar } from './TarjetaEvento';
 
 interface Props {
@@ -21,13 +23,22 @@ const minutos = (h: string) => {
   return a * 60 + b;
 };
 const limpio = (s: string) => s.trim() || null;
+const norm = (s: string | null | undefined) => (s ?? '').trim().toLowerCase();
 
 export function EventoForm({ evento, fecha, onCerrar, onIntenciones }: Props) {
   const lugares = useLugares();
   const perfiles = usePerfiles();
+  const tiposTodos = useTiposEvento();
   const sacerdotes = useMemo(() => perfiles.filter((p) => p.activo && esSacerdote(p)), [perfiles]);
+  const tiposGuardados = useMemo(
+    () => tiposTodos.filter((t) => t.activo).sort((a, b) => a.nombre.localeCompare(b.nombre, 'es')),
+    [tiposTodos],
+  );
 
-  const [tipo, setTipo] = useState<TipoEvento>(evento?.tipo ?? 'misa');
+  // El selector de tipo vale: un tipo de la lista ('misa'…), 'otro' (escribirlo) o 'guardado:<id>'.
+  const [tipoSel, setTipoSel] = useState<string>(evento?.tipo ?? 'misa');
+  const [tipoTexto, setTipoTexto] = useState(evento?.tipo === 'otro' ? evento.tipo_texto ?? '' : '');
+  const [guardarTipo, setGuardarTipo] = useState(false);
   const [titulo, setTitulo] = useState(evento?.titulo ?? '');
   const [dia, setDia] = useState(evento ? fechaDe(evento.inicio) : fecha);
   const [horaIni, setHoraIni] = useState(evento ? horaDe(evento.inicio) : '10:00');
@@ -40,6 +51,14 @@ export function EventoForm({ evento, fecha, onCerrar, onIntenciones }: Props) {
   const [contactoTel, setContactoTel] = useState(evento?.contacto_telefono ?? '');
   const [notas, setNotas] = useState(evento?.notas ?? '');
   const [error, setError] = useState('');
+
+  // Al editar un evento cuyo tipo ya está guardado, el selector lo muestra como tal.
+  const tipoTocado = useRef(false);
+  useEffect(() => {
+    if (!evento || tipoTocado.current || evento.tipo !== 'otro' || !evento.tipo_texto) return;
+    const g = tiposGuardados.find((t) => norm(t.nombre) === norm(evento.tipo_texto));
+    if (g) setTipoSel(`guardado:${g.id}`);
+  }, [evento, tiposGuardados]);
 
   // Al cambiar la hora de inicio se conserva la duración.
   function cambiarInicio(nueva: string) {
@@ -72,8 +91,28 @@ export function EventoForm({ evento, fecha, onCerrar, onIntenciones }: Props) {
     if (!lugarSel) return setError('Elige el lugar del evento.');
     if (lugarSel === 'otro' && !lugarTexto.trim()) return setError('Escribe dónde será el evento.');
 
+    // Tipo: de la lista, uno guardado, o uno escrito ahora (que se puede guardar para la próxima).
+    let tipo: TipoEvento;
+    let tipo_texto: string | null = null;
+    if (tipoSel.startsWith('guardado:')) {
+      tipo = 'otro';
+      tipo_texto = tiposTodos.find((t) => t.id === tipoSel.slice(9))?.nombre ?? null;
+    } else if (tipoSel === 'otro') {
+      tipo_texto = tipoTexto.trim();
+      if (!tipo_texto) return setError('Escribe el nombre del tipo de evento.');
+      tipo = 'otro';
+      if (guardarTipo) {
+        const existente = tiposTodos.find((t) => norm(t.nombre) === norm(tipo_texto));
+        if (!existente) await guardarTipoEvento({ nombre: tipo_texto, activo: true });
+        else if (!existente.activo) await guardarTipoEvento({ activo: true }, existente.id);
+      }
+    } else {
+      tipo = tipoSel as TipoEvento;
+    }
+
     const datos: DatosEvento = {
       tipo,
+      tipo_texto,
       titulo: limpio(titulo),
       inicio: aISO(dia, horaIni),
       fin: aISO(dia, horaFin),
@@ -89,7 +128,9 @@ export function EventoForm({ evento, fecha, onCerrar, onIntenciones }: Props) {
     if (evento) {
       // Solo se envía lo que realmente cambió.
       const cambios = Object.fromEntries(
-        (Object.keys(datos) as (keyof DatosEvento)[]).filter((k) => datos[k] !== evento[k]).map((k) => [k, datos[k]]),
+        (Object.keys(datos) as (keyof DatosEvento)[])
+          .filter((k) => datos[k] !== (evento[k] ?? null))
+          .map((k) => [k, datos[k]]),
       ) as Partial<DatosEvento>;
       if (Object.keys(cambios).length) await editarEvento(evento.id, cambios);
     } else {
@@ -111,6 +152,8 @@ export function EventoForm({ evento, fecha, onCerrar, onIntenciones }: Props) {
   }
 
   const cancelado = evento?.estado === 'cancelado';
+  const creador = evento?.creado_por ? nombrePerfil(perfiles.find((p) => p.id === evento.creado_por)) : null;
+  const editor = evento?.modificado_por ? nombrePerfil(perfiles.find((p) => p.id === evento.modificado_por)) : null;
 
   return (
     <div className="fondo" onMouseDown={(e) => e.target === e.currentTarget && onCerrar()}>
@@ -129,9 +172,31 @@ export function EventoForm({ evento, fecha, onCerrar, onIntenciones }: Props) {
         {cancelado && <div className="aviso">Este evento está cancelado.</div>}
 
         <label htmlFor="tipo">Tipo</label>
-        <select id="tipo" value={tipo} onChange={(e) => setTipo(e.target.value as TipoEvento)}>
-          {Object.entries(TIPOS_EVENTO).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+        <select
+          id="tipo" value={tipoSel}
+          onChange={(e) => { tipoTocado.current = true; setTipoSel(e.target.value); }}
+        >
+          {Object.entries(TIPOS_EVENTO).filter(([k]) => k !== 'otro').map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+          {tiposGuardados.length > 0 && (
+            <optgroup label="Tipos guardados">
+              {tiposGuardados.map((t) => <option key={t.id} value={`guardado:${t.id}`}>{t.nombre}</option>)}
+            </optgroup>
+          )}
+          <option value="otro">Otro (escribirlo)…</option>
         </select>
+        {tipoSel === 'otro' && (
+          <>
+            <input
+              style={{ marginTop: 8 }} value={tipoTexto} onChange={(e) => setTipoTexto(e.target.value)}
+              placeholder="Ej.: Retiro espiritual" maxLength={60}
+            />
+            <label className="check">
+              <input type="checkbox" checked={guardarTipo} onChange={(e) => setGuardarTipo(e.target.checked)} />
+              Guardar este tipo para usarlo la próxima vez
+            </label>
+            <p className="ayuda" style={{ margin: '2px 0 0' }}>Si no lo guardas, solo se usa para este evento.</p>
+          </>
+        )}
 
         <label htmlFor="titulo">Título (opcional)</label>
         <input id="titulo" value={titulo} onChange={(e) => setTitulo(e.target.value)} placeholder="Ej.: Misa de XV años" />
@@ -162,10 +227,10 @@ export function EventoForm({ evento, fecha, onCerrar, onIntenciones }: Props) {
           />
         )}
 
-        <label htmlFor="asignado">Quién lo atiende</label>
+        <label htmlFor="asignado">Celebrante</label>
         <select id="asignado" value={asignado} onChange={(e) => setAsignado(e.target.value)}>
           <option value="">Sin asignar</option>
-          {sacerdotes.map((p) => <option key={p.id} value={p.id}>{p.nombre || p.email}</option>)}
+          {sacerdotes.map((p) => <option key={p.id} value={p.id}>{nombrePerfil(p)}</option>)}
         </select>
 
         <label htmlFor="intencion">Motivo (resumen corto)</label>
@@ -201,7 +266,7 @@ export function EventoForm({ evento, fecha, onCerrar, onIntenciones }: Props) {
             <b>⚠ Se empalma con:</b>
             <ul>
               {choques.map((c) => (
-                <li key={c.id}>{horaDe(c.inicio)}–{horaDe(c.fin)} {c.titulo || TIPOS_EVENTO[c.tipo]} · {nombreLugar(c, lugares)}</li>
+                <li key={c.id}>{horaDe(c.inicio)}–{horaDe(c.fin)} {c.titulo || nombreTipo(c)} · {nombreLugar(c, lugares)}</li>
               ))}
             </ul>
             Puedes guardarlo igual: ambos quedarán marcados en conflicto y se avisará a todos para resolverlo.
@@ -218,6 +283,13 @@ export function EventoForm({ evento, fecha, onCerrar, onIntenciones }: Props) {
         )}
         {evento && cancelado && (
           <div className="acciones"><button className="btn sec" type="button" onClick={reactivar}>Reactivar evento</button></div>
+        )}
+
+        {evento && (
+          <p className="ayuda" style={{ marginBottom: 0 }}>
+            {evento.misa_fija_id ? 'Misa fija: se agenda sola cada semana.' : creador ? `✍️ Creado por ${creador} · ${fechaHoraCorta(evento.created_at)}` : ''}
+            {editor && evento.version > 1 ? <><br />Última edición: {editor} · {fechaHoraCorta(evento.updated_at)}</> : null}
+          </p>
         )}
       </form>
     </div>

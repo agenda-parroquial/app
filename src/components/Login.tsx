@@ -7,6 +7,7 @@ export function Login() {
   const [nombre, setNombre] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [codigo, setCodigo] = useState('');
   const [trabajando, setTrabajando] = useState(false);
   const [error, setError] = useState('');
   const [aviso, setAviso] = useState('');
@@ -16,7 +17,7 @@ export function Login() {
     setError('');
     setAviso('');
     setTrabajando(true);
-    const r = modo === 'entrar' ? await iniciarSesion(email, password) : await registrar(email, password, nombre);
+    const r = modo === 'entrar' ? await iniciarSesion(email, password) : await registrar(email, password, nombre, codigo);
     setTrabajando(false);
     if (r.error) setError(r.error);
     if (r.aviso) {
@@ -47,10 +48,24 @@ export function Login() {
           autoComplete={modo === 'entrar' ? 'current-password' : 'new-password'}
         />
 
+        {modo === 'registro' && (
+          <>
+            <label htmlFor="codigo">Código de invitación (si te dieron uno)</label>
+            <input
+              id="codigo" value={codigo} onChange={(e) => setCodigo(e.target.value)} placeholder="Ej.: 3F9A-12BC"
+              autoCapitalize="characters" autoComplete="off" maxLength={12}
+            />
+          </>
+        )}
+
         {error && <div className="aviso error">{error}</div>}
         {aviso && <div className="aviso ok">{aviso}</div>}
         {modo === 'registro' && (
-          <p className="ayuda">El párroco debe aprobar tu cuenta antes de que puedas ver la agenda.</p>
+          <p className="ayuda">
+            {codigo.trim()
+              ? 'Con tu código entrarás directo.'
+              : 'Sin código, el párroco debe aprobar tu cuenta antes de que puedas ver la agenda.'}
+          </p>
         )}
 
         <button className="btn ancho" style={{ marginTop: 18 }} disabled={trabajando}>

@@ -34,13 +34,13 @@ export function AvisosPush() {
       <div className="aviso">
         {esIPhone() && !estaInstalada() ? (
           <>
-            <b>Para recibir avisos en iPhone, primero instala la app:</b><br />
+            <b>Para recibir notificaciones en iPhone, primero instala la app:</b><br />
             1. En Safari toca <b>Compartir</b> (el cuadro con la flecha).<br />
             2. Elige <b>«Añadir a pantalla de inicio»</b>.<br />
             3. Abre la app desde ese ícono y vuelve a esta pantalla.
           </>
         ) : (
-          'Este navegador no permite avisos con la app cerrada.'
+          'Este navegador no permite notificaciones con la app cerrada.'
         )}
       </div>
     );
@@ -49,7 +49,7 @@ export function AvisosPush() {
   if (estado === 'denegado') {
     return (
       <div className="aviso">
-        Los avisos están bloqueados para esta app. Para activarlos ve a los <b>Ajustes</b> del teléfono (o del navegador),
+        Las notificaciones están bloqueadas para esta app. Para activarlas ve a los <b>Ajustes</b> del teléfono (o del navegador),
         busca <b>Agenda</b> y permite las notificaciones.
       </div>
     );
@@ -58,14 +58,14 @@ export function AvisosPush() {
   if (estado === 'activo') {
     return (
       <div className="aviso ok">
-        ✔ <b>Avisos activados en este teléfono.</b> Te llegarán aunque la app esté cerrada.
+        ✔ <b>Notificaciones activadas en este teléfono.</b> Te llegarán aunque la app esté cerrada.
         {error && <div className="aviso error">{error}</div>}
         <div className="fila" style={{ marginTop: 10 }}>
           <button
             className="btn sec chico" disabled={trabajando}
             onClick={() => void correr(async () => { await avisoDePrueba(); setProbado(true); })}
           >
-            Mandarme un aviso de prueba
+            Mandarme una notificación de prueba
           </button>
           <button className="btn peligro chico" disabled={trabajando} onClick={() => void correr(desactivarPush)}>Desactivar</button>
         </div>
@@ -76,12 +76,12 @@ export function AvisosPush() {
 
   return (
     <div className="aviso">
-      <b>Activa los avisos en este teléfono</b> para enterarte al instante cuando se agregue, cambie o choque algo,
+      <b>Activa las notificaciones en este teléfono</b> para enterarte al instante cuando se agregue, cambie o choque algo,
       aunque la app esté cerrada.
       {error && <div className="aviso error">{error}</div>}
       <div style={{ marginTop: 8 }}>
         <button className="btn chico" disabled={trabajando} onClick={() => void correr(activarPush)}>
-          {trabajando ? 'Activando…' : 'Activar avisos'}
+          {trabajando ? 'Activando…' : 'Activar notificaciones'}
         </button>
       </div>
     </div>

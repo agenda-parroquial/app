@@ -18,7 +18,7 @@ interface AuthCtx {
   /** true cuando se entró con la identidad guardada porque no hay internet para renovar la sesión */
   identidadGuardada: boolean;
   iniciarSesion: (email: string, password: string) => Promise<Resultado>;
-  registrar: (email: string, password: string, nombre: string) => Promise<Resultado>;
+  registrar: (email: string, password: string, nombre: string, codigo?: string) => Promise<Resultado>;
   cerrarSesion: () => Promise<void>;
   recargarPerfil: () => Promise<void>;
 }
@@ -127,9 +127,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const { error } = await supabase.auth.signInWithPassword({ email: email.trim(), password });
         return error ? { error: traducir(error.message) } : {};
       },
-      registrar: async (email, password, nombre) => {
+      registrar: async (email, password, nombre, codigo) => {
+        const c = codigo?.trim() ?? '';
+        if (c) {
+          // Antes de crear la cuenta se avisa si el código no corresponde a ese correo.
+          const { data: valido, error: e } = await supabase.rpc('validar_invitacion', { p_email: email.trim(), p_codigo: c });
+          if (e) return { error: traducir(e.message) };
+          if (!valido) return { error: 'Ese código no corresponde a ese correo, o ya se usó. Revisa que sea el mismo correo con el que te invitaron.' };
+        }
         const { data, error } = await supabase.auth.signUp({
-          email: email.trim(), password, options: { data: { nombre: nombre.trim() } },
+          email: email.trim(), password, options: { data: { nombre: nombre.trim(), ...(c ? { codigo: c } : {}) } },
         });
         if (error) return { error: traducir(error.message) };
         if (!data.session) return { aviso: 'Te enviamos un correo para confirmar tu cuenta. Después, inicia sesión.' };

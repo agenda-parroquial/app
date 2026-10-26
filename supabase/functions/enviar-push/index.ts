@@ -30,6 +30,7 @@ const TITULOS: Record<string, string> = {
   evento_editado: 'Actividad modificada',
   evento_cancelado: 'Actividad cancelada',
   conflicto: '⚠ Empalme de horario',
+  aviso_parroquial: '📣 Aviso parroquial',
 };
 
 async function leerConfig(): Promise<Record<string, string>> {
@@ -65,6 +66,7 @@ function iguales(a: string, b: string) {
 /** A dónde lleva el aviso al tocarlo. */
 async function destino(n: { tipo: string; evento_id: string | null }): Promise<string> {
   if (n.tipo === 'conflicto') return '/#/conflictos';
+  if (n.tipo === 'aviso_parroquial') return '/#/parroquiales';
   if (!n.evento_id) return '/#/avisos';
   const { data: e } = await sb.from('eventos').select('inicio').eq('id', n.evento_id).maybeSingle();
   if (!e) return '/#/avisos';

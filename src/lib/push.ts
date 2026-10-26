@@ -1,7 +1,7 @@
 import { supabase } from './supabase';
 
 /**
- * Avisos push (llegan con la app cerrada). Cada teléfono se "suscribe" una vez; la
+ * Notificaciones push (llegan con la app cerrada). Cada teléfono se "suscribe" una vez; la
  * suscripción se guarda en Supabase y la función `enviar-push` manda los avisos.
  * En iPhone solo funciona con la app instalada en la pantalla de inicio (iOS 16.4+).
  */
@@ -56,7 +56,7 @@ async function guardarSuscripcion(sub: PushSubscription) {
 /** Debe llamarse directamente desde un clic (iPhone exige que el permiso se pida así). */
 export async function activarPush(): Promise<void> {
   const permiso = await Notification.requestPermission();
-  if (permiso !== 'granted') throw new Error('No diste permiso para los avisos.');
+  if (permiso !== 'granted') throw new Error('No diste permiso para las notificaciones.');
   const reg = await navigator.serviceWorker.ready;
   let sub = await reg.pushManager.getSubscription();
   if (!sub) {

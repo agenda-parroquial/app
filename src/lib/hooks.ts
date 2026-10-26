@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from './db';
-import type { Lugar, Perfil } from '../types';
+import type { AvisoParroquial, Lugar, Perfil, TipoEventoGuardado } from '../types';
 
 /** Ruta basada en el hash: '#/agenda/2030-03-05/ID' → ['agenda', '2030-03-05', 'ID'] */
 export function useRuta(): string[] {
@@ -22,7 +22,12 @@ export const ir = (ruta: string) => {
 const SIN_LUGARES: Lugar[] = [];
 const SIN_PERFILES: Perfil[] = [];
 
+const SIN_TIPOS: TipoEventoGuardado[] = [];
+const SIN_AVISOS: AvisoParroquial[] = [];
+
 export const useLugares = () => useLiveQuery(() => db.lugares.toArray(), [], SIN_LUGARES);
+export const useTiposEvento = () => useLiveQuery(() => db.tipos_evento.toArray(), [], SIN_TIPOS);
+export const useAvisosParroquiales = () => useLiveQuery(() => db.avisos_parroquiales.toArray(), [], SIN_AVISOS);
 export const usePerfiles = () => useLiveQuery(() => db.perfiles.toArray(), [], SIN_PERFILES);
 
 /** Ids de registros con cambios locales que aún no llegan al servidor. */
