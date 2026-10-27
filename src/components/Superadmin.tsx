@@ -9,6 +9,7 @@ import { esErrorDeRed, mensajeDeError, useEstadoSync } from '../lib/sync';
 import { claveDia, deClave, diaBreve } from '../lib/fechas';
 import { diasDeVigencia, type ParroquiaAdmin, type Perfil } from '../types';
 import { Diocesanos } from './Diocesanos';
+import { LugaresParroquias } from './LugaresParroquias';
 import { VolverAjustes } from './VolverAjustes';
 
 const ZONAS = [
@@ -69,7 +70,7 @@ export function Superadmin({ perfil, soloEsto = false }: { perfil: Perfil | null
   const [nombreParroco, setNombreParroco] = useState('');
   const [vigenteNueva, setVigenteNueva] = useState('');
   const [fechaVig, setFechaVig] = useState<Record<string, string>>({});
-  const [pestana, setPestana] = useState<'parroquias' | 'diocesanos'>('parroquias');
+  const [pestana, setPestana] = useState<'parroquias' | 'lugares' | 'diocesanos'>('parroquias');
   const [trabajando, setTrabajando] = useState(false);
   const [invitando, setInvitando] = useState<string | null>(null);
   const [emailInv, setEmailInv] = useState('');
@@ -133,10 +134,12 @@ export function Superadmin({ perfil, soloEsto = false }: { perfil: Perfil | null
       <h2 style={{ marginBottom: 6 }}>Administración</h2>
       <div className="fila" style={{ marginBottom: 10 }}>
         <button className={`btn chico ${pestana === 'parroquias' ? '' : 'sec'}`} onClick={() => setPestana('parroquias')}>Parroquias y accesos</button>
+        <button className={`btn chico ${pestana === 'lugares' ? '' : 'sec'}`} onClick={() => setPestana('lugares')}>🗺 Lugares</button>
         <button className={`btn chico ${pestana === 'diocesanos' ? '' : 'sec'}`} onClick={() => setPestana('diocesanos')}>Eventos diocesanos</button>
       </div>
 
       {pestana === 'diocesanos' && <Diocesanos />}
+      {pestana === 'lugares' && <LugaresParroquias />}
 
       {pestana === 'parroquias' && <>
       <p className="ayuda" style={{ marginTop: 0 }}>

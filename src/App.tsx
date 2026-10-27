@@ -11,7 +11,6 @@ import { ir, useContadorConflictos, useNoLeidas, useParroquia, useRuta } from '.
 import { diasDeVigencia, parroquiaSinAcceso, type Notificacion, type Parroquia, type Perfil } from './types';
 import { Agenda } from './components/Agenda';
 import { Ajustes } from './components/Ajustes';
-import { ColoresTipos } from './components/ColoresTipos';
 import { Conflictos } from './components/Conflictos';
 import { EstadoSync } from './components/EstadoSync';
 import { Login } from './components/Login';
@@ -58,7 +57,7 @@ function BannerActualizacion() {
 const TITULOS: Record<string, string> = {
   agenda: 'Agenda', conflictos: 'Conflictos', avisos: 'Notificaciones', parroquiales: 'Avisos',
   ajustes: 'Ajustes', mas: 'Ajustes', lugares: 'Lugares', misas: 'Misas fijas', tipos: 'Tipos de evento', usuarios: 'Usuarios',
-  superadmin: 'Administración', colores: 'Colores',
+  superadmin: 'Administración',
 };
 
 /** Invitación (descartable) a activar las notificaciones en este teléfono. */
@@ -137,7 +136,7 @@ function Shell({ perfil, superadmin, parroquia }: { perfil: Perfil; superadmin: 
     return () => window.clearTimeout(t);
   }, [toast]);
 
-  const enAjustes = ['ajustes', 'mas', 'lugares', 'misas', 'tipos', 'colores', 'usuarios', 'superadmin'].includes(seccion);
+  const enAjustes = ['ajustes', 'mas', 'lugares', 'misas', 'tipos', 'usuarios', 'superadmin'].includes(seccion);
 
   return (
     <div className="app">
@@ -167,9 +166,7 @@ function Shell({ perfil, superadmin, parroquia }: { perfil: Perfil; superadmin: 
           : seccion === 'ajustes' || seccion === 'mas' ? <Ajustes perfil={perfil} />
           : seccion === 'lugares' ? <Lugares perfil={perfil} />
           : seccion === 'misas' ? <MisasFijas perfil={perfil} />
-          : seccion === 'tipos' ? <TiposEvento perfil={perfil} />
-          : seccion === 'colores' ? <ColoresTipos perfil={perfil} />
-          : seccion === 'usuarios' && perfil.rol === 'parroco' ? <Usuarios perfil={perfil} />
+          : seccion === 'tipos' ? <TiposEvento perfil={perfil} />          : seccion === 'usuarios' && perfil.rol === 'parroco' ? <Usuarios perfil={perfil} />
           : seccion === 'superadmin' && superadmin ? <Superadmin perfil={perfil} />
           : <Agenda ruta={ruta} perfil={perfil} />}
       </main>

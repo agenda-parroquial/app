@@ -1,0 +1,67 @@
+name: Respaldo de la base de datos
+
+# Cada día guarda una copia CIFRADA de la base de datos de Supabase (los datos de todas las parroquias).
+# Como cada respaldo abre una conexión a la base, también evita que el plan gratis de Supabase la pause
+# por inactividad. Cómo configurarlo y cómo restaurar: README.md → «Respaldos automáticos».
+on:
+  schedule:
+    - cron: '17 9 * * *' # todos los días, 09:17 UTC
+  workflow_dispatch: # y a mano: pestaña Actions → este flujo → Run workflow
+
+permissions:
+  contents: read
+
+concurrency:
+  group: respaldo
+  cancel-in-progress: false
+
+jobs:
+  respaldo:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+      BACKUP_PASSPHRASE: ${{ secrets.BACKUP_PASSPHRASE }}
+      PGCONNECT_TIMEOUT: '30'
+    steps:
+      - name: Revisar que estén los secretos
+        run: |
+          if [ -z "$SUPABASE_DB_URL" ] || [ -z "$BACKUP_PASSPHRASE" ]; then
+            echo "::error::Faltan los secretos SUPABASE_DB_URL y/o BACKUP_PASSPHRASE (Settings → Secrets and variables → Actions)."
+            exit 1
+          fi
+
+      - name: Instalar el cliente de PostgreSQL 17
+        run: |
+          sudo /usr/share/postgresql-common/pgdg/apt.postgresql.org.sh -y
+          sudo apt-get install -y postgresql-client-17
+
+      - name: Respaldar y cifrar
+        run: |
+          set -euo pipefail
+          FECHA=$(date -u +%Y-%m-%d)
+          PG=/usr/lib/postgresql/17/bin
+
+          # public = los datos de la app; auth = las cuentas de usuario (sin ellas no se podrían restaurar los perfiles)
+          "$PG/pg_dump" "$SUPABASE_DB_URL" --no-owner --no-privileges --schema=public --schema=auth -Fc -f respaldo.dump
+
+          # Se comprueba que el archivo se pueda leer y que traiga los datos esperados.
+          "$PG/pg_restore" -l respaldo.dump > contenido.txt
+          grep -q 'TABLE DATA public eventos ' contenido.txt
+          grep -q 'TABLE DATA public perfiles ' contenido.txt
+          grep -q 'TABLE DATA auth users ' contenido.txt
+
+          # Este repositorio es público y los archivos de Actions se pueden descargar: solo se sube cifrado.
+          printf '%s' "$BACKUP_PASSPHRASE" | gpg --batch --yes --pinentry-mode loopback --passphrase-fd 0 \
+            --symmetric --cipher-algo AES256 -o "respaldo-$FECHA.dump.gpg" respaldo.dump
+          rm -f respaldo.dump contenido.txt
+          echo "FECHA=$FECHA" >> "$GITHUB_ENV"
+          ls -l respaldo-*.dump.gpg
+
+      - name: Guardar el respaldo cifrado (30 días)
+        uses: actions/upload-artifact@v4
+        with:
+          name: respaldo-${{ env.FECHA }}
+          path: respaldo-*.dump.gpg
+          retention-days: 30
+          if-no-files-found: error

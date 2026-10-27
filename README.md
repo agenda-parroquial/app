@@ -12,7 +12,8 @@ App web instalable (PWA) para llevar la agenda de la parroquia entre la secretar
 - **Ajustes:** nombre propio, notificaciones del teléfono, lugares, misas fijas, tipos de evento y, para el párroco, usuarios e invitaciones.
 - **Tipo de evento a tu medida:** al elegir **«Otro»** se escribe el tipo; si se marca «Guardar este tipo», queda en la lista para la próxima vez, y si no, solo se usa para ese evento.
 - **Quién creó cada evento:** cada persona tiene su nombre y las tarjetas muestran «Creado por …». El celebrante de cada evento es quien lo atiende.
-- **Colores por tipo de evento:** en **Ajustes → Colores por tipo de evento** el párroco o la secretaria asignan un color a cada tipo (misa, bautizo… y los propios) y se ve en el borde de las tarjetas de la agenda; lo comparte toda la parroquia.
+- **Tipos de evento con color:** en **Ajustes → Tipos de evento** el párroco o la secretaria ven los tipos (misa, bautizo… y los que agregaron), agregan nuevos y asignan un color a cada uno; se ve en el borde de las tarjetas de la agenda y lo comparte toda la parroquia.
+- **Mapa de lugares:** en **Ajustes → Lugares** cada lugar puede tener su punto en el mapa (OpenStreetMap): se busca una dirección, se usa el GPS o se toca el mapa. Hay vista de lista y de mapa.
 - **Varias parroquias, con acceso controlado:** un mismo sitio sirve a muchas parroquias y cada una solo ve lo suyo. Un **superadmin** crea cada parroquia y le da acceso a su párroco con un código de invitación (ver «Varias parroquias»). Nadie puede crear una cuenta sin invitación.
 - **Roles:** párroco, secretaria y vicario; el párroco invita a su gente con un código y asigna los roles.
 
@@ -86,9 +87,36 @@ Las claves del servicio de avisos (VAPID) se generan solas la primera vez y se g
 - **Superadmin:** la cuenta que administra la app. Desde **Ajustes → Parroquias y accesos** crea parroquias, manda la invitación a cada párroco, invita a otro párroco, renombra y **suspende o reactiva** parroquias (una parroquia suspendida no puede entrar ni ver sus datos). Solo gestiona accesos: **no ve la agenda, las intenciones ni los avisos de ninguna parroquia**.
 - **Aislamiento:** cada fila de datos pertenece a una parroquia y la base de datos (Row Level Security) solo se la muestra a quienes son de ella; las notificaciones, los empalmes y las misas fijas también son por parroquia, cada una con su zona horaria.
 - **Primer superadmin en una base que ya tenía datos:** la migración deja como superadmin al primer párroco activo. Para sumar otro: en el SQL Editor, `insert into superadmins (id) values ('<id del usuario>');`.
-- **Vigencia automática:** cada parroquia puede tener una fecha de «acceso hasta». Al pasar esa fecha deja de entrar y de ver sus datos (como si estuviera suspendida), sin tareas programadas; sus datos se conservan y al renovar todo vuelve. En el panel: **+1 mes**, **+1 año**, una fecha exacta o **Sin límite**. Dos días antes de vencer, sus usuarios ven un aviso. Las parroquias existentes quedan sin límite hasta que fijes una fecha.
+- **Vigencia automática:** cada parroquia puede tener una fecha de «acceso hasta». Al pasar esa fecha deja de entrar y de ver sus datos (como si estuviera suspendida), sin tareas programadas; sus datos se conservan y al renovar todo vuelve. En el panel: **+1 mes**, **+1 año**, una fecha exacta o **Sin límite**. Una semana antes de vencer, sus usuarios ven un aviso. Las parroquias existentes quedan sin límite hasta que fijes una fecha.
 - **Eventos diocesanos:** en **Ajustes → Administración → Eventos diocesanos** el superadmin sube eventos (con aviso opcional a todos) que aparecen en la agenda de todas las parroquias con un formato propio (borde punteado azul y la etiqueta «Diocesano»). Son solo informativos: no generan empalmes y cada usuario puede ocultarlos (individualmente o todos) desde su teléfono.
+- **Lugares desde el panel:** en **Administración → 🗺 Lugares** el superadmin crea un punto en el mapa, elige la parroquia a la que pertenece y le aparece como lugar a esa parroquia (en su lista, su mapa y al agendar). Ella puede editarlo como los suyos. El superadmin solo ve los lugares, no su agenda.
 - **Costos:** el plan gratis de Supabase y el de Netlify bastan para empezar. Cuando sean varias parroquias conviene pasar a Supabase Pro (respaldos automáticos y sin pausas por inactividad). El dominio propio es opcional.
+
+## Respaldos automáticos (GitHub Actions)
+
+El flujo `.github/workflows/respaldo.yml` guarda **cada día una copia cifrada de toda la base de datos** (los datos de todas las parroquias y las cuentas de usuario), y la conserva 30 días. Como cada respaldo abre una conexión a la base, también evita que el plan gratis de Supabase la pause por inactividad.
+
+**Configuración (una sola vez)**
+1. En Supabase: **Connect** (arriba) → **Session pooler** → copia la cadena de conexión (termina en `:5432/postgres`) y sustituye `[YOUR-PASSWORD]` por la contraseña de la base de datos. Hay que usar *Session pooler*: GitHub solo tiene IPv4 y la conexión directa de Supabase es IPv6.
+2. En GitHub: repositorio → **Settings → Secrets and variables → Actions → New repository secret** y crea dos:
+   - `SUPABASE_DB_URL`: la cadena del paso anterior.
+   - `BACKUP_PASSPHRASE`: una contraseña larga que inventes tú. **Guárdala en tu gestor de contraseñas**: sin ella no se puede abrir ningún respaldo.
+3. Pestaña **Actions → Respaldo de la base de datos → Run workflow** para probarlo. Si algo falla, GitHub te manda un correo.
+
+Los respaldos se descargan desde esa misma pantalla (cada ejecución → *Artifacts*). Este repositorio es público, por eso el archivo **solo se sube cifrado** (AES-256): sin la contraseña no sirve a nadie. GitHub pausa los flujos programados si el repositorio pasa 60 días sin ninguna actividad; con un cambio al código de vez en cuando basta.
+
+**Restaurar** (en un proyecto de Supabase nuevo y vacío, con `pg_net` habilitado)
+```bash
+gpg -d respaldo-AAAA-MM-DD.dump.gpg > respaldo.dump
+pg_restore --no-owner --no-privileges -d "<cadena de conexión del proyecto nuevo>" respaldo.dump
+```
+Saldrán avisos de «already exists» (los esquemas y objetos que Supabase ya trae): son normales. Después, en el SQL Editor del proyecto nuevo:
+```sql
+alter publication supabase_realtime add table parroquias, perfiles, lugares, misas_fijas, tipos_evento,
+  avisos_parroquiales, eventos, conflictos, intenciones, notificaciones, eventos_diocesanos;
+update config set valor = 'https://<referencia-del-proyecto-nuevo>.supabase.co/functions/v1' where clave = 'funciones_url';
+```
+Y por último: volver a desplegar la función `enviar-push` (Verify JWT apagado) y cambiar la URL y la clave del proyecto en las variables de Netlify.
 
 ## 5. Instalar en el teléfono
 
@@ -112,9 +140,9 @@ La regla de empalme: se cruzan en el tiempo **y** comparten lugar (de la lista) 
 ## Límites actuales y siguientes pasos
 
 - **Avisos push en iPhone:** solo funcionan con la app instalada en la pantalla de inicio (iOS 16.4 o superior) y aceptando el permiso. En Android funcionan también desde Chrome.
-- **Mapa de capillas:** la tabla de lugares ya guarda latitud y longitud. Falta la pantalla con mapa (Leaflet + OpenStreetMap, gratis).
+- **Mapa:** las calles se descargan de OpenStreetMap, así que sin internet el mapa se ve en blanco (los puntos y la lista siguen ahí).
 - **PDF/impresión semanal** para el tablón: pendiente.
-- **Supabase gratis** pausa un proyecto tras una semana sin actividad; con uso diario no ocurre. El plan gratis **no incluye respaldos automáticos**: conviene exportar las tablas `eventos`, `lugares` y `misas_fijas` a CSV de vez en cuando (Table Editor → Export).
+- **Supabase gratis** pausa un proyecto tras una semana sin actividad y **no incluye respaldos automáticos**: por eso el repositorio trae un respaldo diario con GitHub Actions (ver «Respaldos automáticos»).
 - **Cerrar sesión borra los datos locales** de ese dispositivo; si hay cambios sin enviar, la app lo avisa antes.
 
 ## Estructura

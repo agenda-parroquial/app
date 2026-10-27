@@ -61,6 +61,9 @@ export interface Lugar {
   updated_at: string;
 }
 
+/** Lugar de una parroquia tal como lo ve el superadmin (función `listar_lugares_parroquia`). */
+export type LugarAdmin = Pick<Lugar, 'id' | 'nombre' | 'tipo' | 'direccion' | 'lat' | 'lng' | 'activo'>;
+
 export interface MisaFija {
   id: string;
   dia_semana: number; // 0 = domingo

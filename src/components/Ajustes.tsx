@@ -78,12 +78,7 @@ export function Ajustes({ perfil }: { perfil: Perfil }) {
         </a>
         {editaCatalogos && (
           <a className="item clic" href="#/tipos" style={enlace}>
-            <div>🏷 <b>Tipos de evento</b><div className="ayuda">Los que agregaste con «Otro»</div></div>
-          </a>
-        )}
-        {editaCatalogos && (
-          <a className="item clic" href="#/colores" style={enlace}>
-            <div>🎨 <b>Colores por tipo de evento</b><div className="ayuda">Un color para cada tipo en la agenda</div></div>
+            <div>🏷 <b>Tipos de evento</b><div className="ayuda">Los tipos que hay, agregar nuevos y el color de cada uno</div></div>
           </a>
         )}
         {perfil.rol === 'parroco' && (
@@ -93,7 +88,7 @@ export function Ajustes({ perfil }: { perfil: Perfil }) {
         )}
         {superadmin && (
           <a className="item clic" href="#/superadmin" style={enlace}>
-            <div>🛡 <b>Administración</b><div className="ayuda">Parroquias, accesos, vigencia y eventos diocesanos</div></div>
+            <div>🛡 <b>Administración</b><div className="ayuda">Parroquias, accesos, lugares y eventos diocesanos</div></div>
           </a>
         )}
       </div>

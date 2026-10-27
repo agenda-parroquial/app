@@ -2,7 +2,7 @@ import { db } from './db';
 import { supabase } from './supabase';
 import { normalizarDiocesano, sincronizar } from './sync';
 import type {
-  AvisoParroquial, DatosEvento, Evento, EventoDiocesano, Intencion, Invitacion, Lugar, MisaFija, OpPendiente, ParroquiaAdmin, Perfil, Rol,
+  AvisoParroquial, DatosEvento, Evento, EventoDiocesano, Intencion, Invitacion, Lugar, LugarAdmin, MisaFija, OpPendiente, ParroquiaAdmin, Perfil, Rol,
   Tabla, TipoEventoGuardado,
 } from '../types';
 
@@ -200,6 +200,26 @@ export async function cancelarInvitacionParroco(id: string) {
 export async function editarParroquia(id: string, cambios: { nombre?: string; activa?: boolean; zona?: string }) {
   const { error } = await supabase.rpc('editar_parroquia', {
     p_id: id, p_nombre: cambios.nombre ?? null, p_activa: cambios.activa ?? null, p_zona: cambios.zona ?? null,
+  });
+  if (error) throw error;
+}
+
+/** Lugares de una parroquia (el superadmin solo ve los lugares, no su agenda). */
+export async function listarLugaresParroquia(parroquia: string): Promise<LugarAdmin[]> {
+  const { data, error } = await supabase.rpc('listar_lugares_parroquia', { p_parroquia: parroquia });
+  if (error) throw error;
+  return data as LugarAdmin[];
+}
+
+/** Crea (sin id) o edita un lugar de esa parroquia: aparece en su lista de lugares y en su mapa. */
+export async function guardarLugarParroquia(
+  parroquia: string,
+  d: Pick<Lugar, 'nombre' | 'tipo' | 'direccion' | 'lat' | 'lng' | 'activo'>,
+  id?: string,
+) {
+  const { error } = await supabase.rpc('guardar_lugar_parroquia', {
+    p_parroquia: parroquia, p_id: id ?? null, p_nombre: d.nombre, p_tipo: d.tipo, p_direccion: d.direccion,
+    p_lat: d.lat, p_lng: d.lng, p_activo: d.activo,
   });
   if (error) throw error;
 }
