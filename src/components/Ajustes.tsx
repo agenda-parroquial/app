@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '../lib/db';
 import { useAuth } from '../lib/auth';
+import { useParroquia } from '../lib/hooks';
 import { actualizarMiNombre } from '../lib/store';
 import { esErrorDeRed, mensajeDeError, sincronizar, useEstadoSync } from '../lib/sync';
 import { puedeEditarCatalogos, ROLES, type Perfil } from '../types';
@@ -11,7 +12,8 @@ const enlace = { textDecoration: 'none', color: 'inherit' } as const;
 
 /** Ajustes: mi cuenta, notificaciones del teléfono y administración (lugares, misas, tipos, usuarios). */
 export function Ajustes({ perfil }: { perfil: Perfil }) {
-  const { cerrarSesion, usuario } = useAuth();
+  const { cerrarSesion, usuario, superadmin } = useAuth();
+  const parroquia = useParroquia(perfil.parroquia_id);
   const estado = useEstadoSync();
   const porEnviar = useLiveQuery(() => db.outbox.count(), [], 0);
   const [nombre, setNombre] = useState(perfil.nombre);
@@ -53,7 +55,7 @@ export function Ajustes({ perfil }: { perfil: Perfil }) {
           </button>
         </div>
         <p className="ayuda" style={{ marginBottom: 0 }}>
-          Este nombre aparece como «Creado por» en lo que agendas. {ROLES[perfil.rol]} · {usuario?.email}
+          Este nombre aparece como «Creado por» en lo que agendas. {ROLES[perfil.rol]}{parroquia ? ` de ${parroquia.nombre}` : ''} · {usuario?.email}
         </p>
         {mensaje && <div className={`aviso ${mensaje.tipo === 'ok' ? 'ok' : 'error'}`}>{mensaje.texto}</div>}
         <button className="btn peligro" style={{ marginTop: 12 }} onClick={() => void salir()}>Cerrar sesión</button>
@@ -80,6 +82,11 @@ export function Ajustes({ perfil }: { perfil: Perfil }) {
         {perfil.rol === 'parroco' && (
           <a className="item clic" href="#/usuarios" style={enlace}>
             <div>👥 <b>Usuarios e invitaciones</b><div className="ayuda">Invitar personas, aprobar cuentas y asignar roles</div></div>
+          </a>
+        )}
+        {superadmin && (
+          <a className="item clic" href="#/superadmin" style={enlace}>
+            <div>🛡 <b>Parroquias y accesos</b><div className="ayuda">Crear parroquias y dar acceso a sus párrocos</div></div>
           </a>
         )}
       </div>

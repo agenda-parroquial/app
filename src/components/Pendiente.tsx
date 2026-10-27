@@ -1,6 +1,24 @@
 import { useEffect, useState } from 'react';
 import { useAuth } from '../lib/auth';
 
+/** Cuenta sin parroquia asignada, o parroquia suspendida por el superadmin. */
+export function SinAcceso({ titulo, texto }: { titulo: string; texto: string }) {
+  const { perfil, usuario, cerrarSesion } = useAuth();
+  return (
+    <div className="centro">
+      <div className="caja">
+        <img className="logo" src="/icon.svg" alt="" />
+        <h1>{titulo}</h1>
+        <p className="sub">{perfil?.nombre || usuario?.email}</p>
+        <div className="aviso">{texto}</div>
+        <div style={{ textAlign: 'center', marginTop: 8 }}>
+          <button className="enlace" onClick={() => void cerrarSesion()}>Cerrar sesión</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 /** Cuenta creada pero todavía no aprobada por el párroco. */
 export function Pendiente() {
   const { perfil, usuario, recargarPerfil, cerrarSesion } = useAuth();

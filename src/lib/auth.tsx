@@ -15,6 +15,8 @@ interface AuthCtx {
   cargando: boolean;
   usuario: { id: string; email: string } | null;
   perfil: Perfil | null;
+  /** Puede crear parroquias y dar acceso a los párrocos (panel de superadmin). */
+  superadmin: boolean;
   /** true cuando se entró con la identidad guardada porque no hay internet para renovar la sesión */
   identidadGuardada: boolean;
   iniciarSesion: (email: string, password: string) => Promise<Resultado>;
@@ -40,6 +42,18 @@ function traducir(msg: string): string {
   return msg;
 }
 
+async function leerSuperadmin(): Promise<boolean> {
+  try {
+    const { data, error } = await supabase.rpc('soy_superadmin');
+    if (error) throw error;
+    await db.meta.put({ key: 'superadmin', value: data === true });
+    return data === true;
+  } catch (e) {
+    if (esErrorDeRed(e)) return (await db.meta.get('superadmin'))?.value === true; // sin internet: lo último que se supo
+    return false;
+  }
+}
+
 async function leerPerfil(id: string): Promise<Perfil | null> {
   try {
     const { data, error } = await supabase.from('perfiles').select('*').eq('id', id).maybeSingle();
@@ -56,6 +70,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [cargando, setCargando] = useState(true);
   const [usuario, setUsuario] = useState<AuthCtx['usuario']>(null);
   const [perfil, setPerfil] = useState<Perfil | null>(null);
+  const [superadmin, setSuperadmin] = useState(false);
   const [identidadGuardada, setIdentidadGuardada] = useState(false);
   const usuarioRef = useRef<string | null>(null);
 
@@ -68,11 +83,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         usuarioRef.current = guardado;
         setUsuario({ id: guardado, email: perfilGuardado.email ?? '' });
         setPerfil(perfilGuardado);
+        setSuperadmin((await db.meta.get('superadmin'))?.value === true);
         setIdentidadGuardada(true);
       } else {
         usuarioRef.current = null;
         setUsuario(null);
         setPerfil(null);
+        setSuperadmin(false);
         setIdentidadGuardada(false);
       }
       setCargando(false);
@@ -90,10 +107,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const local = await db.perfiles.get(id);
     if (local) {
       setPerfil(local);
+      setSuperadmin((await db.meta.get('superadmin'))?.value === true);
       setCargando(false);
       void leerPerfil(id).then((p) => p && usuarioRef.current === id && setPerfil(p));
+      void leerSuperadmin().then((s) => usuarioRef.current === id && setSuperadmin(s));
     } else {
-      setPerfil(await leerPerfil(id));
+      const [p, s] = await Promise.all([leerPerfil(id), leerSuperadmin()]);
+      setPerfil(p);
+      setSuperadmin(s);
       setCargando(false);
     }
   }, []);
@@ -122,6 +143,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       cargando,
       usuario,
       perfil,
+      superadmin,
       identidadGuardada,
       iniciarSesion: async (email, password) => {
         const { error } = await supabase.auth.signInWithPassword({ email: email.trim(), password });
@@ -129,14 +151,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       },
       registrar: async (email, password, nombre, codigo) => {
         const c = codigo?.trim() ?? '';
-        if (c) {
-          // Antes de crear la cuenta se avisa si el código no corresponde a ese correo.
-          const { data: valido, error: e } = await supabase.rpc('validar_invitacion', { p_email: email.trim(), p_codigo: c });
-          if (e) return { error: traducir(e.message) };
-          if (!valido) return { error: 'Ese código no corresponde a ese correo, o ya se usó. Revisa que sea el mismo correo con el que te invitaron.' };
-        }
+        if (!c) return { error: 'Para crear tu cuenta necesitas el código de invitación que te dio tu párroco.' };
+        // Antes de crear la cuenta se avisa si el código no corresponde a ese correo.
+        const { data: valido, error: e } = await supabase.rpc('validar_invitacion', { p_email: email.trim(), p_codigo: c });
+        if (e) return { error: traducir(e.message) };
+        if (!valido) return { error: 'Ese código no corresponde a ese correo, o ya se usó. Revisa que sea el mismo correo con el que te invitaron.' };
         const { data, error } = await supabase.auth.signUp({
-          email: email.trim(), password, options: { data: { nombre: nombre.trim(), ...(c ? { codigo: c } : {}) } },
+          email: email.trim(), password, options: { data: { nombre: nombre.trim(), codigo: c } },
         });
         if (error) return { error: traducir(error.message) };
         if (!data.session) return { aviso: 'Te enviamos un correo para confirmar tu cuenta. Después, inicia sesión.' };
@@ -150,13 +171,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         usuarioRef.current = null;
         setUsuario(null);
         setPerfil(null);
+        setSuperadmin(false);
         setIdentidadGuardada(false);
       },
       recargarPerfil: async () => {
         if (usuarioRef.current) setPerfil(await leerPerfil(usuarioRef.current));
       },
     }),
-    [cargando, usuario, perfil, identidadGuardada],
+    [cargando, usuario, perfil, superadmin, identidadGuardada],
   );
 
   return <Ctx.Provider value={valor}>{children}</Ctx.Provider>;

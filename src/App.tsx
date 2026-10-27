@@ -7,7 +7,7 @@ import { avisoDelSistema } from './lib/avisos';
 import { configurado } from './lib/supabase';
 import { iniciarSync } from './lib/sync';
 import { esIPhone, estaInstalada, estadoPush, sincronizarPush } from './lib/push';
-import { ir, useContadorConflictos, useNoLeidas, useRuta } from './lib/hooks';
+import { ir, useContadorConflictos, useNoLeidas, useParroquia, useRuta } from './lib/hooks';
 import type { Notificacion, Perfil } from './types';
 import { Agenda } from './components/Agenda';
 import { Ajustes } from './components/Ajustes';
@@ -18,7 +18,8 @@ import { Lugares } from './components/Lugares';
 import { MisasFijas } from './components/MisasFijas';
 import { abrirNotificacion, Notificaciones } from './components/Notificaciones';
 import { Parroquiales } from './components/Parroquiales';
-import { Pendiente } from './components/Pendiente';
+import { Pendiente, SinAcceso } from './components/Pendiente';
+import { Superadmin } from './components/Superadmin';
 import { TiposEvento } from './components/TiposEvento';
 import { Usuarios } from './components/Usuarios';
 
@@ -56,6 +57,7 @@ function BannerActualizacion() {
 const TITULOS: Record<string, string> = {
   agenda: 'Agenda', conflictos: 'Conflictos', avisos: 'Notificaciones', parroquiales: 'Avisos',
   ajustes: 'Ajustes', mas: 'Ajustes', lugares: 'Lugares', misas: 'Misas fijas', tipos: 'Tipos de evento', usuarios: 'Usuarios',
+  superadmin: 'Parroquias',
 };
 
 /** Invitación (descartable) a activar las notificaciones en este teléfono. */
@@ -81,7 +83,7 @@ function InvitacionAvisos() {
   );
 }
 
-function Shell({ perfil }: { perfil: Perfil }) {
+function Shell({ perfil, superadmin }: { perfil: Perfil; superadmin: boolean }) {
   const ruta = useRuta();
   const seccion = ruta[0];
   const conflictos = useContadorConflictos();
@@ -120,7 +122,7 @@ function Shell({ perfil }: { perfil: Perfil }) {
     return () => window.clearTimeout(t);
   }, [toast]);
 
-  const enAjustes = ['ajustes', 'mas', 'lugares', 'misas', 'tipos', 'usuarios'].includes(seccion);
+  const enAjustes = ['ajustes', 'mas', 'lugares', 'misas', 'tipos', 'usuarios', 'superadmin'].includes(seccion);
 
   return (
     <div className="app">
@@ -151,6 +153,7 @@ function Shell({ perfil }: { perfil: Perfil }) {
           : seccion === 'misas' ? <MisasFijas perfil={perfil} />
           : seccion === 'tipos' ? <TiposEvento perfil={perfil} />
           : seccion === 'usuarios' && perfil.rol === 'parroco' ? <Usuarios perfil={perfil} />
+          : seccion === 'superadmin' && superadmin ? <Superadmin perfil={perfil} />
           : <Agenda ruta={ruta} perfil={perfil} />}
       </main>
 
@@ -163,16 +166,40 @@ function Shell({ perfil }: { perfil: Perfil }) {
   );
 }
 
+/** Un superadmin que no es párroco de ninguna parroquia solo administra parroquias. */
+function SoloSuperadmin({ perfil }: { perfil: Perfil }) {
+  return (
+    <div className="app">
+      <header className="top"><h1>Parroquias</h1></header>
+      <main><Superadmin perfil={perfil} soloEsto /></main>
+    </div>
+  );
+}
+
 function Puerta() {
-  const { cargando, usuario, perfil } = useAuth();
+  const { cargando, usuario, perfil, superadmin } = useAuth();
   // El perfil local se actualiza en vivo (p. ej. si el párroco cambia el rol).
   const vivo = useLiveQuery(() => (usuario ? db.perfiles.get(usuario.id) : undefined), [usuario?.id]);
   const actual = vivo ?? perfil;
+  const parroquia = useParroquia(actual?.parroquia_id);
 
   if (cargando) return <div className="centro"><p className="ayuda">Cargando…</p></div>;
   if (!usuario) return <Login />;
+  if (actual?.activo && actual.parroquia_id === null) {
+    return superadmin
+      ? <SoloSuperadmin perfil={actual} />
+      : <SinAcceso titulo="Sin parroquia" texto="Tu cuenta todavía no está asignada a ninguna parroquia. Pide a quien te invitó que te dé acceso." />;
+  }
   if (!actual || !actual.activo) return <Pendiente />;
-  return <Shell perfil={actual} />;
+  if (parroquia && !parroquia.activa) {
+    return (
+      <SinAcceso
+        titulo="Parroquia suspendida"
+        texto={`El acceso de ${parroquia.nombre} está suspendido. Comunícate con quien administra la Agenda Parroquial.`}
+      />
+    );
+  }
+  return <Shell perfil={actual} superadmin={superadmin} />;
 }
 
 export default function App() {

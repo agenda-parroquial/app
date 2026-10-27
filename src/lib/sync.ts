@@ -122,7 +122,7 @@ const INCREMENTALES = [
 const PAGINA = 1000;
 const MARGEN_MS = 120_000; // se vuelve a pedir 2 min hacia atrás por si alguna transacción se confirmó tarde
 
-async function traerTabla(tabla: (typeof INCREMENTALES)[number], pendientes: Set<string>) {
+async function traerTabla(tabla: (typeof INCREMENTALES)[number] | 'parroquias', pendientes: Set<string>) {
   const clave = `cursor:${tabla}`;
   const cursor = (await db.meta.get(clave))?.value as string | undefined;
   const desde = cursor ? new Date(Date.parse(cursor) - MARGEN_MS).toISOString() : '1970-01-01T00:00:00Z';
@@ -207,6 +207,8 @@ export async function sincronizar() {
     do {
       repetir = false;
       await enviarPendientes();
+      // Primero la parroquia: si la suspendieron, la app lo sabe aunque lo demás ya no se pueda pedir.
+      await traerTabla('parroquias', new Set());
       await generarMisasFijas();
       await traer(usuarioActual);
       if (conciliarPendiente) {
@@ -247,7 +249,7 @@ export function iniciarSync(usuarioId: string, alNotificar: (n: Notificacion) =>
   conciliarPendiente = true;
 
   const canal = supabase.channel('agenda');
-  for (const tabla of ['perfiles', 'lugares', 'misas_fijas', 'tipos_evento', 'avisos_parroquiales', 'eventos', 'conflictos', 'intenciones']) {
+  for (const tabla of ['parroquias', 'perfiles', 'lugares', 'misas_fijas', 'tipos_evento', 'avisos_parroquiales', 'eventos', 'conflictos', 'intenciones']) {
     canal.on('postgres_changes', { event: '*', schema: 'public', table: tabla },
       (p) => void aplicarCambio(tabla, p as unknown as Cambio));
   }

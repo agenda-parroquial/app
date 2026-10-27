@@ -1,6 +1,7 @@
 import Dexie, { type Table } from 'dexie';
 import type {
-  AvisoParroquial, Conflicto, Evento, Intencion, Lugar, MisaFija, Notificacion, OpPendiente, Perfil, TipoEventoGuardado,
+  AvisoParroquial, Conflicto, Evento, Intencion, Lugar, MisaFija, Notificacion, OpPendiente, Parroquia, Perfil,
+  TipoEventoGuardado,
 } from '../types';
 
 /**
@@ -17,6 +18,7 @@ class AgendaDB extends Dexie {
   intenciones!: Table<Intencion, string>;
   tipos_evento!: Table<TipoEventoGuardado, string>;
   avisos_parroquiales!: Table<AvisoParroquial, string>;
+  parroquias!: Table<Parroquia, string>;
   outbox!: Table<OpPendiente, number>;
   meta!: Table<{ key: string; value: unknown }, string>;
 
@@ -36,6 +38,8 @@ class AgendaDB extends Dexie {
     this.version(2).stores({ intenciones: 'id, evento_id' });
     // v3: tipos de evento personalizados y avisos parroquiales.
     this.version(3).stores({ tipos_evento: 'id', avisos_parroquiales: 'id, desde' });
+    // v4: la parroquia del usuario (nombre y si está suspendida).
+    this.version(4).stores({ parroquias: 'id' });
   }
 }
 

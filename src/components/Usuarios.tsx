@@ -2,27 +2,9 @@ import { useCallback, useEffect, useState, type FormEvent } from 'react';
 import { usePerfiles } from '../lib/hooks';
 import { actualizarPerfil, cancelarInvitacion, invitarUsuario, listarInvitaciones } from '../lib/store';
 import { esErrorDeRed, mensajeDeError, useEstadoSync } from '../lib/sync';
+import { compartir, conGuion, mensajeInvitacion } from '../lib/invitaciones';
 import { nombrePerfil, ROLES, type Invitacion, type Perfil, type Rol } from '../types';
 import { VolverAjustes } from './VolverAjustes';
-
-const conGuion = (c: string) => `${c.slice(0, 4)}-${c.slice(4)}`;
-
-/** Texto listo para mandar por WhatsApp o mensaje. */
-const mensajeInvitacion = (i: Pick<Invitacion, 'nombre' | 'email' | 'codigo' | 'rol'>) =>
-  `Hola${i.nombre ? ` ${i.nombre}` : ''}, te invité a la Agenda Parroquial como ${ROLES[i.rol].toLowerCase()}.\n\n` +
-  `1. Entra a ${location.origin}\n2. Toca «No tengo cuenta · Registrarme»\n` +
-  `3. Usa este correo: ${i.email}\n4. Escribe este código de invitación: ${conGuion(i.codigo)}\n` +
-  `5. Elige tu contraseña.\n\nAl terminar entrarás directo, sin esperar aprobación.`;
-
-async function compartir(texto: string) {
-  try {
-    if (navigator.share) return void (await navigator.share({ text: texto }));
-    await navigator.clipboard.writeText(texto);
-    alert('Mensaje copiado. Pégalo en WhatsApp o donde quieras mandarlo.');
-  } catch {
-    /* el usuario cerró el cuadro de compartir */
-  }
-}
 
 /** Solo el párroco: invita personas, aprueba cuentas y decide el rol de cada una. */
 export function Usuarios({ perfil }: { perfil: Perfil }) {

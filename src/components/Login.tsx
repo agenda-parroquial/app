@@ -50,10 +50,10 @@ export function Login() {
 
         {modo === 'registro' && (
           <>
-            <label htmlFor="codigo">Código de invitación (si te dieron uno)</label>
+            <label htmlFor="codigo">Código de invitación</label>
             <input
               id="codigo" value={codigo} onChange={(e) => setCodigo(e.target.value)} placeholder="Ej.: 3F9A-12BC"
-              autoCapitalize="characters" autoComplete="off" maxLength={12}
+              autoCapitalize="characters" autoComplete="off" maxLength={12} required
             />
           </>
         )}
@@ -62,9 +62,7 @@ export function Login() {
         {aviso && <div className="aviso ok">{aviso}</div>}
         {modo === 'registro' && (
           <p className="ayuda">
-            {codigo.trim()
-              ? 'Con tu código entrarás directo.'
-              : 'Sin código, el párroco debe aprobar tu cuenta antes de que puedas ver la agenda.'}
+            El código te lo da tu párroco (o quien administra la app). Usa el mismo correo con el que te invitaron.
           </p>
         )}
 

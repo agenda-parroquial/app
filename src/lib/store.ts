@@ -2,8 +2,8 @@ import { db } from './db';
 import { supabase } from './supabase';
 import { sincronizar } from './sync';
 import type {
-  AvisoParroquial, DatosEvento, Evento, Intencion, Invitacion, Lugar, MisaFija, OpPendiente, Perfil, Rol, Tabla,
-  TipoEventoGuardado,
+  AvisoParroquial, DatosEvento, Evento, Intencion, Invitacion, Lugar, MisaFija, OpPendiente, ParroquiaAdmin, Perfil, Rol,
+  Tabla, TipoEventoGuardado,
 } from '../types';
 
 /**
@@ -163,6 +163,47 @@ export async function listarInvitaciones(): Promise<Invitacion[]> {
 
 export async function cancelarInvitacion(id: string) {
   const { error } = await supabase.from('invitaciones').update({ activa: false }).eq('id', id);
+  if (error) throw error;
+}
+
+// ---------- Superadmin: parroquias y accesos de los párrocos (requieren internet) ----
+export async function listarParroquias(): Promise<ParroquiaAdmin[]> {
+  const { data, error } = await supabase.rpc('listar_parroquias');
+  if (error) throw error;
+  return data as ParroquiaAdmin[];
+}
+
+/** Crea la parroquia y la invitación de su primer párroco; devuelve el código para dárselo. */
+export async function crearParroquia(d: { nombre: string; zona: string; email: string; nombreParroco: string }) {
+  const { data, error } = await supabase.rpc('crear_parroquia', {
+    p_nombre: d.nombre, p_zona: d.zona, p_email: d.email, p_nombre_parroco: d.nombreParroco,
+  });
+  if (error) throw error;
+  return data as { parroquia_id: string; codigo: string };
+}
+
+export async function invitarParroco(parroquia: string, email: string, nombre: string) {
+  const { data, error } = await supabase.rpc('invitar_parroco', { p_parroquia: parroquia, p_email: email, p_nombre: nombre });
+  if (error) throw error;
+  return data as string;
+}
+
+export async function cancelarInvitacionParroco(id: string) {
+  const { error } = await supabase.rpc('cancelar_invitacion_parroco', { p_id: id });
+  if (error) throw error;
+}
+
+/** Renombra, cambia la zona horaria o suspende/reactiva (lo que no se pasa no cambia). */
+export async function editarParroquia(id: string, cambios: { nombre?: string; activa?: boolean; zona?: string }) {
+  const { error } = await supabase.rpc('editar_parroquia', {
+    p_id: id, p_nombre: cambios.nombre ?? null, p_activa: cambios.activa ?? null, p_zona: cambios.zona ?? null,
+  });
+  if (error) throw error;
+}
+
+/** Para un superadmin sin parroquia propia: pasar a ser párroco de una. */
+export async function asignarmeComoParroco(parroquia: string) {
+  const { error } = await supabase.rpc('asignarme_como_parroco', { p_parroquia: parroquia });
   if (error) throw error;
 }
 

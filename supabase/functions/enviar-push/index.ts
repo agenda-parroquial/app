@@ -68,10 +68,11 @@ async function destino(n: { tipo: string; evento_id: string | null }): Promise<s
   if (n.tipo === 'conflicto') return '/#/conflictos';
   if (n.tipo === 'aviso_parroquial') return '/#/parroquiales';
   if (!n.evento_id) return '/#/avisos';
-  const { data: e } = await sb.from('eventos').select('inicio').eq('id', n.evento_id).maybeSingle();
+  const { data: e } = await sb.from('eventos').select('inicio, parroquia_id').eq('id', n.evento_id).maybeSingle();
   if (!e) return '/#/avisos';
-  const { data: z } = await sb.from('config').select('valor').eq('clave', 'zona_horaria').maybeSingle();
-  const dia = new Date(e.inicio as string).toLocaleDateString('en-CA', { timeZone: (z?.valor as string) ?? 'America/Mexico_City' });
+  // Cada parroquia tiene su zona horaria.
+  const { data: z } = await sb.from('parroquias').select('zona_horaria').eq('id', e.parroquia_id).maybeSingle();
+  const dia = new Date(e.inicio as string).toLocaleDateString('en-CA', { timeZone: (z?.zona_horaria as string) ?? 'America/Mexico_City' });
   return `/#/agenda/${dia}/${n.evento_id}`;
 }
 

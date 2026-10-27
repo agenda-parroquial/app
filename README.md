@@ -12,7 +12,8 @@ App web instalable (PWA) para llevar la agenda de la parroquia entre la secretar
 - **Ajustes:** nombre propio, notificaciones del teléfono, lugares, misas fijas, tipos de evento y, para el párroco, usuarios e invitaciones.
 - **Tipo de evento a tu medida:** al elegir **«Otro»** se escribe el tipo; si se marca «Guardar este tipo», queda en la lista para la próxima vez, y si no, solo se usa para ese evento.
 - **Quién creó cada evento:** cada persona tiene su nombre y las tarjetas muestran «Creado por …». El celebrante de cada evento es quien lo atiende.
-- **Roles:** párroco, secretaria y vicario; el párroco aprueba las cuentas o invita a las personas con un código.
+- **Varias parroquias, con acceso controlado:** un mismo sitio sirve a muchas parroquias y cada una solo ve lo suyo. Un **superadmin** crea cada parroquia y le da acceso a su párroco con un código de invitación (ver «Varias parroquias»). Nadie puede crear una cuenta sin invitación.
+- **Roles:** párroco, secretaria y vicario; el párroco invita a su gente con un código y asigna los roles.
 
 Tecnología: React + Vite (PWA) · Dexie/IndexedDB (copia local) · Supabase (base de datos, usuarios y tiempo real) · Netlify (hosting).
 
@@ -22,7 +23,8 @@ Tecnología: React + Vite (PWA) · Dexie/IndexedDB (copia local) · Supabase (ba
 
 1. Entra a <https://supabase.com> → **New project**. Anota la contraseña de la base de datos.
 2. **SQL Editor → New query**: pega **todo** el contenido de [`supabase/schema.sql`](supabase/schema.sql) y pulsa **Run**.
-   - Si tu parroquia no está en la zona horaria de Ciudad de México, cambia `America/Mexico_City` en la primera línea de datos del archivo antes de ejecutarlo.
+   - La zona horaria se elige al crear cada parroquia desde la app (por omisión, Ciudad de México).
+   - Si ya tenías el proyecto de antes, **no** vuelvas a pegar `schema.sql`: ejecuta en orden los archivos nuevos de `supabase/migrations/` (el último, `20261029_multi_parroquia.sql`, activa las varias parroquias).
 3. **Authentication → Providers → Email**: desactiva **Confirm email**. (No hace falta confirmar el correo: el párroco ya aprueba cada cuenta a mano.)
 4. **Project Settings → API**: copia la **Project URL** y la clave **anon / publishable**.
 
@@ -59,10 +61,10 @@ Las claves del servicio de avisos (VAPID) se generan solas la primera vez y se g
 
 ## 4. Primer uso
 
-1. **El párroco se registra primero** desde la dirección de Netlify. El primer usuario que se registra queda automáticamente como párroco y con acceso.
-2. En **Más → Lugares** agrega la parroquia, las capillas y la oficina.
-3. En **Más → Misas fijas** agrega los horarios semanales.
-4. Para sumar a la secretaria o al vicario, el párroco va a **Ajustes → Usuarios e invitaciones**, escribe su nombre, correo y rol y pulsa **Crear invitación**. La app genera un código y un mensaje listo para mandar por WhatsApp. La persona abre la app, toca **«No tengo cuenta · Registrarme»**, usa ese mismo correo, el código y elige su contraseña; entra directo, ya con su rol. Quien se registra sin código queda pendiente hasta que el párroco la apruebe en la misma pantalla.
+1. **Quien administra la app se registra primero** desde la dirección de Netlify: en una instalación nueva, la primera cuenta queda como **superadmin**. En **Ajustes → Parroquias y accesos** crea la primera parroquia con el correo de su párroco y le manda el código; si quiere usar la agenda de esa parroquia con su propia cuenta, pulsa **«Usar mi cuenta aquí»**.
+2. El párroco se registra con el código (ver el punto 4) y en **Ajustes → Lugares** agrega la parroquia, las capillas y la oficina.
+3. En **Ajustes → Misas fijas** agrega los horarios semanales.
+4. Para sumar a la secretaria o al vicario, el párroco va a **Ajustes → Usuarios e invitaciones**, escribe su nombre, correo y rol y pulsa **Crear invitación**. La app genera un código y un mensaje listo para mandar por WhatsApp. La persona abre la app, toca **«No tengo cuenta · Registrarme»**, usa ese mismo correo, el código y elige su contraseña; entra directo, ya con su rol. Sin código no se puede crear una cuenta.
 
 | | Párroco | Secretaria | Vicario |
 |---|:-:|:-:|:-:|
@@ -77,6 +79,13 @@ Las claves del servicio de avisos (VAPID) se generan solas la primera vez y se g
 | Tipos de evento guardados: quitar | ✔ | ✔ | — |
 | Invitar usuarios | ✔ | — | — |
 | Aprobar cuentas y asignar roles | ✔ | — | — |
+
+## Varias parroquias (superadmin)
+
+- **Superadmin:** la cuenta que administra la app. Desde **Ajustes → Parroquias y accesos** crea parroquias, manda la invitación a cada párroco, invita a otro párroco, renombra y **suspende o reactiva** parroquias (una parroquia suspendida no puede entrar ni ver sus datos). Solo gestiona accesos: **no ve la agenda, las intenciones ni los avisos de ninguna parroquia**.
+- **Aislamiento:** cada fila de datos pertenece a una parroquia y la base de datos (Row Level Security) solo se la muestra a quienes son de ella; las notificaciones, los empalmes y las misas fijas también son por parroquia, cada una con su zona horaria.
+- **Primer superadmin en una base que ya tenía datos:** la migración deja como superadmin al primer párroco activo. Para sumar otro: en el SQL Editor, `insert into superadmins (id) values ('<id del usuario>');`.
+- **Costos:** el plan gratis de Supabase y el de Netlify bastan para empezar. Cuando sean varias parroquias conviene pasar a Supabase Pro (respaldos automáticos y sin pausas por inactividad). El dominio propio es opcional.
 
 ## 5. Instalar en el teléfono
 
@@ -108,7 +117,7 @@ La regla de empalme: se cruzan en el tiempo **y** comparten lugar (de la lista) 
 ## Estructura
 
 ```
-supabase/schema.sql        tablas, roles, seguridad, detección de empalmes, misas fijas (instalación nueva)
+supabase/schema.sql        tablas, roles, seguridad, detección de empalmes, misas fijas y parroquias (instalación nueva)
 supabase/migrations/       cambios para bases ya creadas (ejecutar en orden en el SQL Editor)
 supabase/functions/        función que envía los avisos push (se despliega desde el panel de Supabase)
 src/sw.ts                  service worker: modo sin conexión y recepción de avisos

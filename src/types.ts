@@ -9,8 +9,27 @@ export interface Perfil {
   nombre: string;
   rol: Rol;
   activo: boolean;
+  parroquia_id: string | null; // null = superadmin sin parroquia propia
   created_at: string;
   updated_at: string;
+}
+
+/** La parroquia a la que pertenece el usuario (la copia local solo tiene la suya). */
+export interface Parroquia {
+  id: string;
+  nombre: string;
+  zona_horaria: string;
+  activa: boolean; // false = suspendida por el superadmin
+  created_at: string;
+  updated_at: string;
+}
+
+/** Fila del panel del superadmin (función `listar_parroquias`). */
+export interface ParroquiaAdmin extends Parroquia {
+  usuarios: number;
+  pendientes: number;
+  parrocos: { nombre: string; email: string }[];
+  invitaciones: { id: string; email: string; nombre: string; codigo: string }[];
 }
 
 export interface Lugar {

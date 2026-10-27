@@ -28,6 +28,9 @@ const SIN_AVISOS: AvisoParroquial[] = [];
 export const useLugares = () => useLiveQuery(() => db.lugares.toArray(), [], SIN_LUGARES);
 export const useTiposEvento = () => useLiveQuery(() => db.tipos_evento.toArray(), [], SIN_TIPOS);
 export const useAvisosParroquiales = () => useLiveQuery(() => db.avisos_parroquiales.toArray(), [], SIN_AVISOS);
+/** La parroquia propia (nombre y si está suspendida); undefined mientras no se ha descargado. */
+export const useParroquia = (id: string | null | undefined) =>
+  useLiveQuery(() => (id ? db.parroquias.get(id) : undefined), [id]);
 export const usePerfiles = () => useLiveQuery(() => db.perfiles.toArray(), [], SIN_PERFILES);
 
 /** Ids de registros con cambios locales que aún no llegan al servidor. */
