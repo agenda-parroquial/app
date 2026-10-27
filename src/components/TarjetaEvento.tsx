@@ -10,13 +10,15 @@ interface Props {
   /** Si se pasa, la tarjeta muestra el botón de intenciones con su cantidad. */
   onIntenciones?: () => void;
   nIntenciones?: number;
+  /** Color que la parroquia eligió para este tipo de evento (si hay). */
+  color?: string;
   children?: React.ReactNode;
 }
 
 export const nombreLugar = (e: Evento, lugares: Lugar[]) =>
   (e.lugar_id && lugares.find((l) => l.id === e.lugar_id)?.nombre) || e.lugar_texto || 'Sin lugar';
 
-export function TarjetaEvento({ evento: e, lugares, perfiles, sinEnviar, onClick, onIntenciones, nIntenciones = 0, children }: Props) {
+export function TarjetaEvento({ evento: e, lugares, perfiles, sinEnviar, onClick, onIntenciones, nIntenciones = 0, color, children }: Props) {
   const celebrante = e.asignado_a ? nombrePerfil(perfiles.find((p) => p.id === e.asignado_a)) : null;
   const creador = !e.misa_fija_id && e.creado_por ? nombrePerfil(perfiles.find((p) => p.id === e.creado_por)) : null;
   const tipo = nombreTipo(e);
@@ -24,7 +26,8 @@ export function TarjetaEvento({ evento: e, lugares, perfiles, sinEnviar, onClick
     .filter(Boolean).join(' ');
 
   return (
-    <div className={clases} onClick={onClick}>
+    // El color solo se ve cuando el evento está normal: un conflicto o una cancelación mantienen su señal.
+    <div className={clases} onClick={onClick} style={color && e.estado === 'confirmado' ? { borderLeftColor: color } : undefined}>
       <div className="hora">{horaDe(e.inicio)} – {horaDe(e.fin)}</div>
       <div className="titulo">{e.titulo || tipo}{e.titulo ? ` · ${tipo}` : ''}</div>
       {e.intencion && <div className="meta">🙏 {e.intencion}</div>}

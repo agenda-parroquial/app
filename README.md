@@ -12,6 +12,7 @@ App web instalable (PWA) para llevar la agenda de la parroquia entre la secretar
 - **Ajustes:** nombre propio, notificaciones del teléfono, lugares, misas fijas, tipos de evento y, para el párroco, usuarios e invitaciones.
 - **Tipo de evento a tu medida:** al elegir **«Otro»** se escribe el tipo; si se marca «Guardar este tipo», queda en la lista para la próxima vez, y si no, solo se usa para ese evento.
 - **Quién creó cada evento:** cada persona tiene su nombre y las tarjetas muestran «Creado por …». El celebrante de cada evento es quien lo atiende.
+- **Colores por tipo de evento:** en **Ajustes → Colores por tipo de evento** el párroco o la secretaria asignan un color a cada tipo (misa, bautizo… y los propios) y se ve en el borde de las tarjetas de la agenda; lo comparte toda la parroquia.
 - **Varias parroquias, con acceso controlado:** un mismo sitio sirve a muchas parroquias y cada una solo ve lo suyo. Un **superadmin** crea cada parroquia y le da acceso a su párroco con un código de invitación (ver «Varias parroquias»). Nadie puede crear una cuenta sin invitación.
 - **Roles:** párroco, secretaria y vicario; el párroco invita a su gente con un código y asigna los roles.
 
@@ -24,7 +25,7 @@ Tecnología: React + Vite (PWA) · Dexie/IndexedDB (copia local) · Supabase (ba
 1. Entra a <https://supabase.com> → **New project**. Anota la contraseña de la base de datos.
 2. **SQL Editor → New query**: pega **todo** el contenido de [`supabase/schema.sql`](supabase/schema.sql) y pulsa **Run**.
    - La zona horaria se elige al crear cada parroquia desde la app (por omisión, Ciudad de México).
-   - Si ya tenías el proyecto de antes, **no** vuelvas a pegar `schema.sql`: ejecuta en orden los archivos nuevos de `supabase/migrations/` (el último, `20261029_multi_parroquia.sql`, activa las varias parroquias).
+   - Si ya tenías el proyecto de antes, **no** vuelvas a pegar `schema.sql`: ejecuta en orden los archivos nuevos de `supabase/migrations/` (`20261029_multi_parroquia.sql` activa las varias parroquias y `20261030_vigencia_colores_diocesanos.sql`, la vigencia automática, los colores por tipo y los eventos diocesanos). Publica la app **después** de ejecutar la migración.
 3. **Authentication → Providers → Email**: desactiva **Confirm email**. (No hace falta confirmar el correo: el párroco ya aprueba cada cuenta a mano.)
 4. **Project Settings → API**: copia la **Project URL** y la clave **anon / publishable**.
 
@@ -85,6 +86,8 @@ Las claves del servicio de avisos (VAPID) se generan solas la primera vez y se g
 - **Superadmin:** la cuenta que administra la app. Desde **Ajustes → Parroquias y accesos** crea parroquias, manda la invitación a cada párroco, invita a otro párroco, renombra y **suspende o reactiva** parroquias (una parroquia suspendida no puede entrar ni ver sus datos). Solo gestiona accesos: **no ve la agenda, las intenciones ni los avisos de ninguna parroquia**.
 - **Aislamiento:** cada fila de datos pertenece a una parroquia y la base de datos (Row Level Security) solo se la muestra a quienes son de ella; las notificaciones, los empalmes y las misas fijas también son por parroquia, cada una con su zona horaria.
 - **Primer superadmin en una base que ya tenía datos:** la migración deja como superadmin al primer párroco activo. Para sumar otro: en el SQL Editor, `insert into superadmins (id) values ('<id del usuario>');`.
+- **Vigencia automática:** cada parroquia puede tener una fecha de «acceso hasta». Al pasar esa fecha deja de entrar y de ver sus datos (como si estuviera suspendida), sin tareas programadas; sus datos se conservan y al renovar todo vuelve. En el panel: **+1 mes**, **+1 año**, una fecha exacta o **Sin límite**. Dos días antes de vencer, sus usuarios ven un aviso. Las parroquias existentes quedan sin límite hasta que fijes una fecha.
+- **Eventos diocesanos:** en **Ajustes → Administración → Eventos diocesanos** el superadmin sube eventos (con aviso opcional a todos) que aparecen en la agenda de todas las parroquias con un formato propio (borde punteado azul y la etiqueta «Diocesano»). Son solo informativos: no generan empalmes y cada usuario puede ocultarlos (individualmente o todos) desde su teléfono.
 - **Costos:** el plan gratis de Supabase y el de Netlify bastan para empezar. Cuando sean varias parroquias conviene pasar a Supabase Pro (respaldos automáticos y sin pausas por inactividad). El dominio propio es opcional.
 
 ## 5. Instalar en el teléfono

@@ -2,7 +2,7 @@ import { useSyncExternalStore } from 'react';
 import { db } from './db';
 import { supabase } from './supabase';
 import { hoyClave } from './fechas';
-import type { Evento, Notificacion, OpPendiente } from '../types';
+import type { Evento, EventoDiocesano, Notificacion, OpPendiente, Parroquia } from '../types';
 
 // ---------------------------------------------------------------------
 //  Estado observable (para el indicador de conexión)
@@ -54,8 +54,19 @@ export function normalizarEvento(r: Evento): Evento {
     updated_at: new Date(r.updated_at).toISOString(),
   };
 }
+export function normalizarDiocesano(r: EventoDiocesano): EventoDiocesano {
+  return {
+    ...r,
+    inicio: new Date(r.inicio).toISOString(),
+    fin: new Date(r.fin).toISOString(),
+    created_at: new Date(r.created_at).toISOString(),
+    updated_at: new Date(r.updated_at).toISOString(),
+  };
+}
 const normalizar = (tabla: string, fila: { id: string }) =>
-  tabla === 'eventos' ? normalizarEvento(fila as Evento) : fila;
+  tabla === 'eventos' ? normalizarEvento(fila as Evento)
+    : tabla === 'eventos_diocesanos' ? normalizarDiocesano(fila as EventoDiocesano)
+    : fila;
 
 const idsPendientes = async () => new Set((await db.outbox.toArray()).map((o) => o.rowId));
 
@@ -118,6 +129,7 @@ async function enviarPendientes() {
 // ---------------------------------------------------------------------
 const INCREMENTALES = [
   'perfiles', 'lugares', 'misas_fijas', 'tipos_evento', 'avisos_parroquiales', 'eventos', 'conflictos', 'intenciones',
+  'eventos_diocesanos',
 ] as const;
 const PAGINA = 1000;
 const MARGEN_MS = 120_000; // se vuelve a pedir 2 min hacia atrás por si alguna transacción se confirmó tarde
@@ -141,6 +153,19 @@ async function traerTabla(tabla: (typeof INCREMENTALES)[number] | 'parroquias', 
     if (data.length < PAGINA) break;
   }
   if (ultimo && ultimo !== cursor) await db.meta.put({ key: clave, value: ultimo });
+}
+
+/**
+ * Una parroquia suspendida o vencida no sincroniza (la app solo muestra el aviso de acceso), así que
+ * esta consulta directa es la que se entera de que ya fue reactivada o renovada.
+ */
+export async function refrescarParroquia(id: string) {
+  try {
+    const { data } = await supabase.from('parroquias').select('*').eq('id', id).maybeSingle();
+    if (data) await db.parroquias.put(data as Parroquia);
+  } catch {
+    /* sin internet: se vuelve a intentar */
+  }
 }
 
 async function traerNotificaciones(usuarioId: string) {
@@ -249,7 +274,7 @@ export function iniciarSync(usuarioId: string, alNotificar: (n: Notificacion) =>
   conciliarPendiente = true;
 
   const canal = supabase.channel('agenda');
-  for (const tabla of ['parroquias', 'perfiles', 'lugares', 'misas_fijas', 'tipos_evento', 'avisos_parroquiales', 'eventos', 'conflictos', 'intenciones']) {
+  for (const tabla of ['parroquias', 'perfiles', 'lugares', 'misas_fijas', 'tipos_evento', 'avisos_parroquiales', 'eventos', 'conflictos', 'intenciones', 'eventos_diocesanos']) {
     canal.on('postgres_changes', { event: '*', schema: 'public', table: tabla },
       (p) => void aplicarCambio(tabla, p as unknown as Cambio));
   }

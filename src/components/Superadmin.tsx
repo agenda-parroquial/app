@@ -2,10 +2,13 @@ import { useCallback, useEffect, useState, type FormEvent } from 'react';
 import { useAuth } from '../lib/auth';
 import { compartir, conGuion, mensajeInvitacion } from '../lib/invitaciones';
 import {
-  asignarmeComoParroco, cancelarInvitacionParroco, crearParroquia, editarParroquia, invitarParroco, listarParroquias,
+  asignarmeComoParroco, cancelarInvitacionParroco, crearParroquia, editarParroquia, fijarVigencia, invitarParroco,
+  listarParroquias,
 } from '../lib/store';
 import { esErrorDeRed, mensajeDeError, useEstadoSync } from '../lib/sync';
-import type { ParroquiaAdmin, Perfil } from '../types';
+import { claveDia, deClave, diaBreve } from '../lib/fechas';
+import { diasDeVigencia, type ParroquiaAdmin, type Perfil } from '../types';
+import { Diocesanos } from './Diocesanos';
 import { VolverAjustes } from './VolverAjustes';
 
 const ZONAS = [
@@ -23,6 +26,33 @@ interface Creada {
   codigo: string;
 }
 
+/** La fecha de hoy ('YYYY-MM-DD') en la zona horaria de la parroquia. */
+function hoyEn(zona: string) {
+  try {
+    return new Date().toLocaleDateString('en-CA', { timeZone: zona });
+  } catch {
+    return claveDia(new Date());
+  }
+}
+
+/** Suma meses a una fecha sin pasarse de mes (31 ene + 1 mes = 28/29 feb). */
+function sumarMeses(clave: string, meses: number) {
+  const d = deClave(clave);
+  const destino = new Date(d.getFullYear(), d.getMonth() + meses, 1);
+  const ultimo = new Date(destino.getFullYear(), destino.getMonth() + 1, 0).getDate();
+  return claveDia(new Date(destino.getFullYear(), destino.getMonth(), Math.min(d.getDate(), ultimo)));
+}
+
+/** Texto y estado de la vigencia de una parroquia. */
+function describirVigencia(p: ParroquiaAdmin) {
+  const dias = diasDeVigencia(p);
+  if (dias === null) return { texto: 'Sin límite de fecha', vencida: false };
+  const hasta = diaBreve(p.vigente_hasta!);
+  if (dias < 0) return { texto: `Vencida desde el ${hasta}`, vencida: true };
+  if (dias === 0) return { texto: `Vigente hasta hoy (${hasta})`, vencida: false };
+  return { texto: `Vigente hasta el ${hasta} · quedan ${dias} día${dias === 1 ? '' : 's'}`, vencida: false };
+}
+
 /**
  * Panel del superadmin: crear parroquias, darle acceso a su párroco con una invitación
  * y suspender o reactivar parroquias. Solo gestiona accesos; no ve la agenda de nadie.
@@ -37,6 +67,9 @@ export function Superadmin({ perfil, soloEsto = false }: { perfil: Perfil | null
   const [zona, setZona] = useState('America/Mexico_City');
   const [email, setEmail] = useState('');
   const [nombreParroco, setNombreParroco] = useState('');
+  const [vigenteNueva, setVigenteNueva] = useState('');
+  const [fechaVig, setFechaVig] = useState<Record<string, string>>({});
+  const [pestana, setPestana] = useState<'parroquias' | 'diocesanos'>('parroquias');
   const [trabajando, setTrabajando] = useState(false);
   const [invitando, setInvitando] = useState<string | null>(null);
   const [emailInv, setEmailInv] = useState('');
@@ -66,11 +99,12 @@ export function Superadmin({ perfil, soloEsto = false }: { perfil: Perfil | null
     setError('');
     setTrabajando(true);
     try {
-      const r = await crearParroquia({ nombre, zona, email, nombreParroco });
+      const r = await crearParroquia({ nombre, zona, email, nombreParroco, vigenteHasta: vigenteNueva });
       setCreada({ parroquia: r.parroquia_id, nombre: nombre.trim(), email: email.trim().toLowerCase(), codigo: r.codigo });
       setNombre('');
       setEmail('');
       setNombreParroco('');
+      setVigenteNueva('');
       await cargar();
     } catch (err) {
       setError(esErrorDeRed(err) ? 'Necesitas internet para hacer esto.' : mensajeDeError(err));
@@ -96,10 +130,19 @@ export function Superadmin({ perfil, soloEsto = false }: { perfil: Perfil | null
   return (
     <>
       {!soloEsto && <VolverAjustes />}
-      <h2 style={{ marginBottom: 6 }}>Parroquias y accesos</h2>
+      <h2 style={{ marginBottom: 6 }}>Administración</h2>
+      <div className="fila" style={{ marginBottom: 10 }}>
+        <button className={`btn chico ${pestana === 'parroquias' ? '' : 'sec'}`} onClick={() => setPestana('parroquias')}>Parroquias y accesos</button>
+        <button className={`btn chico ${pestana === 'diocesanos' ? '' : 'sec'}`} onClick={() => setPestana('diocesanos')}>Eventos diocesanos</button>
+      </div>
+
+      {pestana === 'diocesanos' && <Diocesanos />}
+
+      {pestana === 'parroquias' && <>
       <p className="ayuda" style={{ marginTop: 0 }}>
         Aquí das acceso a cada párroco: creas su parroquia y le mandas un código de invitación. Cada párroco invita después a su
         secretaria y a su vicario, y nadie ve la agenda de otra parroquia. Tú gestionas los accesos, no ves su agenda.
+        Con una fecha de vigencia, el acceso de la parroquia se desactiva solo al pasar esa fecha.
       </p>
       {!enLinea && <div className="aviso">Sin conexión: este panel requiere internet.</div>}
       {error && <div className="aviso error">{error}</div>}
@@ -115,6 +158,9 @@ export function Superadmin({ perfil, soloEsto = false }: { perfil: Perfil | null
         <input id="pp" value={nombreParroco} onChange={(e) => setNombreParroco(e.target.value)} placeholder="Ej.: Pbro. Juan Pérez" />
         <label htmlFor="pe">Correo del párroco</label>
         <input id="pe" type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="padre@correo.com" required autoCapitalize="none" />
+        <label htmlFor="pv">Acceso hasta (opcional)</label>
+        <input id="pv" type="date" value={vigenteNueva} onChange={(e) => setVigenteNueva(e.target.value)} />
+        <p className="ayuda" style={{ margin: '4px 0 0' }}>Si lo dejas vacío, no vence. Después puedes extenderlo con «+1 mes» o «+1 año».</p>
         <button className="btn ancho" style={{ marginTop: 12 }} disabled={trabajando || !enLinea}>
           {trabajando ? 'Creando…' : 'Crear parroquia e invitación'}
         </button>
@@ -133,8 +179,13 @@ export function Superadmin({ perfil, soloEsto = false }: { perfil: Perfil | null
       <h3 className="dia-titulo">Parroquias ({parroquias?.length ?? '…'})</h3>
       {parroquias?.length === 0 && <p className="vacio">Todavía no hay parroquias.</p>}
       <div className="lista">
-        {parroquias?.map((p) => (
-          <div key={p.id} className="item" style={{ display: 'block', opacity: p.activa ? 1 : 0.7 }}>
+        {parroquias?.map((p) => {
+          const vig = describirVigencia(p);
+          const hoyP = hoyEn(p.zona_horaria);
+          const base = p.vigente_hasta && p.vigente_hasta >= hoyP ? p.vigente_hasta : hoyP; // desde dónde se extiende
+          const extender = (meses: number) => accion(() => fijarVigencia(p.id, sumarMeses(base, meses)));
+          return (
+          <div key={p.id} className="item" style={{ display: 'block', opacity: p.activa && !vig.vencida ? 1 : 0.7 }}>
             <div className="fila" style={{ flexWrap: 'nowrap', alignItems: 'center' }}>
               <input
                 defaultValue={p.nombre} aria-label="Nombre de la parroquia"
@@ -142,12 +193,29 @@ export function Superadmin({ perfil, soloEsto = false }: { perfil: Perfil | null
                   void accion(() => editarParroquia(p.id, { nombre: e.target.value.trim() }))}
               />
               {!p.activa && <span className="etq">Suspendida</span>}
+              {p.activa && vig.vencida && <span className="etq conflicto">Vencida</span>}
             </div>
             <div className="ayuda">
               {p.usuarios} usuario(s) activo(s){p.pendientes > 0 ? ` · ${p.pendientes} sin aprobar` : ''} · {p.zona_horaria}
             </div>
             <div className="ayuda">
               Párroco: {p.parrocos.length ? p.parrocos.map((x) => `${x.nombre || x.email} (${x.email})`).join(', ') : 'aún no se ha registrado'}
+            </div>
+            <div className="ayuda" style={vig.vencida ? { color: 'var(--alerta)', fontWeight: 700 } : undefined}>📅 {vig.texto}</div>
+            <div className="fila" style={{ marginTop: 6, alignItems: 'center' }}>
+              <button className="btn sec chico" onClick={() => void extender(1)} disabled={!enLinea}>+1 mes</button>
+              <button className="btn sec chico" onClick={() => void extender(12)} disabled={!enLinea}>+1 año</button>
+              <input
+                type="date" aria-label="Fecha de vigencia" style={{ width: 'auto', minHeight: 36 }}
+                value={fechaVig[p.id] ?? ''} onChange={(e) => setFechaVig({ ...fechaVig, [p.id]: e.target.value })}
+              />
+              <button
+                className="btn sec chico" disabled={!enLinea || !fechaVig[p.id]}
+                onClick={() => void accion(async () => { await fijarVigencia(p.id, fechaVig[p.id]); setFechaVig({ ...fechaVig, [p.id]: '' }); })}
+              >Fijar</button>
+              {p.vigente_hasta && (
+                <button className="btn sec chico" onClick={() => void accion(() => fijarVigencia(p.id, null))} disabled={!enLinea}>Sin límite</button>
+              )}
             </div>
 
             {p.invitaciones.map((i) => (
@@ -200,8 +268,10 @@ export function Superadmin({ perfil, soloEsto = false }: { perfil: Perfil | null
               </div>
             )}
           </div>
-        ))}
+          );
+        })}
       </div>
+      </>}
 
       {soloEsto && (
         <div style={{ textAlign: 'center', marginTop: 24 }}>

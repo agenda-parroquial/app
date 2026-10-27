@@ -20,6 +20,23 @@ export interface Parroquia {
   nombre: string;
   zona_horaria: string;
   activa: boolean; // false = suspendida por el superadmin
+  vigente_hasta?: string | null; // 'YYYY-MM-DD': último día con acceso; null = sin límite
+  colores?: Record<string, string>; // color de cada tipo de evento (ver claveTipo)
+  created_at: string;
+  updated_at: string;
+}
+
+/** Evento que sube el superadmin y ven todas las parroquias (solo indicativo). */
+export interface EventoDiocesano {
+  id: string;
+  titulo: string;
+  inicio: string; // ISO
+  fin: string; // ISO
+  lugar: string | null;
+  notas: string | null;
+  notificar: boolean;
+  activo: boolean;
+  creado_por: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -132,7 +149,7 @@ export interface Conflicto {
 export interface Notificacion {
   id: string;
   usuario_id: string;
-  tipo: 'evento_nuevo' | 'evento_editado' | 'evento_cancelado' | 'conflicto' | 'aviso_parroquial' | 'prueba';
+  tipo: 'evento_nuevo' | 'evento_editado' | 'evento_cancelado' | 'conflicto' | 'aviso_parroquial' | 'evento_diocesano' | 'prueba';
   evento_id: string | null;
   conflicto_id: string | null;
   mensaje: string;
@@ -216,6 +233,26 @@ export const nombrePerfil = (p: Perfil | undefined) => p?.nombre?.trim() || p?.e
 /** Nombre del tipo de un evento: el escrito a mano si es «Otro», o el de la lista. */
 export const nombreTipo = (e: Pick<Evento, 'tipo' | 'tipo_texto'>) =>
   e.tipo === 'otro' && e.tipo_texto?.trim() ? e.tipo_texto.trim() : TIPOS_EVENTO[e.tipo];
+
+/** Clave con la que se guarda el color de un tipo: 'misa'…, o 't:<nombre>' para los escritos con «Otro». */
+export const claveTipoNombre = (nombre: string) => `t:${nombre.trim().toLowerCase()}`;
+export const claveTipo = (e: Pick<Evento, 'tipo' | 'tipo_texto'>) =>
+  e.tipo === 'otro' && e.tipo_texto?.trim() ? claveTipoNombre(e.tipo_texto) : e.tipo;
+
+/** Días de acceso que le quedan a la parroquia (0 = hoy es el último; negativo = vencida); null = sin límite. */
+export function diasDeVigencia(p: Pick<Parroquia, 'vigente_hasta' | 'zona_horaria'>, ahora = new Date()): number | null {
+  if (!p.vigente_hasta) return null;
+  let hoy: string;
+  try {
+    hoy = ahora.toLocaleDateString('en-CA', { timeZone: p.zona_horaria });
+  } catch {
+    hoy = ahora.toLocaleDateString('en-CA');
+  }
+  return Math.round((Date.parse(p.vigente_hasta) - Date.parse(hoy)) / 86_400_000);
+}
+
+/** Suspendida a mano o con la vigencia vencida (el servidor aplica la misma regla). */
+export const parroquiaSinAcceso = (p: Parroquia) => !p.activa || (diasDeVigencia(p) ?? 0) < 0;
 
 /**
  * Quién captura o edita las intenciones de un evento: la secretaria en todos, y el párroco o

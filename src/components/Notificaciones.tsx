@@ -16,7 +16,8 @@ export async function abrirNotificacion(n: Notificacion) {
 }
 
 const ICONO: Record<Notificacion['tipo'], string> = {
-  evento_nuevo: '🆕', evento_editado: '✏️', evento_cancelado: '🚫', conflicto: '⚠️', aviso_parroquial: '📣', prueba: '🔔',
+  evento_nuevo: '🆕', evento_editado: '✏️', evento_cancelado: '🚫', conflicto: '⚠️', aviso_parroquial: '📣',
+  evento_diocesano: '🏛', prueba: '🔔',
 };
 const SIN_NOTIFICACIONES: Notificacion[] = [];
 

@@ -3,6 +3,7 @@ import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '../lib/db';
 import { useAuth } from '../lib/auth';
 import { useParroquia } from '../lib/hooks';
+import { mostrarDiocesano, ocultarTodosDiocesanos, usePrefDiocesanos } from '../lib/preferencias';
 import { actualizarMiNombre } from '../lib/store';
 import { esErrorDeRed, mensajeDeError, sincronizar, useEstadoSync } from '../lib/sync';
 import { puedeEditarCatalogos, ROLES, type Perfil } from '../types';
@@ -20,6 +21,7 @@ export function Ajustes({ perfil }: { perfil: Perfil }) {
   const [guardando, setGuardando] = useState(false);
   const [mensaje, setMensaje] = useState<{ tipo: 'ok' | 'error'; texto: string } | null>(null);
   const editaCatalogos = puedeEditarCatalogos(perfil.rol);
+  const pref = usePrefDiocesanos();
 
   async function guardarNombre() {
     setMensaje(null);
@@ -79,6 +81,11 @@ export function Ajustes({ perfil }: { perfil: Perfil }) {
             <div>🏷 <b>Tipos de evento</b><div className="ayuda">Los que agregaste con «Otro»</div></div>
           </a>
         )}
+        {editaCatalogos && (
+          <a className="item clic" href="#/colores" style={enlace}>
+            <div>🎨 <b>Colores por tipo de evento</b><div className="ayuda">Un color para cada tipo en la agenda</div></div>
+          </a>
+        )}
         {perfil.rol === 'parroco' && (
           <a className="item clic" href="#/usuarios" style={enlace}>
             <div>👥 <b>Usuarios e invitaciones</b><div className="ayuda">Invitar personas, aprobar cuentas y asignar roles</div></div>
@@ -86,9 +93,23 @@ export function Ajustes({ perfil }: { perfil: Perfil }) {
         )}
         {superadmin && (
           <a className="item clic" href="#/superadmin" style={enlace}>
-            <div>🛡 <b>Parroquias y accesos</b><div className="ayuda">Crear parroquias y dar acceso a sus párrocos</div></div>
+            <div>🛡 <b>Administración</b><div className="ayuda">Parroquias, accesos, vigencia y eventos diocesanos</div></div>
           </a>
         )}
+      </div>
+
+      <div className="grupo">
+        <h3>🏛 Eventos diocesanos</h3>
+        <label className="check" style={{ marginTop: 6 }}>
+          <input type="checkbox" checked={!pref.ocultarTodos} onChange={(e) => ocultarTodosDiocesanos(!e.target.checked)} />
+          Mostrar los eventos diocesanos en mi agenda
+        </label>
+        <p className="ayuda" style={{ marginBottom: 0 }}>
+          Son informativos y los publica la diócesis. Esta opción es solo de este dispositivo.
+          {pref.ocultos.length > 0 && (
+            <> Ocultaste {pref.ocultos.length} de forma individual. <button className="enlace" onClick={() => pref.ocultos.forEach(mostrarDiocesano)}>Volver a mostrarlos</button></>
+          )}
+        </p>
       </div>
 
       <div className="grupo">

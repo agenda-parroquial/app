@@ -8,9 +8,10 @@ import { configurado } from './lib/supabase';
 import { iniciarSync } from './lib/sync';
 import { esIPhone, estaInstalada, estadoPush, sincronizarPush } from './lib/push';
 import { ir, useContadorConflictos, useNoLeidas, useParroquia, useRuta } from './lib/hooks';
-import type { Notificacion, Perfil } from './types';
+import { diasDeVigencia, parroquiaSinAcceso, type Notificacion, type Parroquia, type Perfil } from './types';
 import { Agenda } from './components/Agenda';
 import { Ajustes } from './components/Ajustes';
+import { ColoresTipos } from './components/ColoresTipos';
 import { Conflictos } from './components/Conflictos';
 import { EstadoSync } from './components/EstadoSync';
 import { Login } from './components/Login';
@@ -57,7 +58,7 @@ function BannerActualizacion() {
 const TITULOS: Record<string, string> = {
   agenda: 'Agenda', conflictos: 'Conflictos', avisos: 'Notificaciones', parroquiales: 'Avisos',
   ajustes: 'Ajustes', mas: 'Ajustes', lugares: 'Lugares', misas: 'Misas fijas', tipos: 'Tipos de evento', usuarios: 'Usuarios',
-  superadmin: 'Parroquias',
+  superadmin: 'Administración', colores: 'Colores',
 };
 
 /** Invitación (descartable) a activar las notificaciones en este teléfono. */
@@ -83,7 +84,21 @@ function InvitacionAvisos() {
   );
 }
 
-function Shell({ perfil, superadmin }: { perfil: Perfil; superadmin: boolean }) {
+/** Aviso a los usuarios cuando faltan pocos días para que venza el acceso de la parroquia. */
+function AvisoVencimiento({ parroquia }: { parroquia: Parroquia | undefined }) {
+  const dias = parroquia ? diasDeVigencia(parroquia) : null;
+  if (dias === null || dias > 7) return null;
+  return (
+    <div className="aviso" style={{ margin: '8px 12px' }}>
+      {dias === 0
+        ? 'El acceso de tu parroquia vence hoy.'
+        : `El acceso de tu parroquia vence en ${dias} día${dias === 1 ? '' : 's'}.`}{' '}
+      Pide a quien administra la Agenda Parroquial que lo renueve para no perder el acceso.
+    </div>
+  );
+}
+
+function Shell({ perfil, superadmin, parroquia }: { perfil: Perfil; superadmin: boolean; parroquia: Parroquia | undefined }) {
   const ruta = useRuta();
   const seccion = ruta[0];
   const conflictos = useContadorConflictos();
@@ -122,11 +137,12 @@ function Shell({ perfil, superadmin }: { perfil: Perfil; superadmin: boolean }) 
     return () => window.clearTimeout(t);
   }, [toast]);
 
-  const enAjustes = ['ajustes', 'mas', 'lugares', 'misas', 'tipos', 'usuarios', 'superadmin'].includes(seccion);
+  const enAjustes = ['ajustes', 'mas', 'lugares', 'misas', 'tipos', 'colores', 'usuarios', 'superadmin'].includes(seccion);
 
   return (
     <div className="app">
       <InvitacionAvisos />
+      <AvisoVencimiento parroquia={parroquia} />
       <header className="top">
         <h1>{TITULOS[seccion] ?? 'Agenda'}</h1>
         <EstadoSync />
@@ -152,6 +168,7 @@ function Shell({ perfil, superadmin }: { perfil: Perfil; superadmin: boolean }) 
           : seccion === 'lugares' ? <Lugares perfil={perfil} />
           : seccion === 'misas' ? <MisasFijas perfil={perfil} />
           : seccion === 'tipos' ? <TiposEvento perfil={perfil} />
+          : seccion === 'colores' ? <ColoresTipos perfil={perfil} />
           : seccion === 'usuarios' && perfil.rol === 'parroco' ? <Usuarios perfil={perfil} />
           : seccion === 'superadmin' && superadmin ? <Superadmin perfil={perfil} />
           : <Agenda ruta={ruta} perfil={perfil} />}
@@ -170,7 +187,7 @@ function Shell({ perfil, superadmin }: { perfil: Perfil; superadmin: boolean }) 
 function SoloSuperadmin({ perfil }: { perfil: Perfil }) {
   return (
     <div className="app">
-      <header className="top"><h1>Parroquias</h1></header>
+      <header className="top"><h1>Administración</h1></header>
       <main><Superadmin perfil={perfil} soloEsto /></main>
     </div>
   );
@@ -182,6 +199,12 @@ function Puerta() {
   const vivo = useLiveQuery(() => (usuario ? db.perfiles.get(usuario.id) : undefined), [usuario?.id]);
   const actual = vivo ?? perfil;
   const parroquia = useParroquia(actual?.parroquia_id);
+  // La vigencia vence por fecha, sin que cambie ningún dato: se vuelve a evaluar cada minuto.
+  const [, setLatido] = useState(0);
+  useEffect(() => {
+    const t = window.setInterval(() => setLatido((n) => n + 1), 60_000);
+    return () => window.clearInterval(t);
+  }, []);
 
   if (cargando) return <div className="centro"><p className="ayuda">Cargando…</p></div>;
   if (!usuario) return <Login />;
@@ -191,15 +214,19 @@ function Puerta() {
       : <SinAcceso titulo="Sin parroquia" texto="Tu cuenta todavía no está asignada a ninguna parroquia. Pide a quien te invitó que te dé acceso." />;
   }
   if (!actual || !actual.activo) return <Pendiente />;
-  if (parroquia && !parroquia.activa) {
+  if (parroquia && parroquiaSinAcceso(parroquia)) {
+    const suspendida = !parroquia.activa;
     return (
       <SinAcceso
-        titulo="Parroquia suspendida"
-        texto={`El acceso de ${parroquia.nombre} está suspendido. Comunícate con quien administra la Agenda Parroquial.`}
+        parroquiaId={parroquia.id}
+        titulo={suspendida ? 'Parroquia suspendida' : 'Acceso vencido'}
+        texto={suspendida
+          ? `El acceso de ${parroquia.nombre} está suspendido. Comunícate con quien administra la Agenda Parroquial.`
+          : `El acceso de ${parroquia.nombre} venció. Comunícate con quien administra la Agenda Parroquial para renovarlo; tu información se conserva.`}
       />
     );
   }
-  return <Shell perfil={actual} superadmin={superadmin} />;
+  return <Shell perfil={actual} superadmin={superadmin} parroquia={parroquia} />;
 }
 
 export default function App() {

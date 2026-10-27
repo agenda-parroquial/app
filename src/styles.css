@@ -124,6 +124,7 @@ input[type='date']::-webkit-date-and-time-value, input[type='time']::-webkit-dat
 .semana .hoy:not(.sel) { border-color: var(--oro); border-width: 2.5px; }
 .semana i { display: block; width: 7px; height: 7px; border-radius: 50%; background: var(--oro); margin: 2px auto 0; }
 .semana i.mal { background: var(--alerta); }
+.semana i.dio { background: #2f4a8a; }
 .semana .sel i { background: #fff; }
 
 .dia-titulo { margin: 18px 2px 8px; font-size: 1rem; color: var(--vino); border-bottom: 2px solid var(--oro); padding-bottom: 4px; }
@@ -133,6 +134,12 @@ input[type='date']::-webkit-date-and-time-value, input[type='time']::-webkit-dat
   border-radius: 12px; padding: 12px 14px; margin-bottom: 10px; cursor: pointer;
 }
 .tarjeta.fija { border-left-color: var(--oro); }
+/* eventos de la diócesis: otro color, fondo y borde, para no confundirlos con los de la parroquia */
+.tarjeta.diocesana {
+  --dio: #2f4a8a; border: 1.5px dashed #9aa9d6; border-left: 7px solid var(--dio);
+  background: linear-gradient(180deg, #f1f4fc, #f8f9fe);
+}
+.tarjeta.diocesana .hora { color: var(--dio); }
 .tarjeta.conflicto { border-left-color: var(--alerta); background: #fffafa; }
 .tarjeta.cancelado { border-left-color: #b8aeb2; opacity: .65; }
 .tarjeta.cancelado .titulo { text-decoration: line-through; }
@@ -144,6 +151,7 @@ input[type='date']::-webkit-date-and-time-value, input[type='time']::-webkit-dat
 .etq.conflicto { background: var(--alerta); color: #fff; }
 .etq.pendiente { background: var(--aviso-fondo); color: var(--aviso); border: 1px solid #ecc786; }
 .etq.cancelado { background: #ddd; color: #555; }
+.etq.diocesano { background: #2f4a8a; color: #fff; }
 
 .fab {
   position: fixed; right: 18px; bottom: calc(80px + env(safe-area-inset-bottom)); z-index: 15;

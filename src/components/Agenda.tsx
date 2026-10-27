@@ -4,13 +4,17 @@ import { db } from '../lib/db';
 import {
   claveDia, deClave, diaCorto, diaLargo, fechaDe, hoyClave, inicioSemana, mesAnio, sumarDias,
 } from '../lib/fechas';
-import { ir, useIdsPendientes, useLugares, usePerfiles } from '../lib/hooks';
-import { puedeEditarIntenciones, type Evento, type Perfil } from '../types';
+import { ir, useIdsPendientes, useLugares, useParroquia, usePerfiles } from '../lib/hooks';
+import { usePrefDiocesanos } from '../lib/preferencias';
+import { claveTipo, puedeEditarIntenciones, type Evento, type EventoDiocesano, type Perfil } from '../types';
 import { EventoForm } from './EventoForm';
 import { Intenciones } from './Intenciones';
+import { DiocesanoDetalle, TarjetaDiocesana } from './TarjetaDiocesana';
 import { TarjetaEvento } from './TarjetaEvento';
 
 const SIN_EVENTOS: Evento[] = [];
+const SIN_DIOCESANOS: EventoDiocesano[] = [];
+const SIN_COLORES: Record<string, string> = {};
 
 /** Ruta: agenda/<fecha>/<nuevo | id de evento> */
 export function Agenda({ ruta, perfil }: { ruta: string[]; perfil: Perfil }) {
@@ -39,8 +43,32 @@ export function Agenda({ ruta, perfil }: { ruta: string[]; perfil: Perfil }) {
     return m;
   }, [eventos]);
 
+  // Eventos de la diócesis (indicativos): cada quien puede ocultarlos o ignorarlos.
+  const parroquia = useParroquia(perfil.parroquia_id);
+  const colores = parroquia?.colores ?? SIN_COLORES;
+  const pref = usePrefDiocesanos();
+  const diocesanos = useLiveQuery(
+    () => db.eventos_diocesanos.where('inicio').between(ini.toISOString(), sumarDias(ini, 7).toISOString(), true, false)
+      .filter((d) => d.activo).sortBy('inicio'),
+    [claveIni], SIN_DIOCESANOS,
+  );
+  const dioPorDia = useMemo(() => {
+    const m = new Map<string, EventoDiocesano[]>();
+    if (pref.ocultarTodos) return m;
+    for (const d of diocesanos) {
+      if (pref.ocultos.includes(d.id)) continue;
+      const k = fechaDe(d.inicio);
+      m.set(k, [...(m.get(k) ?? []), d]);
+    }
+    return m;
+  }, [diocesanos, pref]);
+
   const evAbierto = useLiveQuery(
-    () => (accion && accion !== 'nuevo' ? db.eventos.get(accion) : undefined),
+    () => (accion && accion !== 'nuevo' && !accion.startsWith('dio:') ? db.eventos.get(accion) : undefined),
+    [accion],
+  );
+  const dioAbierto = useLiveQuery(
+    () => (accion?.startsWith('dio:') ? db.eventos_diocesanos.get(accion.slice(4)) : undefined),
     [accion],
   );
   // .../intenciones = lista de solo lectura (botón de la tarjeta, para todos)
@@ -78,11 +106,14 @@ export function Agenda({ ruta, perfil }: { ruta: string[]; perfil: Perfil }) {
         {dias.map((d) => {
           const k = claveDia(d);
           const delDia = (porDia.get(k) ?? []).filter((e) => e.estado !== 'cancelado');
+          const hayDio = (dioPorDia.get(k) ?? []).length > 0;
           return (
             <button key={k} className={[k === fecha ? 'sel' : '', k === hoy ? 'hoy' : ''].join(' ')} onClick={() => irDia(k)}>
               <small>{diaCorto(d)}</small>
               <b>{d.getDate()}</b>
-              {delDia.length > 0 && <i className={delDia.some((e) => e.estado === 'en_conflicto') ? 'mal' : ''} />}
+              {delDia.length > 0
+                ? <i className={delDia.some((e) => e.estado === 'en_conflicto') ? 'mal' : ''} />
+                : hayDio && <i className="dio" />}
             </button>
           );
         })}
@@ -95,14 +126,17 @@ export function Agenda({ ruta, perfil }: { ruta: string[]; perfil: Perfil }) {
 
       {mostrar.map((k) => {
         const lista = porDia.get(k) ?? [];
+        const dio = dioPorDia.get(k) ?? [];
+        const vacio = lista.length === 0 && dio.length === 0;
         return (
           <section key={k}>
             <h3 className="dia-titulo">{diaLargo(deClave(k))}{k === hoy ? ' · hoy' : ''}</h3>
-            {lista.length === 0 && modo === 'dia' && <div className="vacio">No hay nada agendado este día.</div>}
-            {lista.length === 0 && modo === 'semana' && <div className="ayuda" style={{ margin: '0 2px 8px' }}>Sin eventos</div>}
+            {vacio && modo === 'dia' && <div className="vacio">No hay nada agendado este día.</div>}
+            {vacio && modo === 'semana' && <div className="ayuda" style={{ margin: '0 2px 8px' }}>Sin eventos</div>}
+            {dio.map((d) => <TarjetaDiocesana key={d.id} evento={d} onClick={() => ir(`agenda/${fecha}/dio:${d.id}`)} />)}
             {lista.map((e) => (
               <TarjetaEvento
-                key={e.id} evento={e} lugares={lugares} perfiles={perfiles}
+                key={e.id} evento={e} lugares={lugares} perfiles={perfiles} color={colores[claveTipo(e)]}
                 sinEnviar={pendientes.has(e.id)} onClick={() => ir(`agenda/${fecha}/${e.id}`)}
                 nIntenciones={conteo.get(e.id) ?? 0} onIntenciones={() => ir(`agenda/${fecha}/${e.id}/intenciones`)}
               />
@@ -114,6 +148,7 @@ export function Agenda({ ruta, perfil }: { ruta: string[]; perfil: Perfil }) {
       <button className="fab" onClick={() => ir(`agenda/${fecha}/nuevo`)} aria-label="Nuevo evento">+</button>
 
       {accion === 'nuevo' && <EventoForm fecha={fecha} onCerrar={() => irDia(fecha)} />}
+      {dioAbierto && <DiocesanoDetalle evento={dioAbierto} onCerrar={() => irDia(fecha)} />}
       {evAbierto && !verIntenciones && (
         <EventoForm
           key={evAbierto.id} evento={evAbierto} fecha={fecha} onCerrar={() => irDia(fecha)}

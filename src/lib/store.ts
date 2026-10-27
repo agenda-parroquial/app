@@ -1,8 +1,8 @@
 import { db } from './db';
 import { supabase } from './supabase';
-import { sincronizar } from './sync';
+import { normalizarDiocesano, sincronizar } from './sync';
 import type {
-  AvisoParroquial, DatosEvento, Evento, Intencion, Invitacion, Lugar, MisaFija, OpPendiente, ParroquiaAdmin, Perfil, Rol,
+  AvisoParroquial, DatosEvento, Evento, EventoDiocesano, Intencion, Invitacion, Lugar, MisaFija, OpPendiente, ParroquiaAdmin, Perfil, Rol,
   Tabla, TipoEventoGuardado,
 } from '../types';
 
@@ -174,9 +174,12 @@ export async function listarParroquias(): Promise<ParroquiaAdmin[]> {
 }
 
 /** Crea la parroquia y la invitación de su primer párroco; devuelve el código para dárselo. */
-export async function crearParroquia(d: { nombre: string; zona: string; email: string; nombreParroco: string }) {
+export async function crearParroquia(
+  d: { nombre: string; zona: string; email: string; nombreParroco: string; vigenteHasta?: string },
+) {
   const { data, error } = await supabase.rpc('crear_parroquia', {
     p_nombre: d.nombre, p_zona: d.zona, p_email: d.email, p_nombre_parroco: d.nombreParroco,
+    p_vigente_hasta: d.vigenteHasta || null,
   });
   if (error) throw error;
   return data as { parroquia_id: string; codigo: string };
@@ -201,10 +204,54 @@ export async function editarParroquia(id: string, cambios: { nombre?: string; ac
   if (error) throw error;
 }
 
+/** Último día con acceso ('YYYY-MM-DD'); null = sin límite. Al pasar esa fecha la parroquia se desactiva sola. */
+export async function fijarVigencia(id: string, hasta: string | null) {
+  const { error } = await supabase.rpc('fijar_vigencia', { p_id: id, p_hasta: hasta });
+  if (error) throw error;
+}
+
 /** Para un superadmin sin parroquia propia: pasar a ser párroco de una. */
 export async function asignarmeComoParroco(parroquia: string) {
   const { error } = await supabase.rpc('asignarme_como_parroco', { p_parroquia: parroquia });
   if (error) throw error;
+}
+
+// ---------- Colores de los tipos de evento (los comparte toda la parroquia; requieren internet) ----
+export async function guardarColores(parroquia: string, colores: Record<string, string>) {
+  const { error } = await supabase.rpc('guardar_colores', { p_colores: colores });
+  if (error) throw error;
+  await db.parroquias.update(parroquia, { colores });
+}
+
+// ---------- Eventos diocesanos (solo el superadmin; requieren internet) ------------------
+export interface DatosDiocesano {
+  titulo: string;
+  inicio: string;
+  fin: string;
+  lugar: string | null;
+  notas: string | null;
+}
+
+export async function listarDiocesanos(): Promise<EventoDiocesano[]> {
+  const { data, error } = await supabase
+    .from('eventos_diocesanos').select('*').eq('activo', true).order('inicio', { ascending: false }).limit(300);
+  if (error) throw error;
+  return (data as EventoDiocesano[]).map(normalizarDiocesano);
+}
+
+/** `notificar` solo cuenta al crear el evento (avisa a los usuarios de todas las parroquias con acceso). */
+export async function guardarDiocesano(datos: DatosDiocesano & { notificar?: boolean }, id?: string) {
+  const { error } = id
+    ? await supabase.from('eventos_diocesanos').update(datos).eq('id', id)
+    : await supabase.from('eventos_diocesanos').insert(datos);
+  if (error) throw error;
+  void sincronizar();
+}
+
+export async function quitarDiocesano(id: string) {
+  const { error } = await supabase.from('eventos_diocesanos').update({ activo: false }).eq('id', id);
+  if (error) throw error;
+  void sincronizar();
 }
 
 // Las consultas de supabase-js no se envían hasta que se les hace await/then.
