@@ -76,6 +76,22 @@ const idsPendientes = async () => new Set((await db.outbox.toArray()).map((o) =>
 async function enviarOp(op: OpPendiente) {
   const seq = op.seq!;
 
+  if (op.tipo === 'borrar') {
+    const { data, error } = await supabase.from(op.tabla).delete().eq('id', op.rowId).select('id');
+    if (error) throw error;
+    if (!data.length) {
+      // Sin filas borradas: o ya no existía, o el servidor no lo permitió. Si sigue ahí, se vuelve a mostrar.
+      const { data: sigue, error: e2 } = await supabase.from(op.tabla).select('*').eq('id', op.rowId).maybeSingle();
+      if (e2) throw e2;
+      if (sigue) {
+        await db.table(op.tabla).put(normalizar(op.tabla, sigue));
+        throw new Error('No tienes permiso para eliminar este evento: solo lo puede hacer quien lo creó, el párroco o la secretaria.');
+      }
+    }
+    await db.outbox.delete(seq);
+    return;
+  }
+
   if (op.tabla === 'eventos' && op.tipo === 'editar') {
     // Edición con control de versión: solo se aplica si nadie más cambió el evento.
     const { data, error } = await supabase
@@ -129,7 +145,7 @@ async function enviarPendientes() {
 // ---------------------------------------------------------------------
 const INCREMENTALES = [
   'perfiles', 'lugares', 'misas_fijas', 'tipos_evento', 'avisos_parroquiales', 'eventos', 'conflictos', 'intenciones',
-  'eventos_diocesanos',
+  'eventos_diocesanos', 'ministros',
 ] as const;
 const PAGINA = 1000;
 const MARGEN_MS = 120_000; // se vuelve a pedir 2 min hacia atrás por si alguna transacción se confirmó tarde
@@ -274,7 +290,7 @@ export function iniciarSync(usuarioId: string, alNotificar: (n: Notificacion) =>
   conciliarPendiente = true;
 
   const canal = supabase.channel('agenda');
-  for (const tabla of ['parroquias', 'perfiles', 'lugares', 'misas_fijas', 'tipos_evento', 'avisos_parroquiales', 'eventos', 'conflictos', 'intenciones', 'eventos_diocesanos']) {
+  for (const tabla of ['parroquias', 'perfiles', 'lugares', 'misas_fijas', 'tipos_evento', 'avisos_parroquiales', 'eventos', 'conflictos', 'intenciones', 'eventos_diocesanos', 'ministros']) {
     canal.on('postgres_changes', { event: '*', schema: 'public', table: tabla },
       (p) => void aplicarCambio(tabla, p as unknown as Cambio));
   }

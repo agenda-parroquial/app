@@ -1,6 +1,10 @@
+import { useState } from 'react';
 import { deClave, diaLargo, fechaDe, horaDe } from '../lib/fechas';
 import { ocultarDiocesano } from '../lib/preferencias';
+import { quitarDiocesano } from '../lib/store';
+import { esErrorDeRed, mensajeDeError, useEstadoSync } from '../lib/sync';
 import type { EventoDiocesano } from '../types';
+import { FormularioDiocesano } from './Diocesanos';
 import { Icono } from './Iconos';
 
 /** Evento de la diócesis: tarjeta con formato propio para distinguirlo de los de la parroquia. */
@@ -22,8 +26,29 @@ export function TarjetaDiocesana({ evento: e, onClick }: { evento: EventoDiocesa
   );
 }
 
-/** Detalle de solo lectura; cada persona puede ignorar el evento en su agenda. */
-export function DiocesanoDetalle({ evento: e, onCerrar }: { evento: EventoDiocesano; onCerrar: () => void }) {
+/**
+ * Detalle de un evento diocesano. Cada persona puede ignorarlo en su agenda; quien puede publicarlos
+ * (superadmin y obispos) además puede editarlo o eliminarlo para todas las parroquias.
+ */
+export function DiocesanoDetalle({ evento: e, onCerrar, puedeGestionar = false }: { evento: EventoDiocesano; onCerrar: () => void; puedeGestionar?: boolean }) {
+  const { enLinea } = useEstadoSync();
+  const [editando, setEditando] = useState(false);
+  const [error, setError] = useState('');
+
+  async function eliminar() {
+    if (!confirm(`¿Eliminar «${e.titulo}» para todas las parroquias? Se avisará a sus usuarios.`)) return;
+    setError('');
+    try {
+      await quitarDiocesano(e.id);
+      onCerrar();
+    } catch (err) {
+      setError(esErrorDeRed(err) ? 'Necesitas internet para eliminarlo.' : mensajeDeError(err));
+    }
+  }
+
+  if (editando) {
+    return <FormularioDiocesano evento={e} onCerrar={() => setEditando(false)} onGuardado={onCerrar} />;
+  }
   return (
     <div className="fondo" onMouseDown={(ev) => ev.target === ev.currentTarget && onCerrar()}>
       <div className="hoja">
@@ -37,7 +62,7 @@ export function DiocesanoDetalle({ evento: e, onCerrar }: { evento: EventoDioces
         <div className="lista" style={{ marginTop: 14 }}>
           <div className="item">
             <span className="ico dio"><Icono n="calendario" /></span>
-            <div><b style={{ textTransform: 'capitalize' }}>{diaLargo(deClave(fechaDe(e.inicio)))}</b></div>
+            <div><b className="primera">{diaLargo(deClave(fechaDe(e.inicio)))}</b></div>
           </div>
           <div className="item">
             <span className="ico dio"><Icono n="reloj" /></span>
@@ -54,10 +79,18 @@ export function DiocesanoDetalle({ evento: e, onCerrar }: { evento: EventoDioces
         <p className="ayuda">
           Lo publica la diócesis para todas las parroquias. Es solo informativo: no genera empalmes con tu agenda.
         </p>
+        {error && <div className="aviso error">{error}</div>}
         <div className="acciones">
           <button className="btn sec" onClick={() => { ocultarDiocesano(e.id); onCerrar(); }}>Ocultar de mi agenda</button>
           <button className="btn" onClick={onCerrar}>Cerrar</button>
         </div>
+        {puedeGestionar && (
+          <div className="acciones">
+            <button className="btn sec" disabled={!enLinea} onClick={() => setEditando(true)}><Icono n="lapiz" size={17} />Editar</button>
+            <button className="btn peligro" disabled={!enLinea} onClick={() => void eliminar()}><Icono n="papelera" size={17} />Eliminar para todos</button>
+          </div>
+        )}
+        {puedeGestionar && !enLinea && <p className="ayuda" style={{ marginBottom: 0 }}>Para editarlo o eliminarlo necesitas internet.</p>}
       </div>
     </div>
   );

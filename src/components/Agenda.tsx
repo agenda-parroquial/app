@@ -1,12 +1,14 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '../lib/db';
+import { useAuth } from '../lib/auth';
 import {
-  claveDia, deClave, diaCorto, diaLargo, fechaDe, hoyClave, inicioSemana, mesAnio, sumarDias,
+  claveDia, deClave, diaCorto, diaLargo, fechaDe, hoyClave, inicioSemana, mesAnio, sumarDias, sumarMeses,
 } from '../lib/fechas';
-import { ir, useAvisosParroquiales, useIdsPendientes, useLugares, useParroquia, usePerfiles } from '../lib/hooks';
+import { ir, useAvisosParroquiales, useIdsPendientes, useLugares, useMinistros, useParroquia, usePerfiles } from '../lib/hooks';
 import { usePrefDiocesanos } from '../lib/preferencias';
 import { claveTipo, puedeEditarIntenciones, type Evento, type EventoDiocesano, type Perfil } from '../types';
+import { CalendarioMes, type MarcaDia } from './CalendarioMes';
 import { EventoForm } from './EventoForm';
 import { Icono } from './Iconos';
 import { Intenciones } from './Intenciones';
@@ -21,10 +23,12 @@ const SIN_COLORES: Record<string, string> = {};
 export function Agenda({ ruta, perfil }: { ruta: string[]; perfil: Perfil }) {
   const fecha = /^\d{4}-\d{2}-\d{2}$/.test(ruta[1] ?? '') ? ruta[1] : hoyClave();
   const accion = ruta[2];
-  const [modo, setModo] = useState<'dia' | 'semana'>('dia');
+  const [modo, setModo] = useState<'dia' | 'semana' | 'mes'>('dia');
+  const { diocesano } = useAuth();
 
   const lugares = useLugares();
   const perfiles = usePerfiles();
+  const ministros = useMinistros();
   const pendientes = useIdsPendientes();
 
   // «En curso» y «Sigue» en la agenda de hoy se ponen al día cada minuto.
@@ -35,10 +39,15 @@ export function Agenda({ ruta, perfil }: { ruta: string[]; perfil: Perfil }) {
   }, []);
 
   const dia = deClave(fecha);
-  const ini = inicioSemana(dia);
-  const claveIni = claveDia(ini);
+  // Lo que se carga: la semana del día elegido o, en la vista de mes, todas las semanas que muestra el calendario.
+  const primeroDelMes = new Date(dia.getFullYear(), dia.getMonth(), 1);
+  const ini = modo === 'mes' ? inicioSemana(primeroDelMes) : inicioSemana(dia);
+  const nDias = modo === 'mes'
+    ? Math.ceil((primeroDelMes.getDay() + new Date(dia.getFullYear(), dia.getMonth() + 1, 0).getDate()) / 7) * 7
+    : 7;
+  const claveIni = `${claveDia(ini)}+${nDias}`;
   const eventos = useLiveQuery(
-    () => db.eventos.where('inicio').between(ini.toISOString(), sumarDias(ini, 7).toISOString(), true, false).sortBy('inicio'),
+    () => db.eventos.where('inicio').between(ini.toISOString(), sumarDias(ini, nDias).toISOString(), true, false).sortBy('inicio'),
     [claveIni], SIN_EVENTOS,
   );
 
@@ -56,7 +65,7 @@ export function Agenda({ ruta, perfil }: { ruta: string[]; perfil: Perfil }) {
   const colores = parroquia?.colores ?? SIN_COLORES;
   const pref = usePrefDiocesanos();
   const diocesanos = useLiveQuery(
-    () => db.eventos_diocesanos.where('inicio').between(ini.toISOString(), sumarDias(ini, 7).toISOString(), true, false)
+    () => db.eventos_diocesanos.where('inicio').between(ini.toISOString(), sumarDias(ini, nDias).toISOString(), true, false)
       .filter((d) => d.activo).sortBy('inicio'),
     [claveIni], SIN_DIOCESANOS,
   );
@@ -101,9 +110,23 @@ export function Agenda({ ruta, perfil }: { ruta: string[]; perfil: Perfil }) {
     [idsVisibles.join(',')], new Map<string, number>(),
   );
 
+  // Marcas del calendario del mes: un punto por día con eventos y el día de los diocesanos teñido.
+  const marcas = useMemo(() => {
+    const m = new Map<string, MarcaDia>();
+    if (modo !== 'mes') return m;
+    const marca = (k: string) => m.get(k) ?? { eventos: 0, conflicto: false, diocesano: false };
+    for (const [k, lista] of porDia) {
+      const vivos = lista.filter((e) => e.estado !== 'cancelado');
+      if (vivos.length) m.set(k, { ...marca(k), eventos: vivos.length, conflicto: vivos.some((e) => e.estado === 'en_conflicto') });
+    }
+    for (const [k, lista] of dioPorDia) if (lista.length) m.set(k, { ...marca(k), diocesano: true });
+    return m;
+  }, [modo, porDia, dioPorDia]);
+
   const irDia = (k: string) => ir(`agenda/${k}`);
+  const paso = (n: number) => irDia(claveDia(modo === 'mes' ? sumarMeses(dia, n) : sumarDias(dia, 7 * n)));
   const dias = Array.from({ length: 7 }, (_, i) => sumarDias(ini, i));
-  const mostrar = modo === 'dia' ? [fecha] : dias.map(claveDia);
+  const mostrar = modo === 'semana' ? dias.map(claveDia) : [fecha];
 
   /** En la agenda de hoy: el evento que está ocurriendo y el primero que sigue. */
   const momentoDe = (k: string, lista: Evento[]) => {
@@ -120,17 +143,19 @@ export function Agenda({ ruta, perfil }: { ruta: string[]; perfil: Perfil }) {
   return (
     <>
       <div className="navfecha">
-        <button className="icono-btn claro" onClick={() => irDia(claveDia(sumarDias(dia, -7)))} aria-label="Semana anterior">
+        <button className="icono-btn claro" onClick={() => paso(-1)} aria-label={modo === 'mes' ? 'Mes anterior' : 'Semana anterior'}>
           <Icono n="izquierda" size={22} />
         </button>
         <h2>{mesAnio(dia)}</h2>
         <button className="btn sec chico" onClick={() => irDia(hoy)}>Hoy</button>
-        <button className="icono-btn claro" onClick={() => irDia(claveDia(sumarDias(dia, 7)))} aria-label="Semana siguiente">
+        <button className="icono-btn claro" onClick={() => paso(1)} aria-label={modo === 'mes' ? 'Mes siguiente' : 'Semana siguiente'}>
           <Icono n="derecha" size={22} />
         </button>
       </div>
 
-      <div className="semana">
+      {modo === 'mes' && <CalendarioMes mes={dia} seleccionado={fecha} hoy={hoy} marcas={marcas} onElegir={irDia} />}
+
+      {modo !== 'mes' && <div className="semana">
         {dias.map((d) => {
           const k = claveDia(d);
           const delDia = (porDia.get(k) ?? []).filter((e) => e.estado !== 'cancelado');
@@ -148,12 +173,13 @@ export function Agenda({ ruta, perfil }: { ruta: string[]; perfil: Perfil }) {
             </button>
           );
         })}
-      </div>
+      </div>}
 
       <div className="barra-agenda">
         <div className="segmentos" role="group" aria-label="Vista">
           <button className={modo === 'dia' ? 'on' : ''} onClick={() => setModo('dia')}>Día</button>
           <button className={modo === 'semana' ? 'on' : ''} onClick={() => setModo('semana')}>Semana</button>
+          <button className={modo === 'mes' ? 'on' : ''} onClick={() => setModo('mes')}>Mes</button>
         </div>
         <a className="chip" href="#/parroquiales">
           <Icono n="megafono" size={18} />Avisos{nAvisos > 0 && <span className="num">{nAvisos}</span>}
@@ -171,7 +197,7 @@ export function Agenda({ ruta, perfil }: { ruta: string[]; perfil: Perfil }) {
               <span>{diaLargo(deClave(k))}</span>
               {k === hoy && <span className="etq oro">Hoy</span>}
             </h3>
-            {vacio && modo === 'dia' && (
+            {vacio && modo !== 'semana' && (
               <div className="vacio grande">
                 <span className="vacio-ico"><Icono n="calendario" size={26} /></span>
                 <b>Nada agendado este día</b>
@@ -182,7 +208,7 @@ export function Agenda({ ruta, perfil }: { ruta: string[]; perfil: Perfil }) {
             {dio.map((d) => <TarjetaDiocesana key={d.id} evento={d} onClick={() => ir(`agenda/${fecha}/dio:${d.id}`)} />)}
             {lista.map((e) => (
               <TarjetaEvento
-                key={e.id} evento={e} lugares={lugares} perfiles={perfiles} color={colores[claveTipo(e)]} momento={momentos.get(e.id)}
+                key={e.id} evento={e} lugares={lugares} perfiles={perfiles} ministros={ministros} color={colores[claveTipo(e)]} momento={momentos.get(e.id)}
                 sinEnviar={pendientes.has(e.id)} onClick={() => ir(`agenda/${fecha}/${e.id}`)}
                 nIntenciones={conteo.get(e.id) ?? 0} onIntenciones={() => ir(`agenda/${fecha}/${e.id}/intenciones`)}
               />
@@ -196,7 +222,7 @@ export function Agenda({ ruta, perfil }: { ruta: string[]; perfil: Perfil }) {
       </button>
 
       {accion === 'nuevo' && <EventoForm fecha={fecha} onCerrar={() => irDia(fecha)} />}
-      {dioAbierto && <DiocesanoDetalle evento={dioAbierto} onCerrar={() => irDia(fecha)} />}
+      {dioAbierto && <DiocesanoDetalle evento={dioAbierto} onCerrar={() => irDia(fecha)} puedeGestionar={diocesano} />}
       {evAbierto && !verIntenciones && (
         <EventoForm
           key={evAbierto.id} evento={evAbierto} fecha={fecha} onCerrar={() => irDia(fecha)}

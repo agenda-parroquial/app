@@ -17,6 +17,8 @@ interface AuthCtx {
   perfil: Perfil | null;
   /** Puede crear parroquias y dar acceso a los párrocos (panel de superadmin). */
   superadmin: boolean;
+  /** Puede publicar eventos diocesanos: el superadmin y los obispos que él autoriza. */
+  diocesano: boolean;
   /** true cuando se entró con la identidad guardada porque no hay internet para renovar la sesión */
   identidadGuardada: boolean;
   iniciarSesion: (email: string, password: string) => Promise<Resultado>;
@@ -42,15 +44,29 @@ function traducir(msg: string): string {
   return msg;
 }
 
-async function leerSuperadmin(): Promise<boolean> {
+interface Permisos {
+  superadmin: boolean;
+  diocesano: boolean;
+}
+
+async function permisosGuardados(): Promise<Permisos> {
+  return {
+    superadmin: (await db.meta.get('superadmin'))?.value === true,
+    diocesano: (await db.meta.get('diocesano'))?.value === true,
+  };
+}
+
+async function leerPermisos(): Promise<Permisos> {
   try {
-    const { data, error } = await supabase.rpc('soy_superadmin');
-    if (error) throw error;
-    await db.meta.put({ key: 'superadmin', value: data === true });
-    return data === true;
+    const [s, d] = await Promise.all([supabase.rpc('soy_superadmin'), supabase.rpc('soy_diocesano')]);
+    if (s.error) throw s.error;
+    if (d.error) throw d.error;
+    const p = { superadmin: s.data === true, diocesano: d.data === true };
+    await Promise.all([db.meta.put({ key: 'superadmin', value: p.superadmin }), db.meta.put({ key: 'diocesano', value: p.diocesano })]);
+    return p;
   } catch (e) {
-    if (esErrorDeRed(e)) return (await db.meta.get('superadmin'))?.value === true; // sin internet: lo último que se supo
-    return false;
+    if (esErrorDeRed(e)) return permisosGuardados(); // sin internet: lo último que se supo
+    return { superadmin: false, diocesano: false };
   }
 }
 
@@ -71,6 +87,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [usuario, setUsuario] = useState<AuthCtx['usuario']>(null);
   const [perfil, setPerfil] = useState<Perfil | null>(null);
   const [superadmin, setSuperadmin] = useState(false);
+  const [diocesano, setDiocesano] = useState(false);
+  const ponerPermisos = useCallback((p: Permisos) => {
+    setSuperadmin(p.superadmin);
+    setDiocesano(p.diocesano);
+  }, []);
   const [identidadGuardada, setIdentidadGuardada] = useState(false);
   const usuarioRef = useRef<string | null>(null);
 
@@ -83,13 +104,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         usuarioRef.current = guardado;
         setUsuario({ id: guardado, email: perfilGuardado.email ?? '' });
         setPerfil(perfilGuardado);
-        setSuperadmin((await db.meta.get('superadmin'))?.value === true);
+        ponerPermisos(await permisosGuardados());
         setIdentidadGuardada(true);
       } else {
         usuarioRef.current = null;
         setUsuario(null);
         setPerfil(null);
-        setSuperadmin(false);
+        ponerPermisos({ superadmin: false, diocesano: false });
         setIdentidadGuardada(false);
       }
       setCargando(false);
@@ -107,17 +128,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const local = await db.perfiles.get(id);
     if (local) {
       setPerfil(local);
-      setSuperadmin((await db.meta.get('superadmin'))?.value === true);
+      ponerPermisos(await permisosGuardados());
       setCargando(false);
       void leerPerfil(id).then((p) => p && usuarioRef.current === id && setPerfil(p));
-      void leerSuperadmin().then((s) => usuarioRef.current === id && setSuperadmin(s));
+      void leerPermisos().then((s) => usuarioRef.current === id && ponerPermisos(s));
     } else {
-      const [p, s] = await Promise.all([leerPerfil(id), leerSuperadmin()]);
+      const [p, s] = await Promise.all([leerPerfil(id), leerPermisos()]);
       setPerfil(p);
-      setSuperadmin(s);
+      ponerPermisos(s);
       setCargando(false);
     }
-  }, []);
+  }, [ponerPermisos]);
 
   useEffect(() => {
     // Si renovar la sesión se cuelga (señal muy débil), a los 4 s se sigue con la identidad guardada.
@@ -144,6 +165,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       usuario,
       perfil,
       superadmin,
+      diocesano,
       identidadGuardada,
       iniciarSesion: async (email, password) => {
         const { error } = await supabase.auth.signInWithPassword({ email: email.trim(), password });
@@ -171,14 +193,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         usuarioRef.current = null;
         setUsuario(null);
         setPerfil(null);
-        setSuperadmin(false);
+        ponerPermisos({ superadmin: false, diocesano: false });
         setIdentidadGuardada(false);
       },
       recargarPerfil: async () => {
         if (usuarioRef.current) setPerfil(await leerPerfil(usuarioRef.current));
       },
     }),
-    [cargando, usuario, perfil, superadmin, identidadGuardada],
+    [cargando, usuario, perfil, superadmin, diocesano, identidadGuardada, ponerPermisos],
   );
 
   return <Ctx.Provider value={valor}>{children}</Ctx.Provider>;

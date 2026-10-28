@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from './db';
-import type { AvisoParroquial, Lugar, Perfil, TipoEventoGuardado } from '../types';
+import type { AvisoParroquial, Lugar, Ministro, Perfil, TipoEventoGuardado } from '../types';
 
 /** Ruta basada en el hash: '#/agenda/2030-03-05/ID' → ['agenda', '2030-03-05', 'ID'] */
 export function useRuta(): string[] {
@@ -24,9 +24,11 @@ const SIN_PERFILES: Perfil[] = [];
 
 const SIN_TIPOS: TipoEventoGuardado[] = [];
 const SIN_AVISOS: AvisoParroquial[] = [];
+const SIN_MINISTROS: Ministro[] = [];
 
 export const useLugares = () => useLiveQuery(() => db.lugares.toArray(), [], SIN_LUGARES);
 export const useTiposEvento = () => useLiveQuery(() => db.tipos_evento.toArray(), [], SIN_TIPOS);
+export const useMinistros = () => useLiveQuery(() => db.ministros.toArray(), [], SIN_MINISTROS);
 export const useAvisosParroquiales = () => useLiveQuery(() => db.avisos_parroquiales.toArray(), [], SIN_AVISOS);
 /** La parroquia propia (nombre y si está suspendida); undefined mientras no se ha descargado. */
 export const useParroquia = (id: string | null | undefined) =>

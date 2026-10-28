@@ -26,6 +26,17 @@ export interface Parroquia {
   updated_at: string;
 }
 
+/** Persona sin cuenta que la parroquia registra para poder elegirla como celebrante. */
+export type TipoMinistro = 'ministro' | 'vicario';
+export interface Ministro {
+  id: string;
+  nombre: string;
+  tipo: TipoMinistro;
+  activo: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
 /** Evento que sube el superadmin y ven todas las parroquias (solo indicativo). */
 export interface EventoDiocesano {
   id: string;
@@ -71,6 +82,7 @@ export interface MisaFija {
   duracion_min: number;
   lugar_id: string;
   asignado_a: string | null;
+  ministro_id: string | null; // celebrante sin cuenta (si no, asignado_a)
   intencion: string | null;
   activo: boolean;
   cada_semanas: number; // 1 = todas las semanas; 2 = una sí y una no...
@@ -124,6 +136,7 @@ export interface Evento {
   lugar_id: string | null;
   lugar_texto: string | null;
   asignado_a: string | null;
+  ministro_id: string | null; // celebrante sin cuenta (si no, asignado_a)
   intencion: string | null;
   contacto_nombre: string | null;
   contacto_telefono: string | null;
@@ -163,7 +176,7 @@ export interface Notificacion {
 /** Campos de un evento que edita el usuario (lo único que viaja al servidor). */
 export type DatosEvento = Pick<
   Evento,
-  | 'tipo' | 'tipo_texto' | 'titulo' | 'inicio' | 'fin' | 'lugar_id' | 'lugar_texto' | 'asignado_a'
+  | 'tipo' | 'tipo_texto' | 'titulo' | 'inicio' | 'fin' | 'lugar_id' | 'lugar_texto' | 'asignado_a' | 'ministro_id'
   | 'intencion' | 'contacto_nombre' | 'contacto_telefono' | 'notas'
 >;
 
@@ -180,14 +193,14 @@ export interface Intencion {
   updated_at: string;
 }
 
-export type Tabla = 'eventos' | 'lugares' | 'misas_fijas' | 'intenciones' | 'tipos_evento' | 'avisos_parroquiales';
+export type Tabla = 'eventos' | 'lugares' | 'misas_fijas' | 'intenciones' | 'tipos_evento' | 'avisos_parroquiales' | 'ministros';
 
 /** Un cambio hecho en este dispositivo que aún no llega al servidor. */
 export interface OpPendiente {
   seq?: number;
   tabla: Tabla;
   rowId: string;
-  tipo: 'crear' | 'editar';
+  tipo: 'crear' | 'editar' | 'borrar';
   datos: Record<string, unknown>;
   baseVersion: number; // versión del servidor sobre la que se editó
   estado: 'pendiente' | 'choque' | 'error';
@@ -225,6 +238,11 @@ export const ROLES: Record<Rol, string> = {
   secretaria: 'Secretaria',
 };
 
+export const TIPOS_MINISTRO: Record<TipoMinistro, string> = {
+  ministro: 'Ministro',
+  vicario: 'Vicario',
+};
+
 export const DIAS = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
 
 export const puedeEditarCatalogos = (rol: Rol | undefined) => rol === 'parroco' || rol === 'secretaria';
@@ -232,6 +250,22 @@ export const esSacerdote = (p: Perfil) => p.rol === 'parroco' || p.rol === 'vica
 
 /** Nombre a mostrar de una persona (si aún no puso el suyo, el inicio de su correo). */
 export const nombrePerfil = (p: Perfil | undefined) => p?.nombre?.trim() || p?.email?.split('@')[0] || 'alguien';
+
+/**
+ * Celebrante de un evento o misa fija: una persona con cuenta (asignado_a) o un ministro sin cuenta (ministro_id).
+ * En los formularios se elige con un solo valor: 'p:<id>' o 'm:<id>' (vacío = sin asignar).
+ */
+export const valorCelebrante = (x: { asignado_a: string | null; ministro_id: string | null }) =>
+  x.asignado_a ? `p:${x.asignado_a}` : x.ministro_id ? `m:${x.ministro_id}` : '';
+export const celebranteDeValor = (v: string): { asignado_a: string | null; ministro_id: string | null } => ({
+  asignado_a: v.startsWith('p:') ? v.slice(2) : null,
+  ministro_id: v.startsWith('m:') ? v.slice(2) : null,
+});
+export const nombreCelebrante = (
+  x: { asignado_a: string | null; ministro_id: string | null }, perfiles: Perfil[], ministros: Ministro[],
+): string | null =>
+  x.asignado_a ? nombrePerfil(perfiles.find((p) => p.id === x.asignado_a))
+    : x.ministro_id ? ministros.find((m) => m.id === x.ministro_id)?.nombre ?? null : null;
 
 /** Nombre del tipo de un evento: el escrito a mano si es «Otro», o el de la lista. */
 export const nombreTipo = (e: Pick<Evento, 'tipo' | 'tipo_texto'>) =>

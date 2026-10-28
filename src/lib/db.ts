@@ -1,6 +1,6 @@
 import Dexie, { type Table } from 'dexie';
 import type {
-  AvisoParroquial, Conflicto, Evento, EventoDiocesano, Intencion, Lugar, MisaFija, Notificacion, OpPendiente, Parroquia, Perfil,
+  AvisoParroquial, Conflicto, Evento, EventoDiocesano, Intencion, Lugar, MisaFija, Ministro, Notificacion, OpPendiente, Parroquia, Perfil,
   TipoEventoGuardado,
 } from '../types';
 
@@ -19,6 +19,7 @@ class AgendaDB extends Dexie {
   tipos_evento!: Table<TipoEventoGuardado, string>;
   avisos_parroquiales!: Table<AvisoParroquial, string>;
   parroquias!: Table<Parroquia, string>;
+  ministros!: Table<Ministro, string>;
   eventos_diocesanos!: Table<EventoDiocesano, string>;
   outbox!: Table<OpPendiente, number>;
   meta!: Table<{ key: string; value: unknown }, string>;
@@ -43,6 +44,8 @@ class AgendaDB extends Dexie {
     this.version(4).stores({ parroquias: 'id' });
     // v5: eventos diocesanos (los sube el superadmin y los ven todas las parroquias).
     this.version(5).stores({ eventos_diocesanos: 'id, inicio' });
+    // v6: ministros y vicarios sin cuenta (celebrantes).
+    this.version(6).stores({ ministros: 'id' });
   }
 }
 

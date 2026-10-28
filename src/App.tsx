@@ -17,6 +17,7 @@ import { Icono } from './components/Iconos';
 import { Login } from './components/Login';
 import { Lugares } from './components/Lugares';
 import { MisasFijas } from './components/MisasFijas';
+import { Ministros } from './components/Ministros';
 import { abrirNotificacion, Notificaciones } from './components/Notificaciones';
 import { Parroquiales } from './components/Parroquiales';
 import { Pendiente, SinAcceso } from './components/Pendiente';
@@ -57,7 +58,7 @@ function BannerActualizacion() {
 // (la ruta «avisos» es la de notificaciones; se conserva porque los avisos push ya enviados apuntan a ella)
 const TITULOS: Record<string, string> = {
   agenda: 'Agenda', conflictos: 'Conflictos', avisos: 'Notificaciones', parroquiales: 'Avisos',
-  ajustes: 'Ajustes', mas: 'Ajustes', lugares: 'Lugares', misas: 'Misas fijas', tipos: 'Tipos de evento', usuarios: 'Usuarios',
+  ajustes: 'Ajustes', mas: 'Ajustes', lugares: 'Lugares', ministros: 'Ministros', misas: 'Misas fijas', tipos: 'Tipos de evento', usuarios: 'Usuarios',
   superadmin: 'Administración',
 };
 
@@ -98,7 +99,7 @@ function AvisoVencimiento({ parroquia }: { parroquia: Parroquia | undefined }) {
   );
 }
 
-function Shell({ perfil, superadmin, parroquia }: { perfil: Perfil; superadmin: boolean; parroquia: Parroquia | undefined }) {
+function Shell({ perfil, superadmin, diocesano, parroquia }: { perfil: Perfil; superadmin: boolean; diocesano: boolean; parroquia: Parroquia | undefined }) {
   const ruta = useRuta();
   const seccion = ruta[0];
   const conflictos = useContadorConflictos();
@@ -137,7 +138,7 @@ function Shell({ perfil, superadmin, parroquia }: { perfil: Perfil; superadmin: 
     return () => window.clearTimeout(t);
   }, [toast]);
 
-  const enAjustes = ['ajustes', 'mas', 'lugares', 'misas', 'tipos', 'usuarios', 'superadmin'].includes(seccion);
+  const enAjustes = ['ajustes', 'mas', 'lugares', 'ministros', 'misas', 'tipos', 'usuarios', 'superadmin'].includes(seccion);
 
   return (
     <div className="app">
@@ -174,10 +175,11 @@ function Shell({ perfil, superadmin, parroquia }: { perfil: Perfil; superadmin: 
           : seccion === 'parroquiales' ? <Parroquiales perfil={perfil} />
           : seccion === 'ajustes' || seccion === 'mas' ? <Ajustes perfil={perfil} />
           : seccion === 'lugares' ? <Lugares perfil={perfil} />
+          : seccion === 'ministros' ? <Ministros perfil={perfil} />
           : seccion === 'misas' ? <MisasFijas perfil={perfil} />
           : seccion === 'tipos' ? <TiposEvento perfil={perfil} />
           : seccion === 'usuarios' && perfil.rol === 'parroco' ? <Usuarios perfil={perfil} />
-          : seccion === 'superadmin' && superadmin ? <Superadmin perfil={perfil} />
+          : seccion === 'superadmin' && diocesano ? <Superadmin perfil={perfil} soloDiocesanos={!superadmin} />
           : <Agenda ruta={ruta} perfil={perfil} />}
       </main>
 
@@ -190,18 +192,18 @@ function Shell({ perfil, superadmin, parroquia }: { perfil: Perfil; superadmin: 
   );
 }
 
-/** Un superadmin que no es párroco de ninguna parroquia solo administra parroquias. */
-function SoloSuperadmin({ perfil }: { perfil: Perfil }) {
+/** Un superadmin (o un obispo) que no es párroco de ninguna parroquia solo administra. */
+function SoloSuperadmin({ perfil, soloDiocesanos }: { perfil: Perfil; soloDiocesanos: boolean }) {
   return (
     <div className="app">
       <header className="top"><div className="titulos"><h1>Administración</h1></div></header>
-      <main><Superadmin perfil={perfil} soloEsto /></main>
+      <main><Superadmin perfil={perfil} soloEsto soloDiocesanos={soloDiocesanos} /></main>
     </div>
   );
 }
 
 function Puerta() {
-  const { cargando, usuario, perfil, superadmin } = useAuth();
+  const { cargando, usuario, perfil, superadmin, diocesano } = useAuth();
   // El perfil local se actualiza en vivo (p. ej. si el párroco cambia el rol).
   const vivo = useLiveQuery(() => (usuario ? db.perfiles.get(usuario.id) : undefined), [usuario?.id]);
   const actual = vivo ?? perfil;
@@ -216,8 +218,8 @@ function Puerta() {
   if (cargando) return <div className="centro"><p className="ayuda">Cargando…</p></div>;
   if (!usuario) return <Login />;
   if (actual?.activo && actual.parroquia_id === null) {
-    return superadmin
-      ? <SoloSuperadmin perfil={actual} />
+    return superadmin || diocesano
+      ? <SoloSuperadmin perfil={actual} soloDiocesanos={!superadmin} />
       : <SinAcceso titulo="Sin parroquia" texto="Tu cuenta todavía no está asignada a ninguna parroquia. Pide a quien te invitó que te dé acceso." />;
   }
   if (!actual || !actual.activo) return <Pendiente />;
@@ -233,7 +235,7 @@ function Puerta() {
       />
     );
   }
-  return <Shell perfil={actual} superadmin={superadmin} parroquia={parroquia} />;
+  return <Shell perfil={actual} superadmin={superadmin} diocesano={diocesano} parroquia={parroquia} />;
 }
 
 export default function App() {

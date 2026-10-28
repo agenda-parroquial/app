@@ -2,26 +2,27 @@ import { useState } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '../lib/db';
 import { fechaDe, fechaHoraCorta } from '../lib/fechas';
-import { ir, useIdsPendientes, useLugares, usePerfiles } from '../lib/hooks';
+import { ir, useIdsPendientes, useLugares, useMinistros, usePerfiles } from '../lib/hooks';
 import { useEstadoSync, esErrorDeRed, mensajeDeError } from '../lib/sync';
 import {
   cancelarEvento, conservarMiVersion, descartarOp, reintentarOp, resolverConflicto, usarVersionServidor,
 } from '../lib/store';
-import { nombrePerfil, TIPOS_EVENTO, type Evento, type Lugar, type OpPendiente, type Perfil } from '../types';
+import { nombrePerfil, TIPOS_EVENTO, type Evento, type Lugar, type Ministro, type OpPendiente, type Perfil } from '../types';
 import { Icono } from './Iconos';
 import { TarjetaEvento } from './TarjetaEvento';
 
 const ETIQUETAS: Record<string, string> = {
   tipo: 'Tipo', titulo: 'Título', inicio: 'Inicio', fin: 'Fin', lugar_id: 'Lugar', lugar_texto: 'Lugar (texto)',
-  asignado_a: 'Celebrante', intencion: 'Intención', contacto_nombre: 'Contacto', contacto_telefono: 'Teléfono',
+  asignado_a: 'Celebrante', ministro_id: 'Ministro', intencion: 'Intención', contacto_nombre: 'Contacto', contacto_telefono: 'Teléfono',
   notas: 'Notas', estado: 'Estado', tipo_texto: 'Tipo (nombre)',
 };
 
-function valor(campo: string, v: unknown, lugares: Lugar[], perfiles: Perfil[]): string {
+function valor(campo: string, v: unknown, lugares: Lugar[], perfiles: Perfil[], ministros: Ministro[]): string {
   if (v === null || v === undefined || v === '') return '—';
   if (campo === 'inicio' || campo === 'fin') return fechaHoraCorta(String(v));
   if (campo === 'lugar_id') return lugares.find((l) => l.id === v)?.nombre ?? '—';
   if (campo === 'asignado_a') return nombrePerfil(perfiles.find((p) => p.id === v));
+  if (campo === 'ministro_id') return ministros.find((m) => m.id === v)?.nombre ?? '—';
   if (campo === 'tipo') return TIPOS_EVENTO[v as Evento['tipo']] ?? String(v);
   return String(v);
 }
@@ -29,6 +30,7 @@ function valor(campo: string, v: unknown, lugares: Lugar[], perfiles: Perfil[]):
 export function Conflictos() {
   const lugares = useLugares();
   const perfiles = usePerfiles();
+  const ministros = useMinistros();
   const pendientes = useIdsPendientes();
   const { enLinea } = useEstadoSync();
   const [error, setError] = useState('');
@@ -84,7 +86,7 @@ export function Conflictos() {
           {[a, b].map((e, i) => (
             <div key={e.id}>
               {i === 1 && <div className="vs">⟷ choca con ⟷</div>}
-              <TarjetaEvento evento={e} lugares={lugares} perfiles={perfiles} sinEnviar={pendientes.has(e.id)}>
+              <TarjetaEvento evento={e} lugares={lugares} perfiles={perfiles} ministros={ministros} sinEnviar={pendientes.has(e.id)}>
                 <div className="fila" style={{ marginTop: 10 }}>
                   <button className="btn chico" onClick={() => ir(`agenda/${fechaDe(e.inicio)}/${e.id}`)}>Cambiar horario o lugar</button>
                   <button className="btn peligro chico" onClick={() => void cancelar(e)}>Cancelar</button>
@@ -110,13 +112,13 @@ export function Conflictos() {
             <div>
               <b>Tu cambio</b>
               {Object.entries(op.datos).map(([k, v]) => (
-                <div key={k}>{ETIQUETAS[k] ?? k}: {valor(k, v, lugares, perfiles)}</div>
+                <div key={k}>{ETIQUETAS[k] ?? k}: {valor(k, v, lugares, perfiles, ministros)}</div>
               ))}
             </div>
             <div>
               <b>En el servidor</b>
               {op.servidor
-                ? Object.keys(op.datos).map((k) => <div key={k}>{ETIQUETAS[k] ?? k}: {valor(k, op.servidor![k], lugares, perfiles)}</div>)
+                ? Object.keys(op.datos).map((k) => <div key={k}>{ETIQUETAS[k] ?? k}: {valor(k, op.servidor![k], lugares, perfiles, ministros)}</div>)
                 : <div>El evento ya no existe.</div>}
             </div>
           </div>
@@ -129,7 +131,7 @@ export function Conflictos() {
 
       {errores.map((op) => (
         <div className="grupo" key={op.seq}>
-          <h3>No se pudo enviar un cambio</h3>
+          <h3>{op.tipo === 'borrar' ? 'No se pudo eliminar un evento' : 'No se pudo enviar un cambio'}</h3>
           <p className="ayuda">{op.mensaje}</p>
           <div className="acciones">
             <button className="btn" onClick={() => void reintentarOp(op)}>Reintentar</button>

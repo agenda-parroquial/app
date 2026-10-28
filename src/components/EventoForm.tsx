@@ -2,11 +2,13 @@ import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '../lib/db';
 import { aISO, deClave, fechaDe, fechaHoraCorta, horaDe, sumarDias, sumarMinutos } from '../lib/fechas';
-import { useLugares, usePerfiles, useTiposEvento } from '../lib/hooks';
-import { cancelarEvento, crearEvento, editarEvento, guardarTipoEvento, reactivarEvento } from '../lib/store';
+import { useAuth } from '../lib/auth';
+import { useLugares, useMinistros, usePerfiles, useTiposEvento } from '../lib/hooks';
+import { cancelarEvento, crearEvento, editarEvento, eliminarEvento, guardarTipoEvento, reactivarEvento } from '../lib/store';
 import { buscarTraslapes } from '../lib/traslapes';
 import {
-  esSacerdote, nombrePerfil, nombreTipo, TIPOS_EVENTO, type DatosEvento, type Evento, type TipoEvento,
+  celebranteDeValor, esSacerdote, nombrePerfil, nombreTipo, TIPOS_EVENTO, TIPOS_MINISTRO, valorCelebrante,
+  type DatosEvento, type Evento, type TipoEvento,
 } from '../types';
 import { Icono } from './Iconos';
 import { nombreLugar } from './TarjetaEvento';
@@ -29,8 +31,15 @@ const norm = (s: string | null | undefined) => (s ?? '').trim().toLowerCase();
 export function EventoForm({ evento, fecha, onCerrar, onIntenciones }: Props) {
   const lugares = useLugares();
   const perfiles = usePerfiles();
+  const ministros = useMinistros();
+  const { perfil } = useAuth();
   const tiposTodos = useTiposEvento();
   const sacerdotes = useMemo(() => perfiles.filter((p) => p.activo && esSacerdote(p)), [perfiles]);
+  // Los ministros sin cuenta que están disponibles (y el que ya tenga este evento, aunque ya no lo esté).
+  const ministrosLista = useMemo(
+    () => ministros.filter((m) => m.activo || m.id === evento?.ministro_id).sort((a, b) => a.nombre.localeCompare(b.nombre, 'es')),
+    [ministros, evento?.ministro_id],
+  );
   const tiposGuardados = useMemo(
     () => tiposTodos.filter((t) => t.activo).sort((a, b) => a.nombre.localeCompare(b.nombre, 'es')),
     [tiposTodos],
@@ -46,7 +55,7 @@ export function EventoForm({ evento, fecha, onCerrar, onIntenciones }: Props) {
   const [horaFin, setHoraFin] = useState(evento ? horaDe(evento.fin) : '11:00');
   const [lugarSel, setLugarSel] = useState(evento ? evento.lugar_id ?? 'otro' : '');
   const [lugarTexto, setLugarTexto] = useState(evento?.lugar_texto ?? '');
-  const [asignado, setAsignado] = useState(evento?.asignado_a ?? '');
+  const [celebrante, setCelebrante] = useState(evento ? valorCelebrante(evento) : '');
   const [intencion, setIntencion] = useState(evento?.intencion ?? '');
   const [contactoNombre, setContactoNombre] = useState(evento?.contacto_nombre ?? '');
   const [contactoTel, setContactoTel] = useState(evento?.contacto_telefono ?? '');
@@ -81,7 +90,7 @@ export function EventoForm({ evento, fecha, onCerrar, onIntenciones }: Props) {
   );
   const choques = horasValidas
     ? buscarTraslapes(
-        { id: evento?.id, inicio: aISO(dia, horaIni), fin: aISO(dia, horaFin), lugar_id: lugarId, asignado_a: asignado || null },
+        { id: evento?.id, inicio: aISO(dia, horaIni), fin: aISO(dia, horaFin), lugar_id: lugarId, ...celebranteDeValor(celebrante) },
         delDia,
       )
     : [];
@@ -119,7 +128,7 @@ export function EventoForm({ evento, fecha, onCerrar, onIntenciones }: Props) {
       fin: aISO(dia, horaFin),
       lugar_id: lugarId,
       lugar_texto: lugarSel === 'otro' ? lugarTexto.trim() : null,
-      asignado_a: asignado || null,
+      ...celebranteDeValor(celebrante),
       intencion: limpio(intencion),
       contacto_nombre: limpio(contactoNombre),
       contacto_telefono: limpio(contactoTel),
@@ -146,6 +155,16 @@ export function EventoForm({ evento, fecha, onCerrar, onIntenciones }: Props) {
     onCerrar();
   }
 
+  async function eliminar() {
+    if (!evento) return;
+    const aviso = evento.estado === 'cancelado'
+      ? '¿Eliminar este evento? Se borra de la agenda de toda la parroquia y no se puede deshacer.'
+      : '¿Eliminar este evento? Se borra de la agenda de toda la parroquia, se avisará a los demás y no se puede deshacer. (Si solo no se va a realizar, mejor cancélalo.)';
+    if (!confirm(aviso)) return;
+    await eliminarEvento(evento.id);
+    onCerrar();
+  }
+
   async function reactivar() {
     if (!evento) return;
     await reactivarEvento(evento.id);
@@ -153,6 +172,10 @@ export function EventoForm({ evento, fecha, onCerrar, onIntenciones }: Props) {
   }
 
   const cancelado = evento?.estado === 'cancelado';
+  // Una misa fija no se borra (el calendario la volvería a crear): se cancela. Lo demás lo borra el párroco, la
+  // secretaria o quien lo creó (misma regla que en la base de datos).
+  const puedeEliminar = !!evento && !evento.misa_fija_id && !!perfil
+    && (perfil.rol === 'parroco' || perfil.rol === 'secretaria' || evento.creado_por === perfil.id);
   const creador = evento?.creado_por ? nombrePerfil(perfiles.find((p) => p.id === evento.creado_por)) : null;
   const editor = evento?.modificado_por ? nombrePerfil(perfiles.find((p) => p.id === evento.modificado_por)) : null;
 
@@ -232,9 +255,18 @@ export function EventoForm({ evento, fecha, onCerrar, onIntenciones }: Props) {
         )}
 
         <label htmlFor="asignado">Celebrante</label>
-        <select id="asignado" value={asignado} onChange={(e) => setAsignado(e.target.value)}>
+        <select id="asignado" value={celebrante} onChange={(e) => setCelebrante(e.target.value)}>
           <option value="">Sin asignar</option>
-          {sacerdotes.map((p) => <option key={p.id} value={p.id}>{nombrePerfil(p)}</option>)}
+          {sacerdotes.length > 0 && (
+            <optgroup label="Sacerdotes">
+              {sacerdotes.map((p) => <option key={p.id} value={`p:${p.id}`}>{nombrePerfil(p)}</option>)}
+            </optgroup>
+          )}
+          {ministrosLista.length > 0 && (
+            <optgroup label="Ministros y vicarios (sin cuenta)">
+              {ministrosLista.map((m) => <option key={m.id} value={`m:${m.id}`}>{m.nombre} · {TIPOS_MINISTRO[m.tipo]}</option>)}
+            </optgroup>
+          )}
         </select>
 
         <div className="seccion-form">Detalles</div>
@@ -288,6 +320,14 @@ export function EventoForm({ evento, fecha, onCerrar, onIntenciones }: Props) {
         )}
         {evento && cancelado && (
           <div className="acciones"><button className="btn sec" type="button" onClick={reactivar}>Reactivar evento</button></div>
+        )}
+        {puedeEliminar && (
+          <div className="acciones">
+            <button className="btn peligro" type="button" onClick={() => void eliminar()}><Icono n="papelera" size={17} />Eliminar este evento</button>
+          </div>
+        )}
+        {evento?.misa_fija_id && (
+          <p className="ayuda" style={{ marginBottom: 0 }}>Una misa fija no se elimina: se cancela. Para quitarla de todas las semanas, desactívala en Ajustes → Misas fijas.</p>
         )}
 
         {evento && (

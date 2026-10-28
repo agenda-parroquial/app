@@ -470,3 +470,47 @@ input[type='date']::-webkit-date-and-time-value, input[type='time']::-webkit-dat
 }
 .actualizar button { background: var(--vino); color: #fff; border: 0; border-radius: 8px; padding: 6px 14px; cursor: pointer; font-weight: 650; }
 .aviso-vencimiento { margin: 10px 16px 0; }
+
+/* ---------- Calendario del mes ---------- */
+.mes {
+  background: var(--papel); border: 1px solid var(--linea); border-radius: var(--r-lg);
+  padding: 10px 8px 10px; box-shadow: var(--sombra-1); margin-bottom: 14px;
+}
+.mes-cab, .mes-grid { display: grid; grid-template-columns: repeat(7, 1fr); }
+.mes-cab span { text-align: center; font-size: .72rem; font-weight: 750; color: var(--gris); padding: 2px 0 6px; letter-spacing: .04em; }
+.mes-grid { gap: 3px; }
+.dm {
+  position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
+  aspect-ratio: 1 / 1.1; min-height: 0; padding: 0; background: transparent; color: var(--tinta); font: inherit;
+  border: 1.5px solid transparent; border-radius: 12px; cursor: pointer; transition: transform .08s;
+}
+.dm:active { transform: scale(.94); }
+.dm b {
+  display: grid; place-items: center; width: 30px; height: 30px; border-radius: 50%;
+  font-size: .98rem; font-weight: 600; line-height: 1; font-variant-numeric: tabular-nums;
+}
+.dm.fuera { color: var(--gris-claro); }
+.dm.fuera b { font-weight: 500; }
+.dm.dio { background: var(--dio-50); border-color: #c9d3ee; }
+.dm.hoy b { background: #d92d20; color: #fff; font-weight: 750; box-shadow: 0 2px 6px rgba(217, 45, 32, .35); }
+.dm.sel { border-color: var(--vino); box-shadow: inset 0 0 0 1px var(--vino); background: var(--vino-50); }
+.dm.sel.dio { background: var(--dio-50); }
+.puntos { display: flex; gap: 3px; height: 6px; }
+.puntos i { width: 6px; height: 6px; border-radius: 50%; background: var(--vino); }
+.puntos i.mal { background: var(--alerta); }
+.puntos i.dio { background: var(--dio); }
+.mes-leyenda {
+  display: flex; justify-content: center; gap: 16px; margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--linea);
+  font-size: .74rem; color: var(--gris); font-weight: 600;
+}
+.mes-leyenda span { display: inline-flex; align-items: center; gap: 6px; }
+.mes-leyenda i { width: 9px; height: 9px; border-radius: 50%; display: inline-block; }
+.mes-leyenda i.hoy { background: #d92d20; }
+.mes-leyenda i.ev { background: var(--vino); }
+.mes-leyenda i.dio { background: var(--dio); }
+@media (min-width: 720px) {
+  .dm { aspect-ratio: auto; height: 58px; }
+}
+
+.primera { display: inline-block; }
+.primera::first-letter { text-transform: uppercase; }

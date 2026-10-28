@@ -8,6 +8,12 @@ export const deClave = (k: string) => {
 };
 export const hoyClave = () => claveDia(new Date());
 export const sumarDias = (d: Date, n: number) => new Date(d.getFullYear(), d.getMonth(), d.getDate() + n);
+/** Suma meses sin pasarse de mes (31 ene + 1 mes = 28/29 feb). */
+export const sumarMeses = (d: Date, n: number) => {
+  const destino = new Date(d.getFullYear(), d.getMonth() + n, 1);
+  const ultimo = new Date(destino.getFullYear(), destino.getMonth() + 1, 0).getDate();
+  return new Date(destino.getFullYear(), destino.getMonth(), Math.min(d.getDate(), ultimo));
+};
 export const inicioSemana = (d: Date) => sumarDias(d, -d.getDay()); // la semana empieza en domingo
 
 export const horaDe = (iso: string) => {

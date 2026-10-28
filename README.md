@@ -3,7 +3,10 @@
 App web instalable (PWA) para llevar la agenda de la parroquia entre la secretaria, el párroco y el vicario.
 
 - **Funciona sin internet** en el teléfono y en la PC: se puede abrir, consultar y agregar eventos. Al volver la señal se sincroniza sola.
-- **Avisos al instante** cuando alguien agrega, cambia o cancela algo (con la app abierta y con internet).
+- **Avisos al instante** a los demás usuarios de la parroquia cuando alguien agrega, cambia, cancela o elimina un evento (con el nombre de quien lo hizo; con la app abierta, o con las notificaciones push activadas).
+- **Vista de calendario:** en la agenda, junto a Día y Semana, está **Mes**: el día de hoy va en rojo, un puntito marca cada día con eventos (rojo si hay un conflicto) y los días con eventos diocesanos se tiñen de azul. Al tocar un día se ve su agenda debajo.
+- **Ministros y vicarios sin cuenta:** en **Ajustes → Ministros y vicarios** el párroco o la secretaria registran a quienes celebran o ayudan pero no usan la app. Aparecen en **Celebrante** (de eventos y misas fijas) junto a los sacerdotes con cuenta, y la app avisa si se les empalman dos eventos.
+- **Eliminar eventos:** dentro de un evento, **Eliminar este evento** lo borra para toda la parroquia y avisa a los demás (a diferencia de «Cancelar», que lo deja marcado). Lo pueden hacer el párroco, la secretaria y quien lo creó; una misa fija se cancela, no se elimina.
 - **Detección de empalmes:** si dos eventos coinciden en horario y lugar (o con el mismo sacerdote), ambos se marcan en conflicto y se avisa a todos para resolverlo.
 - **Misas fijas** que aparecen solas en la agenda: todas las semanas o **alternas** (una sí, una no; también cada 3 o 4 semanas). Para dos misas que se turnan a la misma hora, se crean dos con «Cada 2 semanas» y fechas de inicio con una semana de diferencia.
 - **Intenciones de cada misa o evento:** el botón **🙏 Intenciones** de cada tarjeta muestra la lista (por los difuntos, acción de gracias y por la salud de) **en solo lectura**, con opción de copiarla para leerla. Se capturan, editan y quitan desde **Editar evento**, una por línea, y solo puede hacerlo la secretaria (en todas las misas) o el párroco/vicario en las misas que tienen asignadas. Funciona sin internet.
@@ -26,7 +29,7 @@ Tecnología: React + Vite (PWA) · Dexie/IndexedDB (copia local) · Supabase (ba
 1. Entra a <https://supabase.com> → **New project**. Anota la contraseña de la base de datos.
 2. **SQL Editor → New query**: pega **todo** el contenido de [`supabase/schema.sql`](supabase/schema.sql) y pulsa **Run**.
    - La zona horaria se elige al crear cada parroquia desde la app (por omisión, Ciudad de México).
-   - Si ya tenías el proyecto de antes, **no** vuelvas a pegar `schema.sql`: ejecuta en orden los archivos nuevos de `supabase/migrations/` (`20261029_multi_parroquia.sql` activa las varias parroquias y `20261030_vigencia_colores_diocesanos.sql`, la vigencia automática, los colores por tipo y los eventos diocesanos). Publica la app **después** de ejecutar la migración.
+   - Si ya tenías el proyecto de antes, **no** vuelvas a pegar `schema.sql`: ejecuta en orden los archivos nuevos de `supabase/migrations/` (`20261029_multi_parroquia.sql` activa las varias parroquias, `20261030_vigencia_colores_diocesanos.sql`, la vigencia automática, los colores por tipo y los eventos diocesanos, y `20261101_calendario_avisos_ministros.sql`, los ministros sin cuenta, el borrado de eventos, el obispo y los avisos diocesanos). Publica la app **después** de ejecutar la migración.
 3. **Authentication → Providers → Email**: desactiva **Confirm email**. (No hace falta confirmar el correo: el párroco ya aprueba cada cuenta a mano.)
 4. **Project Settings → API**: copia la **Project URL** y la clave **anon / publishable**.
 
@@ -72,6 +75,8 @@ Las claves del servicio de avisos (VAPID) se generan solas la primera vez y se g
 |---|:-:|:-:|:-:|
 | Ver la agenda y los conflictos | ✔ | ✔ | ✔ |
 | Crear, editar y cancelar eventos | ✔ | ✔ | ✔ |
+| Eliminar eventos | todos | todos | los que creó |
+| Ministros y vicarios sin cuenta | ✔ | ✔ | solo ver |
 | Ver las intenciones de cualquier evento | ✔ | ✔ | ✔ |
 | Capturar o editar intenciones | solo en sus misas | en todas | solo en sus misas |
 | Lugares y misas fijas | ✔ | ✔ | solo ver |
@@ -88,7 +93,9 @@ Las claves del servicio de avisos (VAPID) se generan solas la primera vez y se g
 - **Aislamiento:** cada fila de datos pertenece a una parroquia y la base de datos (Row Level Security) solo se la muestra a quienes son de ella; las notificaciones, los empalmes y las misas fijas también son por parroquia, cada una con su zona horaria.
 - **Primer superadmin en una base que ya tenía datos:** la migración deja como superadmin al primer párroco activo. Para sumar otro: en el SQL Editor, `insert into superadmins (id) values ('<id del usuario>');`.
 - **Vigencia automática:** cada parroquia puede tener una fecha de «acceso hasta». Al pasar esa fecha deja de entrar y de ver sus datos (como si estuviera suspendida), sin tareas programadas; sus datos se conservan y al renovar todo vuelve. En el panel: **+1 mes**, **+1 año**, una fecha exacta o **Sin límite**. Una semana antes de vencer, sus usuarios ven un aviso. Las parroquias existentes quedan sin límite hasta que fijes una fecha.
-- **Eventos diocesanos:** en **Ajustes → Administración → Eventos diocesanos** el superadmin sube eventos (con aviso opcional a todos) que aparecen en la agenda de todas las parroquias con un formato propio (borde punteado azul y la etiqueta «Diocesano»). Son solo informativos: no generan empalmes y cada usuario puede ocultarlos (individualmente o todos) desde su teléfono.
+- **Obispo:** el superadmin le da a alguien que ya tiene cuenta (por ejemplo, invitado a la parroquia del obispado) permiso de publicar eventos diocesanos: **Administración → Diocesanos → Quién más puede publicar**. El obispo ve en Ajustes solo «Eventos diocesanos»; no administra parroquias.
+- **Avisos y borrado de eventos diocesanos:** al crear uno, o al cambiar su día, hora, lugar o título, se manda una notificación a todos los usuarios de las parroquias con acceso (casilla marcada por omisión); eliminarlo siempre avisa. Quien puede publicarlos también puede **editarlo o eliminarlo desde su tarjeta en la agenda**; al eliminarlo desaparece en todas las parroquias.
+- **Eventos diocesanos:** en **Ajustes → Administración → Eventos diocesanos** el superadmin (o un obispo) sube eventos (con aviso a todos) que aparecen en la agenda de todas las parroquias con un formato propio (borde punteado azul y la etiqueta «Diocesano»). Son solo informativos: no generan empalmes y cada usuario puede ocultarlos (individualmente o todos) desde su teléfono.
 - **Lugares desde el panel:** en **Administración → 🗺 Lugares** el superadmin crea un punto en el mapa, elige la parroquia a la que pertenece y le aparece como lugar a esa parroquia (en su lista, su mapa y al agendar). Ella puede editarlo como los suyos. El superadmin solo ve los lugares, no su agenda.
 - **Costos:** el plan gratis de Supabase y el de Netlify bastan para empezar. Cuando sean varias parroquias conviene pasar a Supabase Pro (respaldos automáticos y sin pausas por inactividad). El dominio propio es opcional.
 
@@ -135,7 +142,7 @@ Y por último: volver a desplegar la función `enviar-push` (Verify JWT apagado)
 - En la pestaña **Conflictos** se resuelve: cambiar horario o lugar, cancelar uno, o confirmar que pueden coexistir. Al cambiar o cancelar, el conflicto se cierra solo.
 - Si dos personas editan **el mismo evento** a la vez, aparece «Cambio que chocó» mostrando las dos versiones para elegir cuál conservar. Solo viajan los campos que cada quien cambió, así que no se pisan cambios distintos.
 
-La regla de empalme: se cruzan en el tiempo **y** comparten lugar (de la lista) **o** el mismo sacerdote asignado. Un evento en «Otro lugar (solo esta vez)» solo choca por sacerdote.
+La regla de empalme: se cruzan en el tiempo **y** comparten lugar (de la lista) **o** el mismo celebrante (sacerdote con cuenta o ministro). Un evento en «Otro lugar (solo esta vez)» solo choca por sacerdote.
 
 ## Límites actuales y siguientes pasos
 

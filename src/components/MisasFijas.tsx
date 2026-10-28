@@ -2,9 +2,12 @@ import { useState, type FormEvent } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '../lib/db';
 import { deClave, diaBreve, hhmm, proximasFechas, proximoDia } from '../lib/fechas';
-import { useLugares, usePerfiles } from '../lib/hooks';
+import { useLugares, useMinistros, usePerfiles } from '../lib/hooks';
 import { guardarMisaFija } from '../lib/store';
-import { DIAS, esSacerdote, nombrePerfil, puedeEditarCatalogos, type MisaFija, type Perfil } from '../types';
+import {
+  celebranteDeValor, DIAS, esSacerdote, nombreCelebrante, nombrePerfil, puedeEditarCatalogos, TIPOS_MINISTRO, valorCelebrante,
+  type MisaFija, type Perfil,
+} from '../types';
 import { Icono } from './Iconos';
 import { VolverAjustes } from './VolverAjustes';
 
@@ -27,11 +30,12 @@ const textoFrecuencia = (m: MisaFija) => {
 function FormMisa({ misa, onCerrar }: { misa?: MisaFija; onCerrar: () => void }) {
   const lugares = useLugares().filter((l) => l.activo || l.id === misa?.lugar_id);
   const sacerdotes = usePerfiles().filter((p) => p.activo && esSacerdote(p));
+  const ministros = useMinistros().filter((m) => m.activo || m.id === misa?.ministro_id);
   const [dia, setDia] = useState(misa?.dia_semana ?? 0);
   const [hora, setHora] = useState(misa ? hhmm(misa.hora) : '08:00');
   const [duracion, setDuracion] = useState(misa?.duracion_min ?? 60);
   const [lugarId, setLugarId] = useState(misa?.lugar_id ?? '');
-  const [asignado, setAsignado] = useState(misa?.asignado_a ?? '');
+  const [celebrante, setCelebrante] = useState(misa ? valorCelebrante(misa) : '');
   const [intencion, setIntencion] = useState(misa?.intencion ?? '');
   const [activo, setActivo] = useState(misa?.activo ?? true);
   const [cada, setCada] = useState(misa?.cada_semanas ?? 1);
@@ -51,7 +55,7 @@ function FormMisa({ misa, onCerrar }: { misa?: MisaFija; onCerrar: () => void })
     e.preventDefault();
     await guardarMisaFija(
       {
-        dia_semana: dia, hora, duracion_min: duracion, lugar_id: lugarId, asignado_a: asignado || null,
+        dia_semana: dia, hora, duracion_min: duracion, lugar_id: lugarId, ...celebranteDeValor(celebrante),
         intencion: intencion.trim() || null, activo, cada_semanas: cada, desde: cada > 1 ? desde : null,
       },
       misa?.id,
@@ -112,9 +116,18 @@ function FormMisa({ misa, onCerrar }: { misa?: MisaFija; onCerrar: () => void })
           {lugares.map((l) => <option key={l.id} value={l.id}>{l.nombre}</option>)}
         </select>
         <label htmlFor="ma">Celebrante (opcional)</label>
-        <select id="ma" value={asignado} onChange={(e) => setAsignado(e.target.value)}>
+        <select id="ma" value={celebrante} onChange={(e) => setCelebrante(e.target.value)}>
           <option value="">Sin asignar</option>
-          {sacerdotes.map((p) => <option key={p.id} value={p.id}>{nombrePerfil(p)}</option>)}
+          {sacerdotes.length > 0 && (
+            <optgroup label="Sacerdotes">
+              {sacerdotes.map((p) => <option key={p.id} value={`p:${p.id}`}>{nombrePerfil(p)}</option>)}
+            </optgroup>
+          )}
+          {ministros.length > 0 && (
+            <optgroup label="Ministros y vicarios (sin cuenta)">
+              {ministros.map((m) => <option key={m.id} value={`m:${m.id}`}>{m.nombre} · {TIPOS_MINISTRO[m.tipo]}</option>)}
+            </optgroup>
+          )}
         </select>
         <label htmlFor="mi">Intención habitual (opcional)</label>
         <input id="mi" value={intencion} onChange={(e) => setIntencion(e.target.value)} placeholder="Ej.: Por la comunidad" />
@@ -139,6 +152,7 @@ function FormMisa({ misa, onCerrar }: { misa?: MisaFija; onCerrar: () => void })
 export function MisasFijas({ perfil }: { perfil: Perfil }) {
   const lugares = useLugares();
   const perfiles = usePerfiles();
+  const ministros = useMinistros();
   const misas = useLiveQuery(() => db.misas_fijas.toArray(), [], SIN_MISAS);
   const [editando, setEditando] = useState<MisaFija | 'nueva' | null>(null);
   const puede = puedeEditarCatalogos(perfil.rol);
@@ -176,7 +190,7 @@ export function MisasFijas({ perfil }: { perfil: Perfil }) {
                     <div className="ayuda">
                       {textoFrecuencia(m) && <b>{textoFrecuencia(m)} · </b>}
                       {m.duracion_min} min
-                      {m.asignado_a ? ` · Celebrante: ${nombrePerfil(perfiles.find((p) => p.id === m.asignado_a))}` : ''}
+                      {nombreCelebrante(m, perfiles, ministros) ? ` · Celebrante: ${nombreCelebrante(m, perfiles, ministros)}` : ''}
                       {m.intencion ? ` · ${m.intencion}` : ''}
                     </div>
                   </div>

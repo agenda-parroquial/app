@@ -25,7 +25,7 @@ function Fila({ href, icono, titulo, texto, tono }: { href: string; icono: Nombr
 
 /** Ajustes: mi cuenta, administración de la parroquia (lugares, misas, tipos, usuarios) y preferencias de este teléfono. */
 export function Ajustes({ perfil }: { perfil: Perfil }) {
-  const { cerrarSesion, usuario, superadmin } = useAuth();
+  const { cerrarSesion, usuario, superadmin, diocesano } = useAuth();
   const parroquia = useParroquia(perfil.parroquia_id);
   const estado = useEstadoSync();
   const porEnviar = useLiveQuery(() => db.outbox.count(), [], 0);
@@ -69,16 +69,21 @@ export function Ajustes({ perfil }: { perfil: Perfil }) {
       <div className="seccion-etq">Mi parroquia</div>
       <div className="lista">
         <Fila href="#/lugares" icono="ubicacion" titulo="Lugares" texto="Templo, capillas y su mapa" />
+        {editaCatalogos && <Fila href="#/ministros" icono="persona" titulo="Ministros y vicarios" texto="Quienes celebran contigo sin usar la app" tono="dio" />}
         <Fila href="#/misas" icono="iglesia" titulo="Misas fijas" texto="Horarios que se repiten (semanales o alternos)" tono="oro" />
         {editaCatalogos && <Fila href="#/tipos" icono="paleta" titulo="Tipos de evento" texto="Los tipos que hay, agregar nuevos y el color de cada uno" tono="ok" />}
         {perfil.rol === 'parroco' && <Fila href="#/usuarios" icono="personas" titulo="Usuarios e invitaciones" texto="Invitar personas, aprobar cuentas y asignar roles" tono="dio" />}
       </div>
 
-      {superadmin && (
+      {diocesano && (
         <>
-          <div className="seccion-etq">Administración de la app</div>
+          <div className="seccion-etq">{superadmin ? 'Administración de la app' : 'Diócesis'}</div>
           <div className="lista">
-            <Fila href="#/superadmin" icono="escudo" titulo="Administración" texto="Parroquias, accesos, lugares y eventos diocesanos" />
+            <Fila
+              href="#/superadmin" icono={superadmin ? 'escudo' : 'diocesis'}
+              titulo={superadmin ? 'Administración' : 'Eventos diocesanos'}
+              texto={superadmin ? 'Parroquias, accesos, lugares y eventos diocesanos' : 'Publicar eventos para todas las parroquias'}
+            />
           </div>
         </>
       )}

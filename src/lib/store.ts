@@ -2,7 +2,7 @@ import { db } from './db';
 import { supabase } from './supabase';
 import { normalizarDiocesano, sincronizar } from './sync';
 import type {
-  AvisoParroquial, DatosEvento, Evento, EventoDiocesano, Intencion, Invitacion, Lugar, LugarAdmin, MisaFija, OpPendiente, ParroquiaAdmin, Perfil, Rol,
+  AvisoParroquial, DatosEvento, Evento, EventoDiocesano, Intencion, Invitacion, Lugar, LugarAdmin, MisaFija, Ministro, OpPendiente, ParroquiaAdmin, Perfil, Rol,
   Tabla, TipoEventoGuardado,
 } from '../types';
 
@@ -14,6 +14,7 @@ import type {
 
 async function encolar(op: Omit<OpPendiente, 'seq' | 'estado'>) {
   const previa = await db.outbox.where('rowId').equals(op.rowId).first();
+  if (previa?.tipo === 'borrar') return; // ya se está borrando: no hay nada más que enviar
   if (previa) {
     // Varias ediciones seguidas del mismo registro se funden en una sola.
     await db.outbox.update(previa.seq!, { datos: { ...previa.datos, ...op.datos } });
@@ -61,6 +62,29 @@ export async function editarEvento(id: string, cambios: Partial<DatosEvento> & {
   void sincronizar();
 }
 
+/**
+ * Eliminar = borrar el evento para toda la parroquia (a diferencia de cancelarlo, no queda registro).
+ * Se quita de inmediato aquí y se envía en cuanto haya internet; los demás reciben un aviso.
+ */
+export async function eliminarEvento(id: string) {
+  await db.transaction('rw', [db.eventos, db.intenciones, db.conflictos, db.outbox], async () => {
+    const actual = await db.eventos.get(id);
+    const ops = await db.outbox.toArray();
+    // Lo que estaba pendiente de enviar sobre este evento (o sus intenciones) ya no tiene sentido.
+    const sobran = ops.filter((o) => o.rowId === id || (o.tabla === 'intenciones' && o.datos.evento_id === id));
+    await db.outbox.bulkDelete(sobran.map((o) => o.seq!));
+    await db.eventos.delete(id);
+    await db.intenciones.where('evento_id').equals(id).delete();
+    await db.conflictos.filter((c) => c.evento_a === id || c.evento_b === id).delete();
+    // Si el evento nunca llegó al servidor, no hay nada que borrar allá.
+    const nuncaSalio = !actual || actual.version === 0;
+    if (!nuncaSalio) {
+      await db.outbox.add({ tabla: 'eventos', rowId: id, tipo: 'borrar', datos: {}, baseVersion: actual.version, estado: 'pendiente' });
+    }
+  });
+  void sincronizar();
+}
+
 export const cancelarEvento = (id: string) => editarEvento(id, { estado: 'cancelado' });
 export const reactivarEvento = (id: string) => editarEvento(id, { estado: 'confirmado' });
 
@@ -78,6 +102,9 @@ async function guardarCatalogo<T extends { id: string }>(tabla: Tabla, datos: Pa
 export const guardarLugar = (datos: Partial<Lugar>, id?: string) => guardarCatalogo<Lugar>('lugares', datos, id);
 export const guardarMisaFija = (datos: Partial<MisaFija>, id?: string) =>
   guardarCatalogo<MisaFija>('misas_fijas', datos, id);
+
+// ---------- Ministros y vicarios sin cuenta ----------------------------
+export const guardarMinistro = (datos: Partial<Ministro>, id?: string) => guardarCatalogo<Ministro>('ministros', datos, id);
 
 // ---------- Intenciones ------------------------------------------------
 export const guardarIntencion = (datos: Partial<Intencion>, id?: string) =>
@@ -204,6 +231,30 @@ export async function editarParroquia(id: string, cambios: { nombre?: string; ac
   if (error) throw error;
 }
 
+// ---------- Obispos: quienes pueden publicar eventos diocesanos (solo el superadmin; requieren internet) ----
+export interface Obispo {
+  id: string;
+  nombre: string;
+  email: string;
+}
+
+export async function listarObispos(): Promise<Obispo[]> {
+  const { data, error } = await supabase.rpc('listar_obispos');
+  if (error) throw error;
+  return data as Obispo[];
+}
+
+/** Da permiso de publicar eventos diocesanos a alguien que ya tiene cuenta. */
+export async function autorizarObispo(email: string) {
+  const { error } = await supabase.rpc('autorizar_obispo', { p_email: email });
+  if (error) throw error;
+}
+
+export async function quitarObispo(id: string) {
+  const { error } = await supabase.rpc('quitar_obispo', { p_id: id });
+  if (error) throw error;
+}
+
 /** Lugares de una parroquia (el superadmin solo ve los lugares, no su agenda). */
 export async function listarLugaresParroquia(parroquia: string): Promise<LugarAdmin[]> {
   const { data, error } = await supabase.rpc('listar_lugares_parroquia', { p_parroquia: parroquia });
@@ -259,7 +310,10 @@ export async function listarDiocesanos(): Promise<EventoDiocesano[]> {
   return (data as EventoDiocesano[]).map(normalizarDiocesano);
 }
 
-/** `notificar` solo cuenta al crear el evento (avisa a los usuarios de todas las parroquias con acceso). */
+/**
+ * `notificar` = avisar de ESTA acción a los usuarios de todas las parroquias con acceso: al crear el evento o
+ * al cambiar su día, hora, lugar o título (quitarlo siempre avisa).
+ */
 export async function guardarDiocesano(datos: DatosDiocesano & { notificar?: boolean }, id?: string) {
   const { error } = id
     ? await supabase.from('eventos_diocesanos').update(datos).eq('id', id)
@@ -268,6 +322,7 @@ export async function guardarDiocesano(datos: DatosDiocesano & { notificar?: boo
   void sincronizar();
 }
 
+/** Quitar = dejar de mostrarlo en todas las parroquias (y se avisa a sus usuarios). */
 export async function quitarDiocesano(id: string) {
   const { error } = await supabase.from('eventos_diocesanos').update({ activo: false }).eq('id', id);
   if (error) throw error;

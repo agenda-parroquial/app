@@ -59,7 +59,9 @@ function describirVigencia(p: ParroquiaAdmin) {
  * Panel del superadmin: crear parroquias, darle acceso a su párroco con una invitación
  * y suspender o reactivar parroquias. Solo gestiona accesos; no ve la agenda de nadie.
  */
-export function Superadmin({ perfil, soloEsto = false }: { perfil: Perfil | null; soloEsto?: boolean }) {
+export function Superadmin(
+  { perfil, soloEsto = false, soloDiocesanos = false }: { perfil: Perfil | null; soloEsto?: boolean; soloDiocesanos?: boolean },
+) {
   const { cerrarSesion } = useAuth();
   const { enLinea } = useEstadoSync();
   const [parroquias, setParroquias] = useState<ParroquiaAdmin[] | null>(null);
@@ -132,17 +134,18 @@ export function Superadmin({ perfil, soloEsto = false }: { perfil: Perfil | null
   return (
     <>
       {!soloEsto && <VolverAjustes />}
-      <h2 style={{ marginBottom: 10 }}>Administración</h2>
-      <div className="segmentos lleno" style={{ marginBottom: 14 }} role="tablist" aria-label="Secciones de administración">
+      {soloDiocesanos && <><h2 style={{ marginBottom: 10 }}>Eventos diocesanos</h2><Diocesanos esAdmin={false} /></>}
+      {!soloDiocesanos && <h2 style={{ marginBottom: 10 }}>Administración</h2>}
+      {!soloDiocesanos && <div className="segmentos lleno" style={{ marginBottom: 14 }} role="tablist" aria-label="Secciones de administración">
         <button className={pestana === 'parroquias' ? 'on' : ''} onClick={() => setPestana('parroquias')}>Parroquias</button>
         <button className={pestana === 'lugares' ? 'on' : ''} onClick={() => setPestana('lugares')}>Lugares</button>
         <button className={pestana === 'diocesanos' ? 'on' : ''} onClick={() => setPestana('diocesanos')}>Diocesanos</button>
-      </div>
+      </div>}
 
-      {pestana === 'diocesanos' && <Diocesanos />}
-      {pestana === 'lugares' && <LugaresParroquias />}
+      {!soloDiocesanos && pestana === 'diocesanos' && <Diocesanos esAdmin />}
+      {!soloDiocesanos && pestana === 'lugares' && <LugaresParroquias />}
 
-      {pestana === 'parroquias' && <>
+      {!soloDiocesanos && pestana === 'parroquias' && <>
       <p className="ayuda" style={{ marginTop: 0 }}>
         Aquí das acceso a cada párroco: creas su parroquia y le mandas un código de invitación. Cada párroco invita después a su
         secretaria y a su vicario, y nadie ve la agenda de otra parroquia. Tú gestionas los accesos, no ves su agenda.

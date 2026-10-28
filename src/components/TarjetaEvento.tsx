@@ -1,12 +1,14 @@
 import type { CSSProperties, ReactNode } from 'react';
 import { horaDe } from '../lib/fechas';
-import { nombrePerfil, nombreTipo, type Evento, type Lugar, type Perfil } from '../types';
+import { nombreCelebrante, nombrePerfil, nombreTipo, type Evento, type Lugar, type Ministro, type Perfil } from '../types';
 import { Icono } from './Iconos';
 
 interface Props {
   evento: Evento;
   lugares: Lugar[];
   perfiles: Perfil[];
+  /** Ministros y vicarios sin cuenta (para poner el nombre del celebrante). */
+  ministros?: Ministro[];
   sinEnviar: boolean;
   onClick?: () => void;
   /** Si se pasa, la tarjeta muestra el botón de intenciones con su cantidad. */
@@ -19,13 +21,15 @@ interface Props {
   children?: ReactNode;
 }
 
+const SIN_MINISTROS: Ministro[] = [];
+
 export const nombreLugar = (e: Evento, lugares: Lugar[]) =>
   (e.lugar_id && lugares.find((l) => l.id === e.lugar_id)?.nombre) || e.lugar_texto || 'Sin lugar';
 
 export function TarjetaEvento({
-  evento: e, lugares, perfiles, sinEnviar, onClick, onIntenciones, nIntenciones = 0, color, momento, children,
+  evento: e, lugares, perfiles, ministros = SIN_MINISTROS, sinEnviar, onClick, onIntenciones, nIntenciones = 0, color, momento, children,
 }: Props) {
-  const celebrante = e.asignado_a ? nombrePerfil(perfiles.find((p) => p.id === e.asignado_a)) : null;
+  const celebrante = nombreCelebrante(e, perfiles, ministros);
   const creador = !e.misa_fija_id && e.creado_por ? nombrePerfil(perfiles.find((p) => p.id === e.creado_por)) : null;
   const tipo = nombreTipo(e);
   const clases = ['tarjeta', e.misa_fija_id ? 'fija' : '', e.estado === 'en_conflicto' ? 'conflicto' : '', e.estado === 'cancelado' ? 'cancelado' : '']
