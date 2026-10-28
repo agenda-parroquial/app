@@ -8,6 +8,7 @@ import { buscarTraslapes } from '../lib/traslapes';
 import {
   esSacerdote, nombrePerfil, nombreTipo, TIPOS_EVENTO, type DatosEvento, type Evento, type TipoEvento,
 } from '../types';
+import { Icono } from './Iconos';
 import { nombreLugar } from './TarjetaEvento';
 
 interface Props {
@@ -171,7 +172,8 @@ export function EventoForm({ evento, fecha, onCerrar, onIntenciones }: Props) {
         )}
         {cancelado && <div className="aviso">Este evento está cancelado.</div>}
 
-        <label htmlFor="tipo">Tipo</label>
+        <div className="seccion-form">Qué</div>
+        <label htmlFor="tipo" style={{ marginTop: 14 }}>Tipo</label>
         <select
           id="tipo" value={tipoSel}
           onChange={(e) => { tipoTocado.current = true; setTipoSel(e.target.value); }}
@@ -201,7 +203,8 @@ export function EventoForm({ evento, fecha, onCerrar, onIntenciones }: Props) {
         <label htmlFor="titulo">Título (opcional)</label>
         <input id="titulo" value={titulo} onChange={(e) => setTitulo(e.target.value)} placeholder="Ej.: Misa de XV años" />
 
-        <label htmlFor="dia">Fecha</label>
+        <div className="seccion-form">Cuándo</div>
+        <label htmlFor="dia" style={{ marginTop: 14 }}>Fecha</label>
         <input id="dia" type="date" value={dia} onChange={(e) => setDia(e.target.value)} required />
         <div className="dos">
           <div>
@@ -214,7 +217,8 @@ export function EventoForm({ evento, fecha, onCerrar, onIntenciones }: Props) {
           </div>
         </div>
 
-        <label htmlFor="lugar">Lugar</label>
+        <div className="seccion-form">Dónde y quién</div>
+        <label htmlFor="lugar" style={{ marginTop: 14 }}>Lugar</label>
         <select id="lugar" value={lugarSel} onChange={(e) => setLugarSel(e.target.value)}>
           <option value="">— Elegir —</option>
           {lugares.filter((l) => l.activo || l.id === evento?.lugar_id).map((l) => <option key={l.id} value={l.id}>{l.nombre}</option>)}
@@ -233,17 +237,18 @@ export function EventoForm({ evento, fecha, onCerrar, onIntenciones }: Props) {
           {sacerdotes.map((p) => <option key={p.id} value={p.id}>{nombrePerfil(p)}</option>)}
         </select>
 
-        <label htmlFor="intencion">Motivo (resumen corto)</label>
+        <div className="seccion-form">Detalles</div>
+        <label htmlFor="intencion" style={{ marginTop: 14 }}>Motivo (resumen corto)</label>
         <textarea id="intencion" value={intencion} onChange={(e) => setIntencion(e.target.value)} placeholder="Ej.: Misa de XV años de Sofía" />
         {!evento ? (
           <p className="ayuda" style={{ marginBottom: 0 }}>Después de guardar podrás agregar las intenciones: difuntos, acción de gracias y salud.</p>
         ) : onIntenciones ? (
           <button type="button" className="btn sec ancho" style={{ marginTop: 8 }} onClick={onIntenciones}>
-            🙏 Agregar o editar intenciones (difuntos, acción de gracias, salud)
+            <Icono n="cruz" size={17} />Agregar o editar intenciones (difuntos, acción de gracias, salud)
           </button>
         ) : (
           <p className="ayuda" style={{ marginBottom: 0 }}>
-            Las intenciones las agrega la secretaria o quien celebra esta misa. Las puedes ver con el botón 🙏 de la tarjeta.
+            Las intenciones las agrega la secretaria o quien celebra esta misa. Las puedes ver con el botón «Intenciones» de la tarjeta.
           </p>
         )}
 
@@ -263,7 +268,7 @@ export function EventoForm({ evento, fecha, onCerrar, onIntenciones }: Props) {
 
         {choques.length > 0 && (
           <div className="aviso error">
-            <b>⚠ Se empalma con:</b>
+            <b style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}><Icono n="alerta" size={17} />Se empalma con:</b>
             <ul>
               {choques.map((c) => (
                 <li key={c.id}>{horaDe(c.inicio)}–{horaDe(c.fin)} {c.titulo || nombreTipo(c)} · {nombreLugar(c, lugares)}</li>
@@ -274,7 +279,7 @@ export function EventoForm({ evento, fecha, onCerrar, onIntenciones }: Props) {
         )}
         {error && <div className="aviso error">{error}</div>}
 
-        <div className="acciones">
+        <div className="acciones barra">
           <button className="btn" type="submit">Guardar</button>
           <button className="btn sec" type="button" onClick={onCerrar}>Cerrar</button>
         </div>
@@ -287,7 +292,7 @@ export function EventoForm({ evento, fecha, onCerrar, onIntenciones }: Props) {
 
         {evento && (
           <p className="ayuda" style={{ marginBottom: 0 }}>
-            {evento.misa_fija_id ? 'Misa fija: se agenda sola cada semana.' : creador ? `✍️ Creado por ${creador} · ${fechaHoraCorta(evento.created_at)}` : ''}
+            {evento.misa_fija_id ? 'Misa fija: se agenda sola cada semana.' : creador ? `Creado por ${creador} · ${fechaHoraCorta(evento.created_at)}` : ''}
             {editor && evento.version > 1 ? <><br />Última edición: {editor} · {fechaHoraCorta(evento.updated_at)}</> : null}
           </p>
         )}

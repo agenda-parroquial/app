@@ -6,12 +6,24 @@ import { useParroquia } from '../lib/hooks';
 import { mostrarDiocesano, ocultarTodosDiocesanos, usePrefDiocesanos } from '../lib/preferencias';
 import { actualizarMiNombre } from '../lib/store';
 import { esErrorDeRed, mensajeDeError, sincronizar, useEstadoSync } from '../lib/sync';
-import { puedeEditarCatalogos, ROLES, type Perfil } from '../types';
+import { nombrePerfil, puedeEditarCatalogos, ROLES, type Perfil } from '../types';
 import { AvisosPush } from './AvisosPush';
+import { Icono, type NombreIcono } from './Iconos';
 
-const enlace = { textDecoration: 'none', color: 'inherit' } as const;
+const iniciales = (nombre: string) =>
+  nombre.trim().split(/\s+/).filter((p) => !/^(pbro|p|fr|lic|sr|sra|dr|dra)\.?$/i.test(p)).slice(0, 2).map((p) => p[0]?.toUpperCase()).join('') || '?';
 
-/** Ajustes: mi cuenta, notificaciones del teléfono y administración (lugares, misas, tipos, usuarios). */
+/** Fila de un menú: icono, título, descripción y flecha. */
+function Fila({ href, icono, titulo, texto, tono }: { href: string; icono: NombreIcono; titulo: string; texto: string; tono?: string }) {
+  return (
+    <a className="item clic" href={href}>
+      <span className={`ico ${tono ?? ''}`}><Icono n={icono} /></span>
+      <div><b>{titulo}</b><div className="ayuda">{texto}</div></div>
+    </a>
+  );
+}
+
+/** Ajustes: mi cuenta, administración de la parroquia (lugares, misas, tipos, usuarios) y preferencias de este teléfono. */
 export function Ajustes({ perfil }: { perfil: Perfil }) {
   const { cerrarSesion, usuario, superadmin } = useAuth();
   const parroquia = useParroquia(perfil.parroquia_id);
@@ -45,70 +57,67 @@ export function Ajustes({ perfil }: { perfil: Perfil }) {
 
   return (
     <>
-      <h2 style={{ marginBottom: 12 }}>Ajustes</h2>
+      <div className="perfil-card">
+        <span className="avatar" aria-hidden>{iniciales(nombrePerfil(perfil))}</span>
+        <div className="quien">
+          <b>{nombrePerfil(perfil)}</b>
+          <div className="rol">{ROLES[perfil.rol]}{parroquia ? ` · ${parroquia.nombre}` : ''}</div>
+          <div className="correo">{usuario?.email}</div>
+        </div>
+      </div>
 
+      <div className="seccion-etq">Mi parroquia</div>
+      <div className="lista">
+        <Fila href="#/lugares" icono="ubicacion" titulo="Lugares" texto="Templo, capillas y su mapa" />
+        <Fila href="#/misas" icono="iglesia" titulo="Misas fijas" texto="Horarios que se repiten (semanales o alternos)" tono="oro" />
+        {editaCatalogos && <Fila href="#/tipos" icono="paleta" titulo="Tipos de evento" texto="Los tipos que hay, agregar nuevos y el color de cada uno" tono="ok" />}
+        {perfil.rol === 'parroco' && <Fila href="#/usuarios" icono="personas" titulo="Usuarios e invitaciones" texto="Invitar personas, aprobar cuentas y asignar roles" tono="dio" />}
+      </div>
+
+      {superadmin && (
+        <>
+          <div className="seccion-etq">Administración de la app</div>
+          <div className="lista">
+            <Fila href="#/superadmin" icono="escudo" titulo="Administración" texto="Parroquias, accesos, lugares y eventos diocesanos" />
+          </div>
+        </>
+      )}
+
+      <div className="seccion-etq">Mi cuenta</div>
       <div className="grupo">
-        <h3>👤 Mi cuenta</h3>
-        <label htmlFor="mn" style={{ marginTop: 8 }}>Mi nombre</label>
+        <label htmlFor="mn" style={{ marginTop: 0 }}>Mi nombre</label>
         <div className="fila" style={{ flexWrap: 'nowrap' }}>
           <input id="mn" value={nombre} onChange={(e) => setNombre(e.target.value)} placeholder="Tu nombre" autoComplete="name" />
           <button className="btn" onClick={() => void guardarNombre()} disabled={guardando || !nombre.trim() || nombre.trim() === perfil.nombre}>
             Guardar
           </button>
         </div>
-        <p className="ayuda" style={{ marginBottom: 0 }}>
-          Este nombre aparece como «Creado por» en lo que agendas. {ROLES[perfil.rol]}{parroquia ? ` de ${parroquia.nombre}` : ''} · {usuario?.email}
-        </p>
+        <p className="ayuda" style={{ marginBottom: 0 }}>Este nombre aparece como «Creado por» en lo que agendas.</p>
         {mensaje && <div className={`aviso ${mensaje.tipo === 'ok' ? 'ok' : 'error'}`}>{mensaje.texto}</div>}
-        <button className="btn peligro" style={{ marginTop: 12 }} onClick={() => void salir()}>Cerrar sesión</button>
       </div>
 
+      <div className="seccion-etq">En este teléfono</div>
       <div className="grupo">
-        <h3>🔔 Notificaciones en este teléfono</h3>
+        <h3 className="fila" style={{ gap: 8 }}><Icono n="campana" size={19} />Notificaciones</h3>
         <AvisosPush />
       </div>
 
-      <h3 className="dia-titulo">Administración</h3>
-      <div className="lista" style={{ marginBottom: 16 }}>
-        <a className="item clic" href="#/lugares" style={enlace}>
-          <div>📍 <b>Lugares</b><div className="ayuda">Parroquia, capillas y demás lugares habituales</div></div>
-        </a>
-        <a className="item clic" href="#/misas" style={enlace}>
-          <div>⛪ <b>Misas fijas</b><div className="ayuda">Horarios que se repiten (semanales o alternos)</div></div>
-        </a>
-        {editaCatalogos && (
-          <a className="item clic" href="#/tipos" style={enlace}>
-            <div>🏷 <b>Tipos de evento</b><div className="ayuda">Los tipos que hay, agregar nuevos y el color de cada uno</div></div>
-          </a>
-        )}
-        {perfil.rol === 'parroco' && (
-          <a className="item clic" href="#/usuarios" style={enlace}>
-            <div>👥 <b>Usuarios e invitaciones</b><div className="ayuda">Invitar personas, aprobar cuentas y asignar roles</div></div>
-          </a>
-        )}
-        {superadmin && (
-          <a className="item clic" href="#/superadmin" style={enlace}>
-            <div>🛡 <b>Administración</b><div className="ayuda">Parroquias, accesos, lugares y eventos diocesanos</div></div>
-          </a>
-        )}
-      </div>
-
       <div className="grupo">
-        <h3>🏛 Eventos diocesanos</h3>
-        <label className="check" style={{ marginTop: 6 }}>
+        <h3 className="fila" style={{ gap: 8 }}><Icono n="diocesis" size={19} />Eventos diocesanos</h3>
+        <label className="check" style={{ marginTop: 10 }}>
           <input type="checkbox" checked={!pref.ocultarTodos} onChange={(e) => ocultarTodosDiocesanos(!e.target.checked)} />
           Mostrar los eventos diocesanos en mi agenda
         </label>
         <p className="ayuda" style={{ marginBottom: 0 }}>
           Son informativos y los publica la diócesis. Esta opción es solo de este dispositivo.
           {pref.ocultos.length > 0 && (
-            <> Ocultaste {pref.ocultos.length} de forma individual. <button className="enlace" onClick={() => pref.ocultos.forEach(mostrarDiocesano)}>Volver a mostrarlos</button></>
+            <> Ocultaste {pref.ocultos.length} de forma individual. <button className="enlace" style={{ padding: 0 }} onClick={() => pref.ocultos.forEach(mostrarDiocesano)}>Volver a mostrarlos</button></>
           )}
         </p>
       </div>
 
       <div className="grupo">
-        <h3>🔄 Sincronización</h3>
+        <h3 className="fila" style={{ gap: 8 }}><Icono n="sincronizar" size={19} />Sincronización</h3>
         <p className="ayuda">
           {estado.enLinea ? 'Conectado.' : 'Sin conexión: puedes seguir trabajando, todo se enviará al volver el internet.'}{' '}
           {porEnviar > 0 ? `${porEnviar} cambio(s) por enviar. ` : 'Todo está enviado. '}
@@ -116,17 +125,21 @@ export function Ajustes({ perfil }: { perfil: Perfil }) {
         </p>
         {estado.error && <div className="aviso error">{estado.error}</div>}
         <button className="btn sec" onClick={() => void sincronizar()} disabled={estado.sincronizando}>
-          {estado.sincronizando ? 'Sincronizando…' : 'Sincronizar ahora'}
+          <Icono n="sincronizar" size={17} />{estado.sincronizando ? 'Sincronizando…' : 'Sincronizar ahora'}
         </button>
       </div>
 
       <div className="grupo">
-        <h3>📲 Instalar en el teléfono</h3>
+        <h3 className="fila" style={{ gap: 8 }}><Icono n="celular" size={19} />Instalar en el teléfono</h3>
         <p className="ayuda" style={{ marginBottom: 0 }}>
           <b>iPhone:</b> abre esta página en Safari → Compartir → «Añadir a pantalla de inicio».<br />
           <b>Android:</b> en Chrome → menú ⋮ → «Instalar aplicación».
         </p>
       </div>
+
+      <button className="btn peligro ancho" style={{ marginTop: 6 }} onClick={() => void salir()}>
+        <Icono n="salir" size={18} />Cerrar sesión
+      </button>
     </>
   );
 }

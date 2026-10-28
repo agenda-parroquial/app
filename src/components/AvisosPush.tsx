@@ -3,6 +3,7 @@ import {
   activarPush, avisoDePrueba, desactivarPush, esIPhone, estaInstalada, estadoPush, type EstadoPush,
 } from '../lib/push';
 import { esErrorDeRed, mensajeDeError } from '../lib/sync';
+import { Icono } from './Iconos';
 
 /** Activa o desactiva los avisos en ESTE teléfono (llegan aunque la app esté cerrada). */
 export function AvisosPush() {
@@ -58,7 +59,8 @@ export function AvisosPush() {
   if (estado === 'activo') {
     return (
       <div className="aviso ok">
-        ✔ <b>Notificaciones activadas en este teléfono.</b> Te llegarán aunque la app esté cerrada.
+        <Icono n="check" size={16} strokeWidth={2.6} style={{ display: 'inline', verticalAlign: '-3px', marginRight: 6 }} />
+        <b>Notificaciones activadas en este teléfono.</b> Te llegarán aunque la app esté cerrada.
         {error && <div className="aviso error">{error}</div>}
         <div className="fila" style={{ marginTop: 10 }}>
           <button

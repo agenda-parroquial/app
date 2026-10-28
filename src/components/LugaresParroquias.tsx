@@ -3,6 +3,7 @@ import { guardarLugarParroquia, listarLugaresParroquia, listarParroquias } from 
 import { esErrorDeRed, mensajeDeError, useEstadoSync } from '../lib/sync';
 import { TIPOS_LUGAR, type LugarAdmin, type ParroquiaAdmin } from '../types';
 import { FormLugar } from './FormLugar';
+import { Icono } from './Iconos';
 import type { PuntoMapa } from './Mapa';
 import { MapaCarga } from './MapaCarga';
 
@@ -71,7 +72,7 @@ export function LugaresParroquias() {
     <>
       <div className="fila entre" style={{ marginBottom: 6 }}>
         <h3 style={{ margin: 0 }}>Lugares de las parroquias</h3>
-        <button className="btn" onClick={abrirNuevo} disabled={!enLinea || !parroquias?.length}>+ Nuevo lugar</button>
+        <button className="btn chico" onClick={abrirNuevo} disabled={!enLinea || !parroquias?.length}><Icono n="mas" size={17} strokeWidth={2.4} />Nuevo lugar</button>
       </div>
       <p className="ayuda" style={{ marginTop: 0 }}>
         Crea un punto en el mapa y elige la parroquia a la que pertenece: le aparecerá como lugar en su lista, en su mapa
@@ -98,9 +99,10 @@ export function LugaresParroquias() {
           <div className="lista" style={{ marginTop: 12 }}>
             {orden.map((l) => (
               <div key={l.id} className={`item clic ${l.activo ? '' : 'inactivo'}`} onClick={() => { setListo(''); setEditando(l); }}>
+                <span className="ico"><Icono n="ubicacion" /></span>
                 <div>
                   <b>{l.nombre}</b>{!l.activo && ' (sin uso)'}
-                  <div className="ayuda">{TIPOS_LUGAR[l.tipo]}{l.direccion ? ` · ${l.direccion}` : ''}{l.lat != null ? ' · 🗺' : ' · sin ubicación'}</div>
+                  <div className="ayuda">{TIPOS_LUGAR[l.tipo]}{l.direccion ? ` · ${l.direccion}` : ''}{l.lat != null ? ' · en el mapa' : ' · sin ubicación'}</div>
                 </div>
               </div>
             ))}

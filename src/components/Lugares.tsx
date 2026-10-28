@@ -3,6 +3,7 @@ import { useLugares } from '../lib/hooks';
 import { guardarLugar } from '../lib/store';
 import { puedeEditarCatalogos, TIPOS_LUGAR, type Lugar, type Perfil } from '../types';
 import { FormLugar } from './FormLugar';
+import { Icono } from './Iconos';
 import type { PuntoMapa } from './Mapa';
 import { MapaCarga } from './MapaCarga';
 import { VolverAjustes } from './VolverAjustes';
@@ -26,15 +27,15 @@ export function Lugares({ perfil }: { perfil: Perfil }) {
       <VolverAjustes />
       <div className="fila entre" style={{ marginBottom: 12 }}>
         <h2>Lugares</h2>
-        {puede && <button className="btn" onClick={() => setEditando('nuevo')}>+ Agregar</button>}
+        {puede && <button className="btn chico" onClick={() => setEditando('nuevo')}><Icono n="mas" size={17} strokeWidth={2.4} />Agregar</button>}
       </div>
       <p className="ayuda" style={{ marginTop: 0 }}>
         Parroquia, capillas y demás lugares habituales. Para algo de una sola vez (una unción en una casa) elige
         «Otro lugar» al crear el evento.
       </p>
-      <div className="fila" style={{ marginBottom: 10 }}>
-        <button className={`btn chico ${verMapa ? 'sec' : ''}`} onClick={() => setVerMapa(false)}>Lista</button>
-        <button className={`btn chico ${verMapa ? '' : 'sec'}`} onClick={() => setVerMapa(true)}>🗺 Mapa</button>
+      <div className="segmentos" style={{ marginBottom: 12 }} role="group" aria-label="Vista">
+        <button className={verMapa ? '' : 'on'} onClick={() => setVerMapa(false)}>Lista</button>
+        <button className={verMapa ? 'on' : ''} onClick={() => setVerMapa(true)}><Icono n="mapa" size={16} />Mapa</button>
       </div>
 
       {verMapa && (
@@ -46,13 +47,20 @@ export function Lugares({ perfil }: { perfil: Perfil }) {
         </div>
       )}
 
-      {orden.length === 0 && <div className="vacio">Aún no hay lugares. Agrega la parroquia y las capillas.</div>}
+      {orden.length === 0 && (
+        <div className="vacio grande">
+          <span className="vacio-ico"><Icono n="ubicacion" size={26} /></span>
+          <b>Aún no hay lugares</b>
+          <span>Agrega el templo y las capillas para poder agendar en ellos.</span>
+        </div>
+      )}
       <div className="lista">
         {orden.map((l) => (
           <div key={l.id} className={`item ${puede ? 'clic' : ''} ${l.activo ? '' : 'inactivo'}`} onClick={() => puede && setEditando(l)}>
+            <span className="ico"><Icono n={l.tipo === 'templo' || l.tipo === 'capilla' ? 'iglesia' : 'ubicacion'} /></span>
             <div>
               <b>{l.nombre}</b>{!l.activo && ' (sin uso)'}
-              <div className="ayuda">{TIPOS_LUGAR[l.tipo]}{l.direccion ? ` · ${l.direccion}` : ''}{l.lat != null ? ' · 🗺' : ''}</div>
+              <div className="ayuda">{TIPOS_LUGAR[l.tipo]}{l.direccion ? ` · ${l.direccion}` : ''}{l.lat != null ? ' · en el mapa' : ''}</div>
             </div>
           </div>
         ))}

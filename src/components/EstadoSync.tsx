@@ -7,10 +7,19 @@ export function EstadoSync() {
   const porEnviar = useLiveQuery(() => db.outbox.count(), [], 0);
 
   let texto: string;
-  if (!s.enLinea) texto = `Sin conexión${porEnviar ? ` · ${porEnviar} por enviar` : ''}`;
-  else if (s.sincronizando) texto = 'Sincronizando…';
-  else if (porEnviar) texto = `${porEnviar} por enviar`;
-  else texto = '● Al día';
+  let clase = '';
+  if (!s.enLinea) {
+    texto = `Sin conexión${porEnviar ? ` · ${porEnviar} por enviar` : ''}`;
+    clase = 'off';
+  } else if (s.sincronizando) {
+    texto = 'Sincronizando…';
+    clase = 'sinc';
+  } else if (porEnviar) {
+    texto = `${porEnviar} por enviar`;
+    clase = 'sinc';
+  } else {
+    texto = 'Al día';
+  }
 
-  return <span className={`estado ${s.enLinea ? '' : 'off'}`} role="status">{texto}</span>;
+  return <span className={`estado ${clase}`} role="status">{texto}</span>;
 }

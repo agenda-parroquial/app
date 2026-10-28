@@ -3,6 +3,8 @@ import { diaBreve, diaLargo, deClave, hoyClave } from '../lib/fechas';
 import { useAvisosParroquiales, useIdsPendientes, usePerfiles } from '../lib/hooks';
 import { guardarAviso, quitarAviso } from '../lib/store';
 import { nombrePerfil, puedeEditarCatalogos, type AvisoParroquial, type Perfil } from '../types';
+import { Icono } from './Iconos';
+import { VolverAgenda } from './VolverAjustes';
 
 /** Texto de vigencia: «Del 3 nov al 10 nov», «Desde el 3 nov», «Hasta el 10 nov». */
 function vigencia(a: AvisoParroquial, hoy: string) {
@@ -71,7 +73,7 @@ function FormAviso({ aviso, autorId, onCerrar }: { aviso?: AvisoParroquial; auto
           </label>
         )}
         {error && <div className="aviso error">{error}</div>}
-        <div className="acciones">
+        <div className="acciones barra">
           <button className="btn" type="submit">Guardar</button>
           <button className="btn sec" type="button" onClick={onCerrar}>Cancelar</button>
         </div>
@@ -116,14 +118,14 @@ export function Parroquiales({ perfil }: { perfil: Perfil }) {
   const tarjeta = (a: AvisoParroquial, atenuado = false) => {
     const autor = a.creado_por ? nombrePerfil(perfiles.find((p) => p.id === a.creado_por)) : null;
     return (
-      <div key={a.id} className="tarjeta fija" style={{ cursor: 'default', opacity: atenuado ? 0.65 : 1 }}>
-        <div className="titulo" style={{ fontSize: '1.15rem' }}>{a.titulo}</div>
-        {a.texto && <div style={{ whiteSpace: 'pre-wrap', fontSize: '1.05rem', margin: '4px 0' }}>{a.texto}</div>}
-        <div className="meta">📅 {vigencia(a, hoy)}{autor ? ` · Publicó: ${autor}` : ''}</div>
+      <div key={a.id} className="tarjeta nota" style={{ opacity: atenuado ? 0.65 : 1 }}>
+        <div className="titulo" style={{ fontSize: '1.12rem', fontFamily: 'var(--serif)' }}>{a.titulo}</div>
+        {a.texto && <div style={{ whiteSpace: 'pre-wrap', margin: '6px 0 4px', fontSize: '1rem' }}>{a.texto}</div>}
+        <div className="meta"><Icono n="calendario" size={15} />{vigencia(a, hoy)}{autor ? ` · Publicó: ${autor}` : ''}</div>
         {pendientes.has(a.id) && <div className="etiquetas"><span className="etq pendiente">Sin enviar</span></div>}
         {puede && (
           <div className="fila" style={{ marginTop: 10 }}>
-            <button className="btn sec chico" onClick={() => setEditando(a)}>✎ Editar</button>
+            <button className="btn sec chico" onClick={() => setEditando(a)}><Icono n="lapiz" size={15} />Editar</button>
           </div>
         )}
       </div>
@@ -132,19 +134,26 @@ export function Parroquiales({ perfil }: { perfil: Perfil }) {
 
   return (
     <>
+      <VolverAgenda />
       <div className="fila entre" style={{ marginBottom: 6 }}>
         <h2>Avisos parroquiales</h2>
-        {puede && <button className="btn" onClick={() => setEditando('nuevo')}>+ Nuevo</button>}
+        {puede && <button className="btn chico" onClick={() => setEditando('nuevo')}><Icono n="mas" size={17} strokeWidth={2.4} />Nuevo</button>}
       </div>
       <p className="ayuda" style={{ marginTop: 0 }}>Los anuncios para la comunidad, los que se leen en misa.</p>
 
       {vigentes.length > 0 && (
         <button className="btn sec chico" style={{ marginBottom: 12 }} onClick={() => void copiar()}>
-          {copiado ? '✔ Copiado' : '📋 Copiar los vigentes para leerlos'}
+          <Icono n={copiado ? 'check' : 'copiar'} size={16} />{copiado ? 'Copiado' : 'Copiar los vigentes para leerlos'}
         </button>
       )}
 
-      {vigentes.length === 0 && <div className="vacio">No hay avisos vigentes.{puede ? ' Crea uno con «+ Nuevo».' : ''}</div>}
+      {vigentes.length === 0 && (
+        <div className="vacio grande">
+          <span className="vacio-ico"><Icono n="megafono" size={26} /></span>
+          <b>No hay avisos vigentes</b>
+          <span>{puede ? 'Crea uno con «Nuevo» para que todos lo vean.' : 'Cuando haya anuncios para la comunidad aparecerán aquí.'}</span>
+        </div>
+      )}
       {vigentes.map((a) => tarjeta(a))}
 
       {proximos.length > 0 && (

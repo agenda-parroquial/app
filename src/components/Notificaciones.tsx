@@ -5,6 +5,7 @@ import { ir } from '../lib/hooks';
 import { marcarLeida, marcarTodasLeidas } from '../lib/store';
 import type { Notificacion } from '../types';
 import { AvisosPush } from './AvisosPush';
+import { Icono, type NombreIcono } from './Iconos';
 
 export async function abrirNotificacion(n: Notificacion) {
   await marcarLeida(n.id);
@@ -15,9 +16,14 @@ export async function abrirNotificacion(n: Notificacion) {
   ir(e ? `agenda/${fechaDe(e.inicio)}/${e.id}` : 'agenda');
 }
 
-const ICONO: Record<Notificacion['tipo'], string> = {
-  evento_nuevo: '🆕', evento_editado: '✏️', evento_cancelado: '🚫', conflicto: '⚠️', aviso_parroquial: '📣',
-  evento_diocesano: '🏛', prueba: '🔔',
+const ICONO: Record<Notificacion['tipo'], { n: NombreIcono; tono: string }> = {
+  evento_nuevo: { n: 'mas', tono: 'ok' },
+  evento_editado: { n: 'lapiz', tono: '' },
+  evento_cancelado: { n: 'cerrar', tono: 'gris' },
+  conflicto: { n: 'alerta', tono: '' },
+  aviso_parroquial: { n: 'megafono', tono: 'oro' },
+  evento_diocesano: { n: 'diocesis', tono: 'dio' },
+  prueba: { n: 'campana', tono: 'gris' },
 };
 const SIN_NOTIFICACIONES: Notificacion[] = [];
 
@@ -35,11 +41,17 @@ export function Notificaciones({ usuarioId }: { usuarioId: string }) {
 
       <AvisosPush />
 
-      {lista.length === 0 && <div className="vacio">Todavía no hay notificaciones.</div>}
+      {lista.length === 0 && (
+        <div className="vacio grande">
+          <span className="vacio-ico"><Icono n="campana" size={26} /></span>
+          <b>Sin notificaciones</b>
+          <span>Aquí verás los eventos nuevos, cambios, cancelaciones y conflictos.</span>
+        </div>
+      )}
       <div className="lista">
         {lista.map((n) => (
           <div key={n.id} className={`item clic ${n.leida ? '' : 'noleida'}`} onClick={() => void abrirNotificacion(n)}>
-            <span style={{ fontSize: '1.4rem' }}>{ICONO[n.tipo]}</span>
+            <span className={`ico ${ICONO[n.tipo].tono}`}><Icono n={ICONO[n.tipo].n} /></span>
             <div>
               <div className="titulo">{n.mensaje}</div>
               <div className="ayuda">{fechaHoraCorta(n.created_at)}</div>

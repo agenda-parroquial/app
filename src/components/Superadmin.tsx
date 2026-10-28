@@ -9,6 +9,7 @@ import { esErrorDeRed, mensajeDeError, useEstadoSync } from '../lib/sync';
 import { claveDia, deClave, diaBreve } from '../lib/fechas';
 import { diasDeVigencia, type ParroquiaAdmin, type Perfil } from '../types';
 import { Diocesanos } from './Diocesanos';
+import { Icono } from './Iconos';
 import { LugaresParroquias } from './LugaresParroquias';
 import { VolverAjustes } from './VolverAjustes';
 
@@ -131,11 +132,11 @@ export function Superadmin({ perfil, soloEsto = false }: { perfil: Perfil | null
   return (
     <>
       {!soloEsto && <VolverAjustes />}
-      <h2 style={{ marginBottom: 6 }}>Administración</h2>
-      <div className="fila" style={{ marginBottom: 10 }}>
-        <button className={`btn chico ${pestana === 'parroquias' ? '' : 'sec'}`} onClick={() => setPestana('parroquias')}>Parroquias y accesos</button>
-        <button className={`btn chico ${pestana === 'lugares' ? '' : 'sec'}`} onClick={() => setPestana('lugares')}>🗺 Lugares</button>
-        <button className={`btn chico ${pestana === 'diocesanos' ? '' : 'sec'}`} onClick={() => setPestana('diocesanos')}>Eventos diocesanos</button>
+      <h2 style={{ marginBottom: 10 }}>Administración</h2>
+      <div className="segmentos lleno" style={{ marginBottom: 14 }} role="tablist" aria-label="Secciones de administración">
+        <button className={pestana === 'parroquias' ? 'on' : ''} onClick={() => setPestana('parroquias')}>Parroquias</button>
+        <button className={pestana === 'lugares' ? 'on' : ''} onClick={() => setPestana('lugares')}>Lugares</button>
+        <button className={pestana === 'diocesanos' ? 'on' : ''} onClick={() => setPestana('diocesanos')}>Diocesanos</button>
       </div>
 
       {pestana === 'diocesanos' && <Diocesanos />}
@@ -204,7 +205,7 @@ export function Superadmin({ perfil, soloEsto = false }: { perfil: Perfil | null
             <div className="ayuda">
               Párroco: {p.parrocos.length ? p.parrocos.map((x) => `${x.nombre || x.email} (${x.email})`).join(', ') : 'aún no se ha registrado'}
             </div>
-            <div className="ayuda" style={vig.vencida ? { color: 'var(--alerta)', fontWeight: 700 } : undefined}>📅 {vig.texto}</div>
+            <div className="ayuda" style={vig.vencida ? { color: 'var(--alerta)', fontWeight: 700 } : undefined}><Icono n="calendario" size={14} style={{ display: "inline", verticalAlign: "-2px", marginRight: 5 }} />{vig.texto}</div>
             <div className="fila" style={{ marginTop: 6, alignItems: 'center' }}>
               <button className="btn sec chico" onClick={() => void extender(1)} disabled={!enLinea}>+1 mes</button>
               <button className="btn sec chico" onClick={() => void extender(12)} disabled={!enLinea}>+1 año</button>

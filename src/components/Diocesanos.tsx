@@ -3,6 +3,7 @@ import { aISO, deClave, diaLargo, fechaDe, hoyClave, horaDe, sumarMinutos } from
 import { guardarDiocesano, listarDiocesanos, quitarDiocesano } from '../lib/store';
 import { esErrorDeRed, mensajeDeError, useEstadoSync } from '../lib/sync';
 import type { EventoDiocesano } from '../types';
+import { Icono } from './Iconos';
 
 function Formulario({ evento, onCerrar, onGuardado }: { evento?: EventoDiocesano; onCerrar: () => void; onGuardado: () => void }) {
   const [titulo, setTitulo] = useState(evento?.titulo ?? '');
@@ -70,7 +71,7 @@ function Formulario({ evento, onCerrar, onGuardado }: { evento?: EventoDiocesano
         )}
         <p className="ayuda">La hora se guarda como la de este dispositivo; las parroquias la ven en su propia hora.</p>
         {error && <div className="aviso error">{error}</div>}
-        <div className="acciones">
+        <div className="acciones barra">
           <button className="btn" disabled={trabajando}>{trabajando ? 'Guardando…' : 'Guardar'}</button>
           <button type="button" className="btn sec" onClick={onCerrar}>Cancelar</button>
         </div>
@@ -123,7 +124,7 @@ export function Diocesanos() {
       {e.lugar && <div className="meta">📍 {e.lugar}</div>}
       {e.notas && <div className="meta" style={{ whiteSpace: 'pre-wrap' }}>{e.notas}</div>}
       <div className="fila" style={{ marginTop: 10 }}>
-        <button className="btn sec chico" onClick={() => setEditando(e)}>✎ Editar</button>
+        <button className="btn sec chico" onClick={() => setEditando(e)}><Icono n="lapiz" size={15} />Editar</button>
         <button className="btn peligro chico" onClick={() => void quitar(e)}>Quitar</button>
       </div>
     </div>
@@ -133,7 +134,7 @@ export function Diocesanos() {
     <>
       <div className="fila entre" style={{ marginBottom: 6 }}>
         <h3 style={{ margin: 0 }}>Eventos diocesanos</h3>
-        <button className="btn" onClick={() => setEditando('nuevo')} disabled={!enLinea}>+ Nuevo</button>
+        <button className="btn chico" onClick={() => setEditando('nuevo')} disabled={!enLinea}><Icono n="mas" size={17} strokeWidth={2.4} />Nuevo</button>
       </div>
       <p className="ayuda" style={{ marginTop: 0 }}>
         Los que subas aquí aparecen en la agenda de todas las parroquias con un formato distinto. Son solo informativos:
@@ -141,7 +142,13 @@ export function Diocesanos() {
       </p>
       {!enLinea && <div className="aviso">Sin conexión: este panel requiere internet.</div>}
       {error && <div className="aviso error">{error}</div>}
-      {lista && proximos.length === 0 && <div className="vacio">No hay eventos diocesanos próximos.</div>}
+      {lista && proximos.length === 0 && (
+        <div className="vacio grande">
+          <span className="vacio-ico" style={{ background: 'var(--dio-50)', color: 'var(--dio)' }}><Icono n="diocesis" size={26} /></span>
+          <b>No hay eventos diocesanos próximos</b>
+          <span>Los que subas aparecerán en la agenda de todas las parroquias.</span>
+        </div>
+      )}
       {proximos.map((e) => tarjeta(e))}
       {pasados.length > 0 && (
         <>

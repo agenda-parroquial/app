@@ -5,6 +5,7 @@ import { deClave, diaBreve, hhmm, proximasFechas, proximoDia } from '../lib/fech
 import { useLugares, usePerfiles } from '../lib/hooks';
 import { guardarMisaFija } from '../lib/store';
 import { DIAS, esSacerdote, nombrePerfil, puedeEditarCatalogos, type MisaFija, type Perfil } from '../types';
+import { Icono } from './Iconos';
 import { VolverAjustes } from './VolverAjustes';
 
 const DURACIONES = [30, 45, 60, 75, 90, 120];
@@ -126,7 +127,7 @@ function FormMisa({ misa, onCerrar }: { misa?: MisaFija; onCerrar: () => void })
         <p className="ayuda">
           Al guardar se agenda sola en los próximos 90 días. Las fechas que ya se hayan modificado a mano no se tocan.
         </p>
-        <div className="acciones">
+        <div className="acciones barra">
           <button className="btn" type="submit">Guardar</button>
           <button className="btn sec" type="button" onClick={onCerrar}>Cancelar</button>
         </div>
@@ -147,13 +148,19 @@ export function MisasFijas({ perfil }: { perfil: Perfil }) {
       <VolverAjustes />
       <div className="fila entre" style={{ marginBottom: 12 }}>
         <h2>Misas fijas</h2>
-        {puede && <button className="btn" onClick={() => setEditando('nueva')} disabled={!lugares.some((l) => l.activo)}>+ Agregar</button>}
+        {puede && <button className="btn chico" onClick={() => setEditando('nueva')} disabled={!lugares.some((l) => l.activo)}><Icono n="mas" size={17} strokeWidth={2.4} />Agregar</button>}
       </div>
       <p className="ayuda" style={{ marginTop: 0 }}>
         Los horarios de misa que se repiten cada semana. Aparecen solos en la agenda y avisan si algo se empalma con ellos.
       </p>
       {puede && !lugares.some((l) => l.activo) && <div className="aviso">Primero agrega al menos un lugar.</div>}
-      {misas.length === 0 && <div className="vacio">Aún no hay misas fijas.</div>}
+      {misas.length === 0 && (
+        <div className="vacio grande">
+          <span className="vacio-ico"><Icono n="iglesia" size={26} /></span>
+          <b>Aún no hay misas fijas</b>
+          <span>Agrega los horarios de misa que se repiten y aparecerán solos en la agenda.</span>
+        </div>
+      )}
       {DIAS.map((nombre, d) => {
         const delDia = misas.filter((m) => m.dia_semana === d).sort((a, b) => a.hora.localeCompare(b.hora));
         if (!delDia.length) return null;
@@ -163,6 +170,7 @@ export function MisasFijas({ perfil }: { perfil: Perfil }) {
             <div className="lista">
               {delDia.map((m) => (
                 <div key={m.id} className={`item ${puede ? 'clic' : ''} ${m.activo ? '' : 'inactivo'}`} onClick={() => puede && setEditando(m)}>
+                  <span className="ico oro"><Icono n="reloj" /></span>
                   <div>
                     <b>{hhmm(m.hora)}</b> · {lugares.find((l) => l.id === m.lugar_id)?.nombre ?? '—'}{!m.activo && ' (inactiva)'}
                     <div className="ayuda">

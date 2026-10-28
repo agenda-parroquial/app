@@ -1,5 +1,7 @@
+import type { CSSProperties, ReactNode } from 'react';
 import { horaDe } from '../lib/fechas';
 import { nombrePerfil, nombreTipo, type Evento, type Lugar, type Perfil } from '../types';
+import { Icono } from './Iconos';
 
 interface Props {
   evento: Evento;
@@ -12,54 +14,79 @@ interface Props {
   nIntenciones?: number;
   /** Color que la parroquia eligió para este tipo de evento (si hay). */
   color?: string;
-  children?: React.ReactNode;
+  /** Solo en la agenda de hoy: el evento que está ocurriendo o el que sigue. */
+  momento?: 'ahora' | 'siguiente';
+  children?: ReactNode;
 }
 
 export const nombreLugar = (e: Evento, lugares: Lugar[]) =>
   (e.lugar_id && lugares.find((l) => l.id === e.lugar_id)?.nombre) || e.lugar_texto || 'Sin lugar';
 
-export function TarjetaEvento({ evento: e, lugares, perfiles, sinEnviar, onClick, onIntenciones, nIntenciones = 0, color, children }: Props) {
+export function TarjetaEvento({
+  evento: e, lugares, perfiles, sinEnviar, onClick, onIntenciones, nIntenciones = 0, color, momento, children,
+}: Props) {
   const celebrante = e.asignado_a ? nombrePerfil(perfiles.find((p) => p.id === e.asignado_a)) : null;
   const creador = !e.misa_fija_id && e.creado_por ? nombrePerfil(perfiles.find((p) => p.id === e.creado_por)) : null;
   const tipo = nombreTipo(e);
   const clases = ['tarjeta', e.misa_fija_id ? 'fija' : '', e.estado === 'en_conflicto' ? 'conflicto' : '', e.estado === 'cancelado' ? 'cancelado' : '']
     .filter(Boolean).join(' ');
+  // El color solo se ve cuando el evento está normal: un conflicto o una cancelación mantienen su señal.
+  const estilo = color && e.estado === 'confirmado' ? ({ '--tipo': color } as CSSProperties) : undefined;
+  const hayEtiquetas = e.estado !== 'confirmado' || sinEnviar || !!momento || !!e.misa_fija_id;
 
   return (
-    // El color solo se ve cuando el evento está normal: un conflicto o una cancelación mantienen su señal.
-    <div className={clases} onClick={onClick} style={color && e.estado === 'confirmado' ? { borderLeftColor: color } : undefined}>
-      <div className="hora">{horaDe(e.inicio)} – {horaDe(e.fin)}</div>
-      <div className="titulo">{e.titulo || tipo}{e.titulo ? ` · ${tipo}` : ''}</div>
-      {e.intencion && <div className="meta">🙏 {e.intencion}</div>}
-      <div className="meta">📍 {nombreLugar(e, lugares)}{celebrante ? ` · Celebrante: ${celebrante}` : ''}</div>
-      {(e.contacto_nombre || e.contacto_telefono) && (
+    <div className={clases} onClick={onClick} style={estilo}>
+      <div className="cuando">
+        <span className="hora">{horaDe(e.inicio)}</span>
+        <span className="hasta">{horaDe(e.fin)}</span>
+      </div>
+      <div className="cuerpo">
+        <div className="titulo">{e.titulo || tipo}</div>
+        {e.titulo && <div className="tipo">{tipo}</div>}
+        {e.intencion && <div className="meta intencion"><Icono n="cruz" size={15} />{e.intencion}</div>}
         <div className="meta">
-          👤 {e.contacto_nombre}
-          {e.contacto_telefono && (
-            <>
-              {e.contacto_nombre ? ' · ' : ''}
-              <a href={`tel:${e.contacto_telefono}`} onClick={(ev) => ev.stopPropagation()}>{e.contacto_telefono}</a>
-            </>
+          <Icono n="ubicacion" size={15} />
+          <span>{nombreLugar(e, lugares)}{celebrante ? ` · ${celebrante}` : ''}</span>
+        </div>
+        {(e.contacto_nombre || e.contacto_telefono) && (
+          <div className="meta">
+            <Icono n="telefono" size={15} />
+            <span>
+              {e.contacto_nombre}
+              {e.contacto_telefono && (
+                <>
+                  {e.contacto_nombre ? ' · ' : ''}
+                  <a href={`tel:${e.contacto_telefono}`} onClick={(ev) => ev.stopPropagation()}>{e.contacto_telefono}</a>
+                </>
+              )}
+            </span>
+          </div>
+        )}
+        {creador && <div className="meta"><Icono n="lapiz" size={15} />Creado por {creador}</div>}
+        {hayEtiquetas && (
+          <div className="etiquetas">
+            {momento === 'ahora' && <span className="etq ahora">En curso</span>}
+            {momento === 'siguiente' && <span className="etq siguiente">Sigue</span>}
+            {e.estado === 'en_conflicto' && <span className="etq conflicto">EN CONFLICTO</span>}
+            {e.estado === 'cancelado' && <span className="etq cancelado">CANCELADO</span>}
+            {e.misa_fija_id && <span className="etq fija"><Icono n="repetir" size={11} strokeWidth={2.4} />Misa fija</span>}
+            {sinEnviar && <span className="etq pendiente">Sin enviar</span>}
+          </div>
+        )}
+      </div>
+      {(onIntenciones && e.estado !== 'cancelado') || children ? (
+        <div className="pie">
+          {onIntenciones && e.estado !== 'cancelado' && (
+            <button
+              className={`btn chico ${nIntenciones ? '' : 'sec'}`} style={{ marginTop: 10 }}
+              onClick={(ev) => { ev.stopPropagation(); onIntenciones(); }}
+            >
+              <Icono n="cruz" size={15} />Intenciones{nIntenciones ? ` (${nIntenciones})` : ''}
+            </button>
           )}
+          {children}
         </div>
-      )}
-      {creador && <div className="meta">✍️ Creado por {creador}</div>}
-      {(e.estado !== 'confirmado' || sinEnviar) && (
-        <div className="etiquetas">
-          {e.estado === 'en_conflicto' && <span className="etq conflicto">EN CONFLICTO</span>}
-          {e.estado === 'cancelado' && <span className="etq cancelado">CANCELADO</span>}
-          {sinEnviar && <span className="etq pendiente">Sin enviar</span>}
-        </div>
-      )}
-      {onIntenciones && e.estado !== 'cancelado' && (
-        <button
-          className={`btn chico ${nIntenciones ? '' : 'sec'}`} style={{ marginTop: 10 }}
-          onClick={(ev) => { ev.stopPropagation(); onIntenciones(); }}
-        >
-          🙏 Intenciones{nIntenciones ? ` (${nIntenciones})` : ''}
-        </button>
-      )}
-      {children}
+      ) : null}
     </div>
   );
 }

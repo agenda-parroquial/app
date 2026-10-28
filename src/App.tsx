@@ -13,6 +13,7 @@ import { Agenda } from './components/Agenda';
 import { Ajustes } from './components/Ajustes';
 import { Conflictos } from './components/Conflictos';
 import { EstadoSync } from './components/EstadoSync';
+import { Icono } from './components/Iconos';
 import { Login } from './components/Login';
 import { Lugares } from './components/Lugares';
 import { MisasFijas } from './components/MisasFijas';
@@ -76,7 +77,7 @@ function InvitacionAvisos() {
   };
   return (
     <div className="actualizar" style={{ gap: 8, flexWrap: 'wrap' }}>
-      🔔 Activa las notificaciones para enterarte al instante
+      <Icono n="campana" size={18} /> Activa las notificaciones para enterarte al instante
       <button onClick={() => { cerrar(); ir('avisos'); }}>Activar</button>
       <button style={{ background: 'transparent', color: 'inherit', textDecoration: 'underline' }} onClick={cerrar}>Ahora no</button>
     </div>
@@ -88,7 +89,7 @@ function AvisoVencimiento({ parroquia }: { parroquia: Parroquia | undefined }) {
   const dias = parroquia ? diasDeVigencia(parroquia) : null;
   if (dias === null || dias > 7) return null;
   return (
-    <div className="aviso" style={{ margin: '8px 12px' }}>
+    <div className="aviso aviso-vencimiento">
       {dias === 0
         ? 'El acceso de tu parroquia vence hoy.'
         : `El acceso de tu parroquia vence en ${dias} día${dias === 1 ? '' : 's'}.`}{' '}
@@ -143,20 +144,28 @@ function Shell({ perfil, superadmin, parroquia }: { perfil: Perfil; superadmin: 
       <InvitacionAvisos />
       <AvisoVencimiento parroquia={parroquia} />
       <header className="top">
-        <h1>{TITULOS[seccion] ?? 'Agenda'}</h1>
+        <div className="titulos">
+          <h1>{TITULOS[seccion] ?? 'Agenda'}</h1>
+          {parroquia && <div className="sub">{parroquia.nombre}</div>}
+        </div>
         <EstadoSync />
-        <button onClick={() => ir('avisos')} aria-label="Notificaciones">
-          🔔{noLeidas > 0 && <span className="contador">{noLeidas}</span>}
+        <button className="icono-btn" onClick={() => ir('avisos')} aria-label={noLeidas ? `Notificaciones (${noLeidas} sin leer)` : 'Notificaciones'}>
+          <Icono n="campana" size={21} />
+          {noLeidas > 0 && <span className="contador">{noLeidas}</span>}
         </button>
       </header>
 
-      <nav className="tabs">
-        <a href="#/agenda" className={seccion === 'agenda' ? 'activa' : ''}><span>📅</span>Agenda</a>
-        <a href="#/parroquiales" className={seccion === 'parroquiales' ? 'activa' : ''}><span>📣</span>Avisos</a>
-        <a href="#/conflictos" className={seccion === 'conflictos' ? 'activa' : ''}>
-          <span>⚠️</span>Conflictos{conflictos > 0 && <b className="contador">{conflictos}</b>}
+      {/* «Avisos parroquiales» ya no tiene pestaña: se entra desde la agenda y su botón «Avisos». */}
+      <nav className="tabs" aria-label="Secciones">
+        <a href="#/agenda" className={seccion === 'agenda' || seccion === 'parroquiales' ? 'activa' : ''}>
+          <span className="pastilla"><Icono n="calendario" size={22} /></span>Agenda
         </a>
-        <a href="#/ajustes" className={enAjustes ? 'activa' : ''}><span>⚙️</span>Ajustes</a>
+        <a href="#/conflictos" className={seccion === 'conflictos' ? 'activa' : ''}>
+          <span className="pastilla"><Icono n="alerta" size={22} /></span>Conflictos{conflictos > 0 && <b className="contador">{conflictos}</b>}
+        </a>
+        <a href="#/ajustes" className={enAjustes ? 'activa' : ''}>
+          <span className="pastilla"><Icono n="ajustes" size={22} /></span>Ajustes
+        </a>
       </nav>
 
       <main>
@@ -166,14 +175,15 @@ function Shell({ perfil, superadmin, parroquia }: { perfil: Perfil; superadmin: 
           : seccion === 'ajustes' || seccion === 'mas' ? <Ajustes perfil={perfil} />
           : seccion === 'lugares' ? <Lugares perfil={perfil} />
           : seccion === 'misas' ? <MisasFijas perfil={perfil} />
-          : seccion === 'tipos' ? <TiposEvento perfil={perfil} />          : seccion === 'usuarios' && perfil.rol === 'parroco' ? <Usuarios perfil={perfil} />
+          : seccion === 'tipos' ? <TiposEvento perfil={perfil} />
+          : seccion === 'usuarios' && perfil.rol === 'parroco' ? <Usuarios perfil={perfil} />
           : seccion === 'superadmin' && superadmin ? <Superadmin perfil={perfil} />
           : <Agenda ruta={ruta} perfil={perfil} />}
       </main>
 
       {toast && (
         <div className="toast" onClick={() => { void abrirNotificacion(toast); setToast(null); }}>
-          🔔 {toast.mensaje}
+          <Icono n="campana" size={20} /> <span>{toast.mensaje}</span>
         </div>
       )}
     </div>
@@ -184,7 +194,7 @@ function Shell({ perfil, superadmin, parroquia }: { perfil: Perfil; superadmin: 
 function SoloSuperadmin({ perfil }: { perfil: Perfil }) {
   return (
     <div className="app">
-      <header className="top"><h1>Administración</h1></header>
+      <header className="top"><div className="titulos"><h1>Administración</h1></div></header>
       <main><Superadmin perfil={perfil} soloEsto /></main>
     </div>
   );

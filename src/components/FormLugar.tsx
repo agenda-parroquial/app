@@ -2,6 +2,7 @@ import { useMemo, useState, type FormEvent, type ReactNode } from 'react';
 import { esErrorDeRed, mensajeDeError } from '../lib/sync';
 import { TIPOS_LUGAR, type Lugar, type TipoLugar } from '../types';
 import type { Coord, PuntoMapa } from './Mapa';
+import { Icono } from './Iconos';
 import { MapaCarga } from './MapaCarga';
 
 export type DatosLugar = Pick<Lugar, 'nombre' | 'tipo' | 'direccion' | 'lat' | 'lng' | 'activo'>;
@@ -109,7 +110,7 @@ export function FormLugar({ lugar, titulo, encabezado, otros, onGuardar, onCerra
           </button>
         </div>
         <div className="fila" style={{ margin: '8px 0' }}>
-          <button type="button" className="btn sec chico" onClick={usarMiUbicacion}>📍 Usar mi ubicación</button>
+          <button type="button" className="btn sec chico" onClick={usarMiUbicacion}><Icono n="gps" size={16} />Usar mi ubicación</button>
           {punto && <button type="button" className="btn sec chico" onClick={() => setPunto(null)}>Quitar el punto</button>}
         </div>
         <MapaCarga elegido={punto} onElegir={setPunto} centro={centro} puntos={puntosOtros} alto={240} />
@@ -125,7 +126,7 @@ export function FormLugar({ lugar, titulo, encabezado, otros, onGuardar, onCerra
           </label>
         )}
         {error && <div className="aviso error">{error}</div>}
-        <div className="acciones">
+        <div className="acciones barra">
           <button className="btn" type="submit" disabled={guardando}>{guardando ? 'Guardando…' : 'Guardar'}</button>
           <button className="btn sec" type="button" onClick={onCerrar}>Cancelar</button>
         </div>

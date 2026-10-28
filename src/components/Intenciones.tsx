@@ -5,10 +5,12 @@ import { diaBreve, fechaDe, horaDe } from '../lib/fechas';
 import { useLugares } from '../lib/hooks';
 import { guardarIntencion, quitarIntencion } from '../lib/store';
 import { nombreTipo, TIPOS_INTENCION, type Evento, type Intencion, type TipoIntencion } from '../types';
+import { Icono, type NombreIcono } from './Iconos';
 import { nombreLugar } from './TarjetaEvento';
 
 const SIN_INTENCIONES: Intencion[] = [];
 const ORDEN: TipoIntencion[] = ['difunto', 'accion_gracias', 'salud'];
+const ICONO_INTENCION: Record<TipoIntencion, NombreIcono> = { difunto: 'cruz', accion_gracias: 'sol', salud: 'corazon' };
 
 /**
  * Intenciones de un evento: por los difuntos, acción de gracias y por la salud de.
@@ -83,7 +85,7 @@ export function Intenciones({ evento, onCerrar, editable = false }: { evento: Ev
         <form onSubmit={agregar} className="grupo" style={{ marginTop: 14 }}>
           <label htmlFor="int-tipo" style={{ marginTop: 0 }}>Agregar intención</label>
           <select id="int-tipo" value={tipo} onChange={(e) => setTipo(e.target.value as TipoIntencion)}>
-            {ORDEN.map((t) => <option key={t} value={t}>{TIPOS_INTENCION[t].icono} {TIPOS_INTENCION[t].titulo}</option>)}
+            {ORDEN.map((t) => <option key={t} value={t}>{TIPOS_INTENCION[t].titulo}</option>)}
           </select>
           <textarea
             style={{ marginTop: 8, minHeight: 64 }} value={texto} onChange={(e) => setTexto(e.target.value)}
@@ -93,14 +95,14 @@ export function Intenciones({ evento, onCerrar, editable = false }: { evento: Ev
         </form>
         )}
 
-        {lista.length === 0 && <div className="vacio">Todavía no hay intenciones para esta fecha.</div>}
+        {lista.length === 0 && <div className="vacio" style={{ marginTop: 14 }}>Todavía no hay intenciones para esta fecha.</div>}
 
         {ORDEN.map((t) => {
           const items = lista.filter((i) => i.tipo === t);
           if (!items.length) return null;
           return (
             <section key={t}>
-              <h3 className="dia-titulo">{TIPOS_INTENCION[t].icono} {TIPOS_INTENCION[t].titulo} ({items.length})</h3>
+              <h3 className="dia-titulo"><Icono n={ICONO_INTENCION[t]} size={18} /><span>{TIPOS_INTENCION[t].titulo} ({items.length})</span></h3>
               <div className="lista">
                 {items.map((i) => (
                   <div key={i.id} className="item">
@@ -110,13 +112,13 @@ export function Intenciones({ evento, onCerrar, editable = false }: { evento: Ev
                       <>
                         <input value={textoEdit} onChange={(e) => setTextoEdit(e.target.value)} autoFocus />
                         <button className="btn chico" onClick={() => void guardarEdicion(i)}>Guardar</button>
-                        <button className="btn sec chico" onClick={() => setEditando(null)}>×</button>
+                        <button className="btn sec chico" aria-label="Cancelar" onClick={() => setEditando(null)}><Icono n="cerrar" size={15} /></button>
                       </>
                     ) : (
                       <>
                         <div style={{ fontSize: '1.08rem' }}>{i.texto}</div>
-                        <button className="btn sec chico" aria-label="Editar" onClick={() => { setEditando(i.id); setTextoEdit(i.texto); }}>✎</button>
-                        <button className="btn peligro chico" aria-label="Quitar" onClick={() => void quitar(i)}>✕</button>
+                        <button className="btn sec chico" aria-label="Editar" onClick={() => { setEditando(i.id); setTextoEdit(i.texto); }}><Icono n="lapiz" size={15} /></button>
+                        <button className="btn peligro chico" aria-label="Quitar" onClick={() => void quitar(i)}><Icono n="cerrar" size={15} /></button>
                       </>
                     )}
                   </div>
@@ -128,7 +130,7 @@ export function Intenciones({ evento, onCerrar, editable = false }: { evento: Ev
 
         <div className="acciones">
           <button className="btn sec" type="button" onClick={() => void copiar()} disabled={!lista.length}>
-            {copiado ? '✔ Copiado' : 'Copiar lista'}
+            <Icono n={copiado ? 'check' : 'copiar'} size={16} />{copiado ? 'Copiado' : 'Copiar lista'}
           </button>
           <button className="btn" type="button" onClick={onCerrar}>Cerrar</button>
         </div>

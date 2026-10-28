@@ -8,6 +8,7 @@ import {
   cancelarEvento, conservarMiVersion, descartarOp, reintentarOp, resolverConflicto, usarVersionServidor,
 } from '../lib/store';
 import { nombrePerfil, TIPOS_EVENTO, type Evento, type Lugar, type OpPendiente, type Perfil } from '../types';
+import { Icono } from './Iconos';
 import { TarjetaEvento } from './TarjetaEvento';
 
 const ETIQUETAS: Record<string, string> = {
@@ -69,7 +70,13 @@ export function Conflictos() {
         Dos eventos que coinciden en horario y lugar (o con la misma persona) aparecen aquí hasta que se resuelvan.
       </p>
       {error && <div className="aviso error">{error}</div>}
-      {nada && <div className="vacio">✔ No hay conflictos pendientes.</div>}
+      {nada && (
+        <div className="vacio grande">
+          <span className="vacio-ico" style={{ background: 'var(--ok-fondo)', color: 'var(--ok)' }}><Icono n="check" size={26} strokeWidth={2.6} /></span>
+          <b>Todo en orden</b>
+          <span>No hay conflictos pendientes.</span>
+        </div>
+      )}
 
       {traslapes.map(({ c, a, b }) => (
         <div className="grupo" key={c.id}>
