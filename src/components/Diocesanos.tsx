@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react';
+import { useCallback, useEffect, useMemo, useState, type FormEvent, type ReactNode } from 'react';
 import { aISO, deClave, diaLargo, fechaDe, hoyClave, horaDe, sumarMinutos } from '../lib/fechas';
 import { autorizarObispo, guardarDiocesano, listarDiocesanos, listarObispos, quitarDiocesano, quitarObispo, type Obispo } from '../lib/store';
 import { esErrorDeRed, mensajeDeError, useEstadoSync } from '../lib/sync';
@@ -6,9 +6,12 @@ import type { EventoDiocesano } from '../types';
 import { Icono } from './Iconos';
 
 /** Crear o editar un evento diocesano (lo usan el panel y el detalle que ve quien puede publicarlos). */
-export function FormularioDiocesano({ evento, onCerrar, onGuardado }: { evento?: EventoDiocesano; onCerrar: () => void; onGuardado: () => void }) {
+export function FormularioDiocesano(
+  { evento, fecha, encabezado, onCerrar, onGuardado }:
+  { evento?: EventoDiocesano; fecha?: string; encabezado?: ReactNode; onCerrar: () => void; onGuardado: () => void },
+) {
   const [titulo, setTitulo] = useState(evento?.titulo ?? '');
-  const [dia, setDia] = useState(evento ? fechaDe(evento.inicio) : hoyClave());
+  const [dia, setDia] = useState(evento ? fechaDe(evento.inicio) : fecha ?? hoyClave());
   const [horaIni, setHoraIni] = useState(evento ? horaDe(evento.inicio) : '10:00');
   const [horaFin, setHoraFin] = useState(evento ? horaDe(evento.fin) : '11:00');
   const [lugar, setLugar] = useState(evento?.lugar ?? '');
@@ -45,6 +48,7 @@ export function FormularioDiocesano({ evento, onCerrar, onGuardado }: { evento?:
           <h2>{evento ? 'Editar evento diocesano' : 'Nuevo evento diocesano'}</h2>
           <button type="button" onClick={onCerrar} aria-label="Cerrar">×</button>
         </div>
+        {!evento && encabezado}
         <label htmlFor="dt">Título</label>
         <input id="dt" value={titulo} onChange={(e) => setTitulo(e.target.value)} required placeholder="Ej.: Misa crismal" />
         <label htmlFor="dd">Día</label>

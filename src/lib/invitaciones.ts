@@ -4,10 +4,10 @@ export const conGuion = (c: string) => `${c.slice(0, 4)}-${c.slice(4)}`;
 
 /** Texto listo para mandar por WhatsApp o mensaje. `parroquia` solo se pone en la invitación de un párroco. */
 export const mensajeInvitacion = (
-  i: Pick<Invitacion, 'nombre' | 'email' | 'codigo' | 'rol'>,
+  i: Pick<Invitacion, 'nombre' | 'email' | 'codigo' | 'rol'> & { obispo?: boolean },
   parroquia?: string,
 ) =>
-  `Hola${i.nombre ? ` ${i.nombre}` : ''}, te invité a la Agenda Parroquial como ${ROLES[i.rol].toLowerCase()}` +
+  `Hola${i.nombre ? ` ${i.nombre}` : ''}, te invité a la Agenda Parroquial como ${i.obispo ? 'obispo' : ROLES[i.rol].toLowerCase()}` +
   `${parroquia ? ` de ${parroquia}` : ''}.\n\n` +
   `1. Entra a ${location.origin}\n2. Toca «No tengo cuenta · Registrarme»\n` +
   `3. Usa este correo: ${i.email}\n4. Escribe este código de invitación: ${conGuion(i.codigo)}\n` +

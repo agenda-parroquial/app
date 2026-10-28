@@ -33,6 +33,8 @@ export function Ajustes({ perfil }: { perfil: Perfil }) {
   const [guardando, setGuardando] = useState(false);
   const [mensaje, setMensaje] = useState<{ tipo: 'ok' | 'error'; texto: string } | null>(null);
   const editaCatalogos = puedeEditarCatalogos(perfil.rol);
+  // Sin parroquia = el creador (o un obispo sin parroquia): no hay menús de parroquia ni avisos de agenda.
+  const sinParroquia = !perfil.parroquia_id;
   const pref = usePrefDiocesanos();
 
   async function guardarNombre() {
@@ -61,21 +63,21 @@ export function Ajustes({ perfil }: { perfil: Perfil }) {
         <span className="avatar" aria-hidden>{iniciales(nombrePerfil(perfil))}</span>
         <div className="quien">
           <b>{nombrePerfil(perfil)}</b>
-          <div className="rol">{ROLES[perfil.rol]}{parroquia ? ` · ${parroquia.nombre}` : ''}</div>
+          <div className="rol">{sinParroquia ? (superadmin ? 'Creador' : 'Diócesis') : ROLES[perfil.rol]}{parroquia ? ` · ${parroquia.nombre}` : ''}</div>
           <div className="correo">{usuario?.email}</div>
         </div>
       </div>
 
-      <div className="seccion-etq">Mi parroquia</div>
+      {!sinParroquia && <><div className="seccion-etq">Mi parroquia</div>
       <div className="lista">
         <Fila href="#/lugares" icono="ubicacion" titulo="Lugares" texto="Templo, capillas y su mapa" />
         {editaCatalogos && <Fila href="#/ministros" icono="persona" titulo="Ministros y vicarios" texto="Quienes celebran contigo sin usar la app" tono="dio" />}
         <Fila href="#/misas" icono="iglesia" titulo="Misas fijas" texto="Horarios que se repiten (semanales o alternos)" tono="oro" />
         {editaCatalogos && <Fila href="#/tipos" icono="paleta" titulo="Tipos de evento" texto="Los tipos que hay, agregar nuevos y el color de cada uno" tono="ok" />}
         {perfil.rol === 'parroco' && <Fila href="#/usuarios" icono="personas" titulo="Usuarios e invitaciones" texto="Invitar personas, aprobar cuentas y asignar roles" tono="dio" />}
-      </div>
+      </div></>}
 
-      {diocesano && (
+      {diocesano && !sinParroquia && (
         <>
           <div className="seccion-etq">{superadmin ? 'Administración de la app' : 'Diócesis'}</div>
           <div className="lista">
@@ -102,10 +104,12 @@ export function Ajustes({ perfil }: { perfil: Perfil }) {
       </div>
 
       <div className="seccion-etq">En este teléfono</div>
-      <div className="grupo">
-        <h3 className="fila" style={{ gap: 8 }}><Icono n="campana" size={19} />Notificaciones</h3>
-        <AvisosPush />
-      </div>
+      {!sinParroquia && (
+        <div className="grupo">
+          <h3 className="fila" style={{ gap: 8 }}><Icono n="campana" size={19} />Notificaciones</h3>
+          <AvisosPush />
+        </div>
+      )}
 
       <div className="grupo">
         <h3 className="fila" style={{ gap: 8 }}><Icono n="diocesis" size={19} />Eventos diocesanos</h3>

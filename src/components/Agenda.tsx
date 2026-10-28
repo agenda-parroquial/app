@@ -9,6 +9,7 @@ import { ir, useAvisosParroquiales, useIdsPendientes, useLugares, useMinistros, 
 import { usePrefDiocesanos } from '../lib/preferencias';
 import { claveTipo, puedeEditarIntenciones, type Evento, type EventoDiocesano, type Perfil } from '../types';
 import { CalendarioMes, type MarcaDia } from './CalendarioMes';
+import { FormularioDiocesano } from './Diocesanos';
 import { EventoForm } from './EventoForm';
 import { Icono } from './Iconos';
 import { Intenciones } from './Intenciones';
@@ -19,8 +20,31 @@ const SIN_EVENTOS: Evento[] = [];
 const SIN_DIOCESANOS: EventoDiocesano[] = [];
 const SIN_COLORES: Record<string, string> = {};
 
-/** Ruta: agenda/<fecha>/<nuevo | id de evento> */
-export function Agenda({ ruta, perfil }: { ruta: string[]; perfil: Perfil }) {
+/**
+ * Hoja de «Nuevo». Quien puede publicar eventos diocesanos (creador y obispo) elige arriba si el evento es
+ * de su parroquia o diocesano; el creador, que no tiene parroquia, solo publica diocesanos.
+ */
+function NuevoEvento({ fecha, onCerrar, soloDiocesano, puedeDiocesano }: {
+  fecha: string; onCerrar: () => void; soloDiocesano: boolean; puedeDiocesano: boolean;
+}) {
+  const [ambito, setAmbito] = useState<'parroquia' | 'diocesano'>(soloDiocesano ? 'diocesano' : 'parroquia');
+  const selector = puedeDiocesano && !soloDiocesano ? (
+    <div className="segmentos lleno" role="group" aria-label="Qué tipo de evento" style={{ margin: '2px 0 4px' }}>
+      <button type="button" className={ambito === 'parroquia' ? 'on' : ''} onClick={() => setAmbito('parroquia')}>
+        <Icono n="iglesia" size={16} />Parroquia
+      </button>
+      <button type="button" className={ambito === 'diocesano' ? 'on' : ''} onClick={() => setAmbito('diocesano')}>
+        <Icono n="diocesis" size={16} />Diocesano
+      </button>
+    </div>
+  ) : undefined;
+  return ambito === 'parroquia'
+    ? <EventoForm fecha={fecha} onCerrar={onCerrar} selector={selector} />
+    : <FormularioDiocesano fecha={fecha} encabezado={selector} onCerrar={onCerrar} onGuardado={onCerrar} />;
+}
+
+/** Ruta: agenda/<fecha>/<nuevo | id de evento>. `soloDiocesana`: la agenda del creador, sin eventos de parroquia. */
+export function Agenda({ ruta, perfil, soloDiocesana = false }: { ruta: string[]; perfil: Perfil; soloDiocesana?: boolean }) {
   const fecha = /^\d{4}-\d{2}-\d{2}$/.test(ruta[1] ?? '') ? ruta[1] : hoyClave();
   const accion = ruta[2];
   const [modo, setModo] = useState<'dia' | 'semana' | 'mes'>('dia');
@@ -181,9 +205,11 @@ export function Agenda({ ruta, perfil }: { ruta: string[]; perfil: Perfil }) {
           <button className={modo === 'semana' ? 'on' : ''} onClick={() => setModo('semana')}>Semana</button>
           <button className={modo === 'mes' ? 'on' : ''} onClick={() => setModo('mes')}>Mes</button>
         </div>
-        <a className="chip" href="#/parroquiales">
-          <Icono n="megafono" size={18} />Avisos{nAvisos > 0 && <span className="num">{nAvisos}</span>}
-        </a>
+        {!soloDiocesana && (
+          <a className="chip" href="#/parroquiales">
+            <Icono n="megafono" size={18} />Avisos{nAvisos > 0 && <span className="num">{nAvisos}</span>}
+          </a>
+        )}
       </div>
 
       {mostrar.map((k) => {
@@ -201,7 +227,7 @@ export function Agenda({ ruta, perfil }: { ruta: string[]; perfil: Perfil }) {
               <div className="vacio grande">
                 <span className="vacio-ico"><Icono n="calendario" size={26} /></span>
                 <b>Nada agendado este día</b>
-                <span>Toca «Nuevo» para agendar una misa, un bautizo o lo que haga falta.</span>
+                <span>{soloDiocesana ? 'Toca «Nuevo» para publicar un evento diocesano.' : 'Toca «Nuevo» para agendar una misa, un bautizo o lo que haga falta.'}</span>
               </div>
             )}
             {vacio && modo === 'semana' && <div className="ayuda" style={{ margin: '0 2px 8px' }}>Sin eventos</div>}
@@ -221,7 +247,9 @@ export function Agenda({ ruta, perfil }: { ruta: string[]; perfil: Perfil }) {
         <Icono n="mas" size={24} strokeWidth={2.6} />Nuevo
       </button>
 
-      {accion === 'nuevo' && <EventoForm fecha={fecha} onCerrar={() => irDia(fecha)} />}
+      {accion === 'nuevo' && (
+        <NuevoEvento fecha={fecha} onCerrar={() => irDia(fecha)} soloDiocesano={soloDiocesana} puedeDiocesano={diocesano} />
+      )}
       {dioAbierto && <DiocesanoDetalle evento={dioAbierto} onCerrar={() => irDia(fecha)} puedeGestionar={diocesano} />}
       {evAbierto && !verIntenciones && (
         <EventoForm

@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useState, type FormEvent } from 'react';
-import { useAuth } from '../lib/auth';
 import { compartir, conGuion, mensajeInvitacion } from '../lib/invitaciones';
 import {
   asignarmeComoParroco, cancelarInvitacionParroco, crearParroquia, editarParroquia, fijarVigencia, invitarParroco,
@@ -26,6 +25,7 @@ interface Creada {
   nombre: string;
   email: string;
   codigo: string;
+  obispo: boolean;
 }
 
 /** La fecha de hoy ('YYYY-MM-DD') en la zona horaria de la parroquia. */
@@ -62,7 +62,6 @@ function describirVigencia(p: ParroquiaAdmin) {
 export function Superadmin(
   { perfil, soloEsto = false, soloDiocesanos = false }: { perfil: Perfil | null; soloEsto?: boolean; soloDiocesanos?: boolean },
 ) {
-  const { cerrarSesion } = useAuth();
   const { enLinea } = useEstadoSync();
   const [parroquias, setParroquias] = useState<ParroquiaAdmin[] | null>(null);
   const [error, setError] = useState('');
@@ -72,6 +71,9 @@ export function Superadmin(
   const [email, setEmail] = useState('');
   const [nombreParroco, setNombreParroco] = useState('');
   const [vigenteNueva, setVigenteNueva] = useState('');
+  const [esObispo, setEsObispo] = useState(false);
+  const [nuevaAbierta, setNuevaAbierta] = useState(false);
+  const [esObispoInv, setEsObispoInv] = useState(false);
   const [fechaVig, setFechaVig] = useState<Record<string, string>>({});
   const [pestana, setPestana] = useState<'parroquias' | 'lugares' | 'diocesanos'>('parroquias');
   const [trabajando, setTrabajando] = useState(false);
@@ -103,12 +105,14 @@ export function Superadmin(
     setError('');
     setTrabajando(true);
     try {
-      const r = await crearParroquia({ nombre, zona, email, nombreParroco, vigenteHasta: vigenteNueva });
-      setCreada({ parroquia: r.parroquia_id, nombre: nombre.trim(), email: email.trim().toLowerCase(), codigo: r.codigo });
+      const r = await crearParroquia({ nombre, zona, email, nombreParroco, vigenteHasta: vigenteNueva, esObispo });
+      setCreada({ parroquia: r.parroquia_id, nombre: nombre.trim(), email: email.trim().toLowerCase(), codigo: r.codigo, obispo: esObispo });
       setNombre('');
       setEmail('');
       setNombreParroco('');
       setVigenteNueva('');
+      setEsObispo(false);
+      setNuevaAbierta(false);
       await cargar();
     } catch (err) {
       setError(esErrorDeRed(err) ? 'Necesitas internet para hacer esto.' : mensajeDeError(err));
@@ -120,22 +124,23 @@ export function Superadmin(
   async function invitar(e: FormEvent, p: ParroquiaAdmin) {
     e.preventDefault();
     await accion(async () => {
-      const codigo = await invitarParroco(p.id, emailInv, nombreInv);
-      setCreada({ parroquia: p.id, nombre: p.nombre, email: emailInv.trim().toLowerCase(), codigo });
+      const codigo = await invitarParroco(p.id, emailInv, nombreInv, esObispoInv);
+      setCreada({ parroquia: p.id, nombre: p.nombre, email: emailInv.trim().toLowerCase(), codigo, obispo: esObispoInv });
       setInvitando(null);
       setEmailInv('');
       setNombreInv('');
+      setEsObispoInv(false);
     });
   }
 
-  const mensajeParroco = (c: { nombre?: string; email: string; codigo: string }, parroquia: string) =>
-    mensajeInvitacion({ nombre: c.nombre ?? '', email: c.email, codigo: c.codigo, rol: 'parroco' }, parroquia);
+  const mensajeParroco = (c: { nombre?: string; email: string; codigo: string; obispo?: boolean }, parroquia: string) =>
+    mensajeInvitacion({ nombre: c.nombre ?? '', email: c.email, codigo: c.codigo, rol: 'parroco', obispo: c.obispo }, parroquia);
 
   return (
     <>
       {!soloEsto && <VolverAjustes />}
       {soloDiocesanos && <><h2 style={{ marginBottom: 10 }}>Eventos diocesanos</h2><Diocesanos esAdmin={false} /></>}
-      {!soloDiocesanos && <h2 style={{ marginBottom: 10 }}>Administración</h2>}
+      {!soloDiocesanos && !soloEsto && <h2 style={{ marginBottom: 10 }}>Administración</h2>}
       {!soloDiocesanos && <div className="segmentos lleno" style={{ marginBottom: 14 }} role="tablist" aria-label="Secciones de administración">
         <button className={pestana === 'parroquias' ? 'on' : ''} onClick={() => setPestana('parroquias')}>Parroquias</button>
         <button className={pestana === 'lugares' ? 'on' : ''} onClick={() => setPestana('lugares')}>Lugares</button>
@@ -154,28 +159,44 @@ export function Superadmin(
       {!enLinea && <div className="aviso">Sin conexión: este panel requiere internet.</div>}
       {error && <div className="aviso error">{error}</div>}
 
-      <form onSubmit={crear} className="grupo">
-        <h3 style={{ marginBottom: 4 }}>Nueva parroquia</h3>
-        <label htmlFor="pn" style={{ marginTop: 0 }}>Nombre de la parroquia</label>
+      <button
+        className={`btn ancho ${nuevaAbierta ? 'sec' : ''}`} style={{ margin: '4px 0 12px' }}
+        onClick={() => setNuevaAbierta(!nuevaAbierta)} aria-expanded={nuevaAbierta}
+      >
+        <Icono n={nuevaAbierta ? 'cerrar' : 'mas'} size={18} strokeWidth={2.4} />{nuevaAbierta ? 'Cerrar' : 'Nueva parroquia u obispo'}
+      </button>
+
+      {nuevaAbierta && <form onSubmit={crear} className="grupo">
+        <h3 style={{ marginBottom: 4 }}>Nueva cuenta de parroquia u obispo</h3>
+        <label htmlFor="pn" style={{ marginTop: 0 }}>Nombre de la parroquia (o del obispado)</label>
         <input id="pn" value={nombre} onChange={(e) => setNombre(e.target.value)} placeholder="Ej.: Parroquia San José" required />
         <label htmlFor="pz">Zona horaria</label>
         <input id="pz" list="zonas" value={zona} onChange={(e) => setZona(e.target.value)} required autoCapitalize="none" />
         <datalist id="zonas">{ZONAS.map((z) => <option key={z} value={z} />)}</datalist>
-        <label htmlFor="pp">Nombre del párroco</label>
+        <label htmlFor="pp">{esObispo ? 'Nombre del obispo' : 'Nombre del párroco'}</label>
         <input id="pp" value={nombreParroco} onChange={(e) => setNombreParroco(e.target.value)} placeholder="Ej.: Pbro. Juan Pérez" />
-        <label htmlFor="pe">Correo del párroco</label>
+        <label htmlFor="pe">{esObispo ? 'Correo del obispo' : 'Correo del párroco'}</label>
         <input id="pe" type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="padre@correo.com" required autoCapitalize="none" />
+        <label className="check">
+          <input type="checkbox" checked={esObispo} onChange={(e) => setEsObispo(e.target.checked)} />
+          Esta persona es el obispo
+        </label>
+        <p className="ayuda" style={{ margin: '0 0 0' }}>
+          {esObispo
+            ? 'Tendrá su cuenta y su agenda como cualquier párroco, y además podrá publicar, editar y eliminar eventos diocesanos para todas las parroquias.'
+            : 'Si es el obispo, márcalo: podrá además publicar eventos diocesanos.'}
+        </p>
         <label htmlFor="pv">Acceso hasta (opcional)</label>
         <input id="pv" type="date" value={vigenteNueva} onChange={(e) => setVigenteNueva(e.target.value)} />
         <p className="ayuda" style={{ margin: '4px 0 0' }}>Si lo dejas vacío, no vence. Después puedes extenderlo con «+1 mes» o «+1 año».</p>
         <button className="btn ancho" style={{ marginTop: 12 }} disabled={trabajando || !enLinea}>
-          {trabajando ? 'Creando…' : 'Crear parroquia e invitación'}
+          {trabajando ? 'Creando…' : esObispo ? 'Crear cuenta del obispo e invitación' : 'Crear parroquia e invitación'}
         </button>
-      </form>
+      </form>}
 
       {creada && (
         <div className="aviso ok">
-          <b>Listo: {creada.nombre}.</b> Dale este código a {creada.email}:
+          <b>Listo: {creada.nombre}{creada.obispo ? ' (obispo)' : ''}.</b> Dale este código a {creada.email}:
           <div style={{ fontSize: '1.6rem', fontWeight: 700, letterSpacing: 3, margin: '8px 0' }}>{conGuion(creada.codigo)}</div>
           <button className="btn chico" onClick={() => void compartir(mensajeParroco(creada, creada.nombre))}>
             Enviar mensaje con las instrucciones
@@ -206,7 +227,7 @@ export function Superadmin(
               {p.usuarios} usuario(s) activo(s){p.pendientes > 0 ? ` · ${p.pendientes} sin aprobar` : ''} · {p.zona_horaria}
             </div>
             <div className="ayuda">
-              Párroco: {p.parrocos.length ? p.parrocos.map((x) => `${x.nombre || x.email} (${x.email})`).join(', ') : 'aún no se ha registrado'}
+              Párroco: {p.parrocos.length ? p.parrocos.map((x) => `${x.nombre || x.email} (${x.email})${x.obispo ? ' · OBISPO' : ''}`).join(', ') : 'aún no se ha registrado'}
             </div>
             <div className="ayuda" style={vig.vencida ? { color: 'var(--alerta)', fontWeight: 700 } : undefined}><Icono n="calendario" size={14} style={{ display: "inline", verticalAlign: "-2px", marginRight: 5 }} />{vig.texto}</div>
             <div className="fila" style={{ marginTop: 6, alignItems: 'center' }}>
@@ -228,7 +249,7 @@ export function Superadmin(
             {p.invitaciones.map((i) => (
               <div key={i.id} className="fila" style={{ alignItems: 'center', marginTop: 6 }}>
                 <div style={{ flex: 1, minWidth: 180 }}>
-                  <div className="ayuda">Invitación pendiente: {i.nombre || i.email}</div>
+                  <div className="ayuda">Invitación pendiente{i.obispo ? ' de obispo' : ''}: {i.nombre || i.email}</div>
                   <div style={{ fontWeight: 700, letterSpacing: 2 }}>{conGuion(i.codigo)}</div>
                 </div>
                 <button className="btn sec chico" onClick={() => void compartir(mensajeParroco(i, p.nombre))}>Mensaje</button>
@@ -241,11 +262,15 @@ export function Superadmin(
 
             {invitando === p.id ? (
               <form onSubmit={(e) => void invitar(e, p)} style={{ marginTop: 8 }}>
-                <input value={nombreInv} onChange={(e) => setNombreInv(e.target.value)} placeholder="Nombre del párroco" aria-label="Nombre" />
+                <input value={nombreInv} onChange={(e) => setNombreInv(e.target.value)} placeholder={esObispoInv ? 'Nombre del obispo' : 'Nombre del párroco'} aria-label="Nombre" />
                 <input
                   type="email" value={emailInv} onChange={(e) => setEmailInv(e.target.value)} required
                   placeholder="Correo" aria-label="Correo" autoCapitalize="none" style={{ marginTop: 6 }}
                 />
+                <label className="check" style={{ marginTop: 6 }}>
+                  <input type="checkbox" checked={esObispoInv} onChange={(e) => setEsObispoInv(e.target.checked)} />
+                  Es el obispo (podrá publicar eventos diocesanos)
+                </label>
                 <div className="fila" style={{ marginTop: 8 }}>
                   <button className="btn chico" disabled={!enLinea}>Crear invitación</button>
                   <button type="button" className="btn sec chico" onClick={() => setInvitando(null)}>Cancelar</button>
@@ -253,8 +278,8 @@ export function Superadmin(
               </form>
             ) : (
               <div className="fila" style={{ marginTop: 8 }}>
-                <button className="btn sec chico" onClick={() => { setInvitando(p.id); setEmailInv(''); setNombreInv(''); }}>
-                  Invitar otro párroco
+                <button className="btn sec chico" onClick={() => { setInvitando(p.id); setEmailInv(''); setNombreInv(''); setEsObispoInv(false); }}>
+                  Invitar otro párroco u obispo
                 </button>
                 {perfil && perfil.parroquia_id === null && (
                   <button
@@ -280,11 +305,6 @@ export function Superadmin(
       </div>
       </>}
 
-      {soloEsto && (
-        <div style={{ textAlign: 'center', marginTop: 24 }}>
-          <button className="enlace" onClick={() => void cerrarSesion()}>Cerrar sesión</button>
-        </div>
-      )}
     </>
   );
 }

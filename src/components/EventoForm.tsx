@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
+import { useEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '../lib/db';
 import { aISO, deClave, fechaDe, fechaHoraCorta, horaDe, sumarDias, sumarMinutos } from '../lib/fechas';
@@ -19,6 +19,8 @@ interface Props {
   onCerrar: () => void;
   /** Abre el editor de intenciones. Solo se pasa si el usuario puede editarlas (secretaria, o quien celebra). */
   onIntenciones?: () => void;
+  /** Solo en un evento nuevo: selector «de mi parroquia / diocesano» para quien puede publicar diocesanos. */
+  selector?: ReactNode;
 }
 
 const minutos = (h: string) => {
@@ -28,7 +30,7 @@ const minutos = (h: string) => {
 const limpio = (s: string) => s.trim() || null;
 const norm = (s: string | null | undefined) => (s ?? '').trim().toLowerCase();
 
-export function EventoForm({ evento, fecha, onCerrar, onIntenciones }: Props) {
+export function EventoForm({ evento, fecha, onCerrar, onIntenciones, selector }: Props) {
   const lugares = useLugares();
   const perfiles = usePerfiles();
   const ministros = useMinistros();
@@ -187,6 +189,7 @@ export function EventoForm({ evento, fecha, onCerrar, onIntenciones }: Props) {
           <button type="button" onClick={onCerrar} aria-label="Cerrar">×</button>
         </div>
 
+        {!evento && selector}
         {evento?.estado === 'en_conflicto' && (
           <div className="aviso error">Este evento está en conflicto con otro. Revisa la pestaña Conflictos.</div>
         )}

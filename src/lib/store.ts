@@ -202,18 +202,21 @@ export async function listarParroquias(): Promise<ParroquiaAdmin[]> {
 
 /** Crea la parroquia y la invitación de su primer párroco; devuelve el código para dárselo. */
 export async function crearParroquia(
-  d: { nombre: string; zona: string; email: string; nombreParroco: string; vigenteHasta?: string },
+  d: { nombre: string; zona: string; email: string; nombreParroco: string; vigenteHasta?: string; esObispo?: boolean },
 ) {
   const { data, error } = await supabase.rpc('crear_parroquia', {
     p_nombre: d.nombre, p_zona: d.zona, p_email: d.email, p_nombre_parroco: d.nombreParroco,
-    p_vigente_hasta: d.vigenteHasta || null,
+    p_vigente_hasta: d.vigenteHasta || null, p_es_obispo: d.esObispo ?? false,
   });
   if (error) throw error;
   return data as { parroquia_id: string; codigo: string };
 }
 
-export async function invitarParroco(parroquia: string, email: string, nombre: string) {
-  const { data, error } = await supabase.rpc('invitar_parroco', { p_parroquia: parroquia, p_email: email, p_nombre: nombre });
+/** El párroco invitado puede ser el obispo: además podrá publicar eventos diocesanos. */
+export async function invitarParroco(parroquia: string, email: string, nombre: string, esObispo = false) {
+  const { data, error } = await supabase.rpc('invitar_parroco', {
+    p_parroquia: parroquia, p_email: email, p_nombre: nombre, p_es_obispo: esObispo,
+  });
   if (error) throw error;
   return data as string;
 }
@@ -315,10 +318,13 @@ export async function listarDiocesanos(): Promise<EventoDiocesano[]> {
  * al cambiar su día, hora, lugar o título (quitarlo siempre avisa).
  */
 export async function guardarDiocesano(datos: DatosDiocesano & { notificar?: boolean }, id?: string) {
-  const { error } = id
-    ? await supabase.from('eventos_diocesanos').update(datos).eq('id', id)
-    : await supabase.from('eventos_diocesanos').insert(datos);
+  const consulta = id
+    ? supabase.from('eventos_diocesanos').update(datos).eq('id', id)
+    : supabase.from('eventos_diocesanos').insert(datos);
+  const { data, error } = await consulta.select().single();
   if (error) throw error;
+  // Se ve de inmediato en la agenda, sin esperar a la sincronización.
+  if (data) await db.eventos_diocesanos.put(normalizarDiocesano(data as EventoDiocesano));
   void sincronizar();
 }
 
@@ -326,6 +332,7 @@ export async function guardarDiocesano(datos: DatosDiocesano & { notificar?: boo
 export async function quitarDiocesano(id: string) {
   const { error } = await supabase.from('eventos_diocesanos').update({ activo: false }).eq('id', id);
   if (error) throw error;
+  await db.eventos_diocesanos.update(id, { activo: false });
   void sincronizar();
 }
 

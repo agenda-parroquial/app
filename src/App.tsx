@@ -192,12 +192,50 @@ function Shell({ perfil, superadmin, diocesano, parroquia }: { perfil: Perfil; s
   );
 }
 
-/** Un superadmin (o un obispo) que no es párroco de ninguna parroquia solo administra. */
-function SoloSuperadmin({ perfil, soloDiocesanos }: { perfil: Perfil; soloDiocesanos: boolean }) {
+/**
+ * Interfaz del Creador: la cuenta que administra la app y no es de ninguna parroquia. Su pantalla principal son las
+ * cuentas (parroquias, párrocos y obispo); además tiene la agenda diocesana (solo eventos diocesanos) y sus ajustes.
+ * Un obispo sin parroquia ve solo la agenda diocesana y sus ajustes.
+ */
+function ShellCreador({ perfil, superadmin }: { perfil: Perfil; superadmin: boolean }) {
+  const ruta = useRuta();
+  const seccion = ruta[0];
+  useEffect(() => iniciarSync(perfil.id, () => {}), [perfil.id]);
+  // Sin ruta (o con una de otra interfaz) se abre la pantalla principal del creador.
+  useEffect(() => {
+    if (!/^#\/(cuentas|agenda|ajustes)/.test(location.hash)) ir(superadmin ? 'cuentas' : 'agenda');
+  }, [superadmin]);
+
+  const titulo = seccion === 'cuentas' && superadmin ? 'Cuentas' : seccion === 'ajustes' ? 'Ajustes' : 'Agenda diocesana';
   return (
     <div className="app">
-      <header className="top"><div className="titulos"><h1>Administración</h1></div></header>
-      <main><Superadmin perfil={perfil} soloEsto soloDiocesanos={soloDiocesanos} /></main>
+      <header className="top">
+        <div className="titulos">
+          <h1>{titulo}</h1>
+          <div className="sub">{superadmin ? 'Creador' : 'Diócesis'}</div>
+        </div>
+        <EstadoSync />
+      </header>
+
+      <nav className="tabs" aria-label="Secciones">
+        {superadmin && (
+          <a href="#/cuentas" className={seccion === 'cuentas' ? 'activa' : ''}>
+            <span className="pastilla"><Icono n="escudo" size={22} /></span>Cuentas
+          </a>
+        )}
+        <a href="#/agenda" className={seccion === 'agenda' ? 'activa' : ''}>
+          <span className="pastilla"><Icono n="calendario" size={22} /></span>Agenda
+        </a>
+        <a href="#/ajustes" className={seccion === 'ajustes' ? 'activa' : ''}>
+          <span className="pastilla"><Icono n="ajustes" size={22} /></span>Ajustes
+        </a>
+      </nav>
+
+      <main>
+        {seccion === 'cuentas' && superadmin ? <Superadmin perfil={perfil} soloEsto />
+          : seccion === 'ajustes' ? <Ajustes perfil={perfil} />
+          : <Agenda ruta={ruta} perfil={perfil} soloDiocesana />}
+      </main>
     </div>
   );
 }
@@ -219,7 +257,7 @@ function Puerta() {
   if (!usuario) return <Login />;
   if (actual?.activo && actual.parroquia_id === null) {
     return superadmin || diocesano
-      ? <SoloSuperadmin perfil={actual} soloDiocesanos={!superadmin} />
+      ? <ShellCreador perfil={actual} superadmin={superadmin} />
       : <SinAcceso titulo="Sin parroquia" texto="Tu cuenta todavía no está asignada a ninguna parroquia. Pide a quien te invitó que te dé acceso." />;
   }
   if (!actual || !actual.activo) return <Pendiente />;
