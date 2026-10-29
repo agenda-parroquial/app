@@ -85,7 +85,7 @@ async function enviarOp(op: OpPendiente) {
       if (e2) throw e2;
       if (sigue) {
         await db.table(op.tabla).put(normalizar(op.tabla, sigue));
-        throw new Error('No tienes permiso para eliminar este evento: solo lo puede hacer quien lo creó, el párroco o la secretaria.');
+        throw new Error('No tienes permiso para eliminar este evento: lo puede eliminar el párroco, o quien lo agendó (la Secretaría solo los suyos).');
       }
     }
     await db.outbox.delete(seq);
@@ -145,7 +145,7 @@ async function enviarPendientes() {
 // ---------------------------------------------------------------------
 const INCREMENTALES = [
   'perfiles', 'lugares', 'misas_fijas', 'tipos_evento', 'avisos_parroquiales', 'eventos', 'conflictos', 'intenciones',
-  'eventos_diocesanos', 'ministros',
+  'eventos_diocesanos', 'ministros', 'secretarias', 'secretarias_pin',
 ] as const;
 const PAGINA = 1000;
 const MARGEN_MS = 120_000; // se vuelve a pedir 2 min hacia atrás por si alguna transacción se confirmó tarde
@@ -290,7 +290,7 @@ export function iniciarSync(usuarioId: string, alNotificar: (n: Notificacion) =>
   conciliarPendiente = true;
 
   const canal = supabase.channel('agenda');
-  for (const tabla of ['parroquias', 'perfiles', 'lugares', 'misas_fijas', 'tipos_evento', 'avisos_parroquiales', 'eventos', 'conflictos', 'intenciones', 'eventos_diocesanos', 'ministros']) {
+  for (const tabla of ['parroquias', 'perfiles', 'lugares', 'misas_fijas', 'tipos_evento', 'avisos_parroquiales', 'eventos', 'conflictos', 'intenciones', 'eventos_diocesanos', 'ministros', 'secretarias', 'secretarias_pin']) {
     canal.on('postgres_changes', { event: '*', schema: 'public', table: tabla },
       (p) => void aplicarCambio(tabla, p as unknown as Cambio));
   }

@@ -5,9 +5,12 @@ import { useAuth } from '../lib/auth';
 import {
   claveDia, deClave, diaCorto, diaLargo, fechaDe, hoyClave, inicioSemana, mesAnio, sumarDias, sumarMeses,
 } from '../lib/fechas';
-import { ir, useAvisosParroquiales, useIdsPendientes, useLugares, useMinistros, useParroquia, usePerfiles } from '../lib/hooks';
+import {
+  ir, useAvisosParroquiales, useIdsPendientes, useLugares, useMinistros, useNombresTipos, useParroquia, usePerfiles, useSecretarias,
+  useTiposEvento,
+} from '../lib/hooks';
 import { usePrefDiocesanos } from '../lib/preferencias';
-import { claveTipo, puedeEditarIntenciones, type Evento, type EventoDiocesano, type Perfil } from '../types';
+import { claveTipo, llevaIntenciones, puedeEditarIntenciones, type Evento, type EventoDiocesano, type Perfil } from '../types';
 import { CalendarioMes, type MarcaDia } from './CalendarioMes';
 import { FormularioDiocesano } from './Diocesanos';
 import { EventoForm } from './EventoForm';
@@ -53,6 +56,9 @@ export function Agenda({ ruta, perfil, soloDiocesana = false }: { ruta: string[]
   const lugares = useLugares();
   const perfiles = usePerfiles();
   const ministros = useMinistros();
+  const secretarias = useSecretarias();
+  const tiposGuardados = useTiposEvento();
+  const nombresTipos = useNombresTipos(perfil.parroquia_id);
   const pendientes = useIdsPendientes();
 
   // «En curso» y «Sigue» en la agenda de hoy se ponen al día cada minuto.
@@ -234,9 +240,14 @@ export function Agenda({ ruta, perfil, soloDiocesana = false }: { ruta: string[]
             {dio.map((d) => <TarjetaDiocesana key={d.id} evento={d} onClick={() => ir(`agenda/${fecha}/dio:${d.id}`)} />)}
             {lista.map((e) => (
               <TarjetaEvento
-                key={e.id} evento={e} lugares={lugares} perfiles={perfiles} ministros={ministros} color={colores[claveTipo(e)]} momento={momentos.get(e.id)}
+                key={e.id} evento={e} lugares={lugares} perfiles={perfiles} ministros={ministros} secretarias={secretarias}
+                nombresTipos={nombresTipos} color={colores[claveTipo(e)]} momento={momentos.get(e.id)}
                 sinEnviar={pendientes.has(e.id)} onClick={() => ir(`agenda/${fecha}/${e.id}`)}
-                nIntenciones={conteo.get(e.id) ?? 0} onIntenciones={() => ir(`agenda/${fecha}/${e.id}/intenciones`)}
+                nIntenciones={conteo.get(e.id) ?? 0}
+                // Solo las misas (y los tipos que lo indiquen) llevan intenciones; quien las captura entra directo a editarlas.
+                onIntenciones={llevaIntenciones(e, tiposGuardados) || (conteo.get(e.id) ?? 0) > 0
+                  ? () => ir(`agenda/${fecha}/${e.id}/${puedeEditarIntenciones(perfil, e) ? 'editar-intenciones' : 'intenciones'}`)
+                  : undefined}
               />
             ))}
           </section>

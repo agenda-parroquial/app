@@ -6,7 +6,7 @@ import { useParroquia } from '../lib/hooks';
 import { mostrarDiocesano, ocultarTodosDiocesanos, usePrefDiocesanos } from '../lib/preferencias';
 import { actualizarMiNombre } from '../lib/store';
 import { esErrorDeRed, mensajeDeError, sincronizar, useEstadoSync } from '../lib/sync';
-import { nombrePerfil, puedeEditarCatalogos, ROLES, type Perfil } from '../types';
+import { nombrePerfil, puedeEditarCatalogos, puedeRegistrarPersonas, ROLES, type Perfil } from '../types';
 import { AvisosPush } from './AvisosPush';
 import { Icono, type NombreIcono } from './Iconos';
 
@@ -71,9 +71,10 @@ export function Ajustes({ perfil }: { perfil: Perfil }) {
       {!sinParroquia && <><div className="seccion-etq">Mi parroquia</div>
       <div className="lista">
         <Fila href="#/lugares" icono="ubicacion" titulo="Lugares" texto="Templo, capillas y su mapa" />
-        {editaCatalogos && <Fila href="#/ministros" icono="persona" titulo="Ministros y vicarios" texto="Quienes celebran contigo sin usar la app" tono="dio" />}
+        {puedeRegistrarPersonas(perfil.rol) && <Fila href="#/vicarios" icono="persona" titulo="Vicarios" texto="Sacerdotes que celebran contigo, con o sin cuenta" tono="oro" />}
+        {puedeRegistrarPersonas(perfil.rol) && <Fila href="#/ministros" icono="personas" titulo="Ministros extraordinarios" texto="Quienes ayudan con la comunión (sin cuenta)" tono="dio" />}
         <Fila href="#/misas" icono="iglesia" titulo="Misas fijas" texto="Horarios que se repiten (semanales o alternos)" tono="oro" />
-        {editaCatalogos && <Fila href="#/tipos" icono="paleta" titulo="Tipos de evento" texto="Los tipos que hay, agregar nuevos y el color de cada uno" tono="ok" />}
+        {editaCatalogos && <Fila href="#/tipos" icono="paleta" titulo="Tipos de evento" texto="Corregir nombres, agregar tipos, color e intenciones" tono="ok" />}
         {perfil.rol === 'parroco' && <Fila href="#/usuarios" icono="personas" titulo="Usuarios e invitaciones" texto="Invitar personas, aprobar cuentas y asignar roles" tono="dio" />}
       </div></>}
 

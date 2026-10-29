@@ -30,11 +30,13 @@ async function usuarioId() {
 }
 
 // ---------- Eventos ----------------------------------------------------
-export async function crearEvento(datos: DatosEvento): Promise<string> {
+/** `secretariaId`: la persona de la Secretaría que agenda (identificada con su PIN); solo lo usa esa cuenta. */
+export async function crearEvento(datos: DatosEvento, secretariaId?: string): Promise<string> {
   const id = crypto.randomUUID();
   const fila: Evento = {
     ...datos,
     id,
+    secretaria_id: secretariaId ?? null,
     estado: 'confirmado',
     misa_fija_id: null,
     fecha_origen: null,
@@ -46,7 +48,10 @@ export async function crearEvento(datos: DatosEvento): Promise<string> {
   };
   await db.transaction('rw', db.eventos, db.outbox, async () => {
     await db.eventos.put(fila);
-    await encolar({ tabla: 'eventos', rowId: id, tipo: 'crear', datos: { ...datos }, baseVersion: 0 });
+    await encolar({
+      tabla: 'eventos', rowId: id, tipo: 'crear', baseVersion: 0,
+      datos: { ...datos, ...(secretariaId ? { secretaria_id: secretariaId } : {}) },
+    });
   });
   void sincronizar();
   return id;
@@ -104,6 +109,40 @@ export const guardarMisaFija = (datos: Partial<MisaFija>, id?: string) =>
   guardarCatalogo<MisaFija>('misas_fijas', datos, id);
 
 // ---------- Ministros y vicarios sin cuenta ----------------------------
+/**
+ * Crea o edita a una persona de la Secretaría (solo el párroco; requiere internet).
+ * `huellaPin`: la huella del PIN nuevo (ver lib/pin.ts); vacío = no cambiarlo. Al desactivarla se borra su PIN.
+ */
+export async function guardarSecretaria(d: { id?: string; nombre: string; huellaPin?: string; activo?: boolean }): Promise<string> {
+  const { data, error } = await supabase.rpc('guardar_secretaria', {
+    p_id: d.id ?? null, p_nombre: d.nombre, p_pin_hash: d.huellaPin ?? null, p_activo: d.activo ?? true,
+  });
+  if (error) throw error;
+  await sincronizar();
+  return data as string;
+}
+
+/** Vincula a un vicario registrado sin cuenta con su cuenta: lo que tenía asignado pasa a ella (solo el párroco; requiere internet). */
+export async function vincularVicario(vicario: string, perfil: string) {
+  const { error } = await supabase.rpc('vincular_vicario', { p_vicario: vicario, p_perfil: perfil });
+  if (error) throw error;
+  await sincronizar();
+}
+
+/** Nombre propio de los tipos de siempre ('misa', 'confesion'…); requiere internet. */
+export async function guardarNombresTipos(parroquia: string, nombres: Record<string, string>) {
+  const { error } = await supabase.rpc('guardar_nombres_tipos', { p_nombres: nombres });
+  if (error) throw error;
+  await db.parroquias.update(parroquia, { nombres_tipos: nombres });
+}
+
+/** Renombra un tipo que agregó la parroquia: también cambia el nombre en sus eventos y su color; requiere internet. */
+export async function renombrarTipo(id: string, nombre: string) {
+  const { error } = await supabase.rpc('renombrar_tipo', { p_id: id, p_nombre: nombre });
+  if (error) throw error;
+  await sincronizar();
+}
+
 export const guardarMinistro = (datos: Partial<Ministro>, id?: string) => guardarCatalogo<Ministro>('ministros', datos, id);
 
 // ---------- Intenciones ------------------------------------------------

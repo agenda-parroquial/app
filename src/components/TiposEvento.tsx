@@ -1,8 +1,10 @@
 import { useEffect, useMemo, useState, type FormEvent } from 'react';
-import { useParroquia, useTiposEvento } from '../lib/hooks';
-import { guardarColores, guardarTipoEvento } from '../lib/store';
+import { useNombresTipos, useParroquia, useTiposEvento } from '../lib/hooks';
+import { guardarColores, guardarNombresTipos, guardarTipoEvento, renombrarTipo } from '../lib/store';
 import { esErrorDeRed, mensajeDeError, useEstadoSync } from '../lib/sync';
-import { claveTipoNombre, puedeEditarCatalogos, TIPOS_EVENTO, type Perfil } from '../types';
+import {
+  claveTipoNombre, nombreTipoBase, puedeEditarCatalogos, TIPOS_EVENTO, type Perfil, type TipoEvento, type TipoEventoGuardado,
+} from '../types';
 import { Icono } from './Iconos';
 import { PaletaColor } from './PaletaColor';
 import { VolverAjustes } from './VolverAjustes';
@@ -10,22 +12,102 @@ import { VolverAjustes } from './VolverAjustes';
 const norm = (s: string) => s.trim().toLowerCase();
 const SIN_COLORES: Record<string, string> = {};
 
+type Renombrando =
+  | { base: TipoEvento }                  // un tipo de siempre (misa, bautizo…): se le puede poner otro nombre
+  | { propio: TipoEventoGuardado };       // un tipo que agregó la parroquia
+
+/** Corregir el nombre de un tipo y, en los que agrega la parroquia, decidir si llevan intenciones. */
+function RenombrarTipo({ que, nombresTipos, parroquiaId, onCerrar }: {
+  que: Renombrando; nombresTipos: Record<string, string>; parroquiaId: string; onCerrar: () => void;
+}) {
+  const { enLinea } = useEstadoSync();
+  const base = 'base' in que ? que.base : null;
+  const propio = 'propio' in que ? que.propio : null;
+  const [nombre, setNombre] = useState(base ? nombreTipoBase(base, nombresTipos) : propio!.nombre);
+  const [lleva, setLleva] = useState(propio?.lleva_intenciones ?? false);
+  const [error, setError] = useState('');
+  const [trabajando, setTrabajando] = useState(false);
+
+  async function guardar(e: FormEvent) {
+    e.preventDefault();
+    const n = nombre.trim();
+    if (!n) return setError('Escribe el nombre.');
+    setError('');
+    setTrabajando(true);
+    try {
+      if (base) {
+        const nuevos = { ...nombresTipos };
+        if (n === TIPOS_EVENTO[base]) delete nuevos[base]; else nuevos[base] = n;
+        await guardarNombresTipos(parroquiaId, nuevos);
+      } else if (propio) {
+        if (n !== propio.nombre) await renombrarTipo(propio.id, n);   // requiere internet; cambia también los eventos y el color
+        if (lleva !== propio.lleva_intenciones) await guardarTipoEvento({ lleva_intenciones: lleva }, propio.id);
+      }
+      onCerrar();
+    } catch (err) {
+      setError(esErrorDeRed(err) ? 'Necesitas internet para cambiar el nombre.' : mensajeDeError(err));
+      setTrabajando(false);
+    }
+  }
+
+  const soloLleva = !base && nombre.trim() === propio?.nombre;   // solo cambia «lleva intenciones»: no necesita internet
+
+  return (
+    <div className="fondo" onMouseDown={(e) => e.target === e.currentTarget && onCerrar()}>
+      <form className="hoja" onSubmit={guardar}>
+        <div className="hoja-cab">
+          <h2>Editar tipo de evento</h2>
+          <button type="button" onClick={onCerrar} aria-label="Cerrar">×</button>
+        </div>
+        <label htmlFor="tn2" style={{ marginTop: 6 }}>Nombre</label>
+        <input id="tn2" value={nombre} onChange={(e) => setNombre(e.target.value)} required autoFocus maxLength={60} autoComplete="off" />
+        {base && nombresTipos[base] && (
+          <button type="button" className="enlace" style={{ padding: 0, marginTop: 6 }} onClick={() => setNombre(TIPOS_EVENTO[base])}>
+            Volver al nombre de origen («{TIPOS_EVENTO[base]}»)
+          </button>
+        )}
+
+        {propio && (
+          <label className="check">
+            <input type="checkbox" checked={lleva} onChange={(e) => setLleva(e.target.checked)} />
+            Lleva intenciones (como la misa)
+          </label>
+        )}
+        <p className="ayuda">
+          {base
+            ? `El cambio se ve en toda la parroquia: agenda, formularios y avisos. ${base === 'misa' ? 'La misa siempre lleva intenciones.' : 'Este tipo no lleva intenciones.'}`
+            : 'Al cambiar el nombre, los eventos que ya tienen este tipo y su color pasan al nombre nuevo.'}
+        </p>
+        {error && <div className="aviso error">{error}</div>}
+        {!enLinea && !soloLleva && <div className="aviso">Para cambiar el nombre necesitas internet.</div>}
+        <div className="acciones barra">
+          <button className="btn" type="submit" disabled={trabajando || (!enLinea && !soloLleva)}>{trabajando ? 'Guardando…' : 'Guardar'}</button>
+          <button className="btn sec" type="button" onClick={onCerrar}>Cancelar</button>
+        </div>
+      </form>
+    </div>
+  );
+}
+
 /**
  * Tipos de evento de la parroquia: los de siempre (misa, bautizo…), los que se agregaron con «Otro»,
- * y el color de cada uno (se ve en el borde de sus tarjetas de la agenda; lo comparte toda la parroquia).
- * Cada tipo muestra un solo botón de color; al tocarlo se abre la paleta.
+ * el color de cada uno (se ve en el borde de sus tarjetas de la agenda; lo comparte toda la parroquia) y si lleva intenciones.
+ * Cada tipo muestra un solo botón de color; al tocarlo se abre la paleta. El lápiz permite corregir su nombre.
  */
 export function TiposEvento({ perfil }: { perfil: Perfil }) {
   const tipos = useTiposEvento();
   const parroquia = useParroquia(perfil.parroquia_id);
+  const nombresTipos = useNombresTipos(perfil.parroquia_id);
   const { enLinea } = useEstadoSync();
   const guardados = parroquia?.colores ?? SIN_COLORES;
   const [nombre, setNombre] = useState('');
+  const [llevaNuevo, setLlevaNuevo] = useState(false);
   const [error, setError] = useState('');
   const [borrador, setBorrador] = useState<Record<string, string>>(guardados);
   const [editado, setEditado] = useState(false);
   const [guardando, setGuardando] = useState(false);
   const [eligiendo, setEligiendo] = useState<{ clave: string; titulo: string } | null>(null);
+  const [renombrando, setRenombrando] = useState<Renombrando | null>(null);
   const [mensaje, setMensaje] = useState<{ tipo: 'ok' | 'error'; texto: string } | null>(null);
   const puede = puedeEditarCatalogos(perfil.rol);
 
@@ -47,9 +129,10 @@ export function TiposEvento({ perfil }: { perfil: Perfil }) {
       if (existente.activo) return setError('Ese tipo ya existe.');
       await guardarTipoEvento({ activo: true }, existente.id); // estaba desactivado: se reactiva
     } else {
-      await guardarTipoEvento({ nombre: n, activo: true });
+      await guardarTipoEvento({ nombre: n, activo: true, lleva_intenciones: llevaNuevo });
     }
     setNombre('');
+    setLlevaNuevo(false);
   }
 
   function poner(clave: string, color: string | null) {
@@ -77,7 +160,10 @@ export function TiposEvento({ perfil }: { perfil: Perfil }) {
     }
   }
 
-  const fila = (clave: string, titulo: string, opciones: { activo?: boolean; accion?: React.ReactNode } = {}) => {
+  const fila = (
+    clave: string, titulo: string,
+    opciones: { activo?: boolean; accion?: React.ReactNode; lleva: boolean; renombrar: Renombrando } ,
+  ) => {
     const color = borrador[clave];
     const activo = opciones.activo ?? true;
     const editable = puede && activo;
@@ -92,8 +178,14 @@ export function TiposEvento({ perfil }: { perfil: Perfil }) {
         <span className={`muestra-btn ${color ? '' : 'ninguno'}`} style={color ? { background: color } : undefined} aria-hidden />
         <div>
           <b>{titulo}</b>{!activo && ' (sin uso)'}
-          <div className="ayuda">{color ? 'Con color' : 'Sin color'}</div>
+          <div className="ayuda">{color ? 'Con color' : 'Sin color'} · {opciones.lleva ? 'Lleva intenciones' : 'Sin intenciones'}</div>
         </div>
+        {puede && (
+          <button
+            className="btn sec chico" aria-label={`Editar el nombre de ${titulo}`}
+            onClick={(e) => { e.stopPropagation(); setRenombrando(opciones.renombrar); }}
+          ><Icono n="lapiz" size={15} /></button>
+        )}
         {opciones.accion}
       </div>
     );
@@ -104,10 +196,10 @@ export function TiposEvento({ perfil }: { perfil: Perfil }) {
       <VolverAjustes />
       <h2 style={{ marginBottom: 6 }}>Tipos de evento</h2>
       <p className="ayuda" style={{ marginTop: 0 }}>
-        Cada tipo puede tener un color, que se ve en el borde de sus tarjetas en la agenda. Toca un tipo para elegirlo.
-        Los colores son de toda la parroquia; los eventos en conflicto o cancelados conservan su propio aviso.
+        Cada tipo puede tener un color, que se ve en el borde de sus tarjetas en la agenda. Toca un tipo para elegirlo y el lápiz para
+        corregir su nombre. Solo la misa (y los tipos que lo indiquen) lleva intenciones. Los colores y los nombres son de toda la parroquia.
       </p>
-      {!puede && <div className="aviso">Solo el párroco y la secretaria pueden agregar tipos y cambiar colores.</div>}
+      {!puede && <div className="aviso">Solo el párroco y la secretaria pueden agregar tipos, cambiar colores y corregir nombres.</div>}
 
       {puede && (
         <form onSubmit={agregar} className="grupo">
@@ -116,13 +208,18 @@ export function TiposEvento({ perfil }: { perfil: Perfil }) {
             <input id="tn" value={nombre} onChange={(e) => setNombre(e.target.value)} placeholder="Ej.: Retiro espiritual" maxLength={60} />
             <button className="btn" disabled={!nombre.trim()}><Icono n="mas" size={18} strokeWidth={2.4} />Agregar</button>
           </div>
+          <label className="check">
+            <input type="checkbox" checked={llevaNuevo} onChange={(e) => setLlevaNuevo(e.target.checked)} />
+            Lleva intenciones (como la misa)
+          </label>
           {error && <div className="aviso error">{error}</div>}
         </form>
       )}
 
       <div className="seccion-etq">Incluidos</div>
       <div className="lista">
-        {Object.entries(TIPOS_EVENTO).filter(([k]) => k !== 'otro').map(([k, v]) => fila(k, v))}
+        {(Object.keys(TIPOS_EVENTO) as TipoEvento[]).filter((k) => k !== 'otro').map((k) =>
+          fila(k, nombreTipoBase(k, nombresTipos), { lleva: k === 'misa', renombrar: { base: k } }))}
       </div>
 
       {propios.length > 0 && (
@@ -130,7 +227,7 @@ export function TiposEvento({ perfil }: { perfil: Perfil }) {
           <div className="seccion-etq">Agregados por la parroquia</div>
           <div className="lista">
             {propios.map((t) => fila(claveTipoNombre(t.nombre), t.nombre, {
-              activo: t.activo,
+              activo: t.activo, lleva: t.lleva_intenciones, renombrar: { propio: t },
               accion: puede && (
                 <button
                   className="btn sec chico"
@@ -164,6 +261,9 @@ export function TiposEvento({ perfil }: { perfil: Perfil }) {
           titulo={eligiendo.titulo} color={borrador[eligiendo.clave]}
           onElegir={(c) => poner(eligiendo.clave, c)} onCerrar={() => setEligiendo(null)}
         />
+      )}
+      {renombrando && parroquia && (
+        <RenombrarTipo que={renombrando} nombresTipos={nombresTipos} parroquiaId={parroquia.id} onCerrar={() => setRenombrando(null)} />
       )}
     </>
   );

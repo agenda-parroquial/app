@@ -5,7 +5,10 @@ App web instalable (PWA) para llevar la agenda de la parroquia entre la secretar
 - **Funciona sin internet** en el teléfono y en la PC: se puede abrir, consultar y agregar eventos. Al volver la señal se sincroniza sola.
 - **Avisos al instante** a los demás usuarios de la parroquia cuando alguien agrega, cambia, cancela o elimina un evento (con el nombre de quien lo hizo; con la app abierta, o con las notificaciones push activadas).
 - **Vista de calendario:** en la agenda, junto a Día y Semana, está **Mes**: el día de hoy va en rojo, un puntito marca cada día con eventos (rojo si hay un conflicto) y los días con eventos diocesanos se tiñen de azul. Al tocar un día se ve su agenda debajo.
-- **Ministros y vicarios sin cuenta:** en **Ajustes → Ministros y vicarios** el párroco o la secretaria registran a quienes celebran o ayudan pero no usan la app. Aparecen en **Celebrante** (de eventos y misas fijas) junto a los sacerdotes con cuenta, y la app avisa si se les empalman dos eventos.
+- **Vicarios y ministros extraordinarios (sin cuenta):** el párroco los registra en **Ajustes → Vicarios** (sacerdotes que aún no usan la app) y **Ajustes → Ministros extraordinarios** (quienes ayudan con la comunión; nunca tienen cuenta). Aparecen en **Celebrante** (de eventos y misas fijas) en su propio grupo, junto a los sacerdotes con cuenta, y la app avisa si se les empalman dos eventos. Cuando un vicario se registra con su cuenta, «Ya tiene cuenta» une el registro con ella y sus eventos y misas fijas pasan a su cuenta.
+- **Secretaría con PIN:** la cuenta con el rol Secretaría la comparten varias personas. El párroco las registra en **Ajustes → Usuarios e invitaciones → Personas de la Secretaría**, cada una con su PIN (4 a 6 números, sin repetir). Al **agendar** un evento la app pide el PIN y el evento queda a nombre de esa persona («Creado por …», y los avisos dicen quién fue). La Secretaría solo puede **editar, cancelar y eliminar lo que agendó alguien de la Secretaría**, y pide el PIN de la misma persona; lo del párroco y las misas fijas se ven pero no se cambian (las intenciones sí las captura). El PIN no se guarda: se guarda una huella, y se comprueba también sin internet. Sirve para saber quién hizo cada cosa; no es una barrera de seguridad. Si todavía no hay personas registradas, la cuenta de Secretaría no puede agendar.
+- **Intenciones solo donde corresponde:** llevan intenciones la **misa** y los tipos que la parroquia marque («Lleva intenciones» en **Ajustes → Tipos de evento**); bautizo, boda, confesiones, unción de enfermos y reunión no. Se agregan con el botón **Intenciones** de la tarjeta de la misa (quien puede capturarlas entra directo a editarlas: la secretaria en todas, el sacerdote en las suyas) o desde **Editar evento**.
+- **Nombres de los tipos:** en **Ajustes → Tipos de evento**, el lápiz de cada tipo permite corregir su nombre (también los de siempre: «Confesiones», «Unción de enfermos»…); al renombrar un tipo propio, sus eventos y su color pasan al nombre nuevo.
 - **Eliminar eventos:** dentro de un evento, **Eliminar este evento** lo borra para toda la parroquia y avisa a los demás (a diferencia de «Cancelar», que lo deja marcado). Lo pueden hacer el párroco, la secretaria y quien lo creó; una misa fija se cancela, no se elimina.
 - **Detección de empalmes:** si dos eventos coinciden en horario y lugar (o con el mismo sacerdote), ambos se marcan en conflicto y se avisa a todos para resolverlo.
 - **Misas fijas** que aparecen solas en la agenda: todas las semanas o **alternas** (una sí, una no; también cada 3 o 4 semanas). Para dos misas que se turnan a la misma hora, se crean dos con «Cada 2 semanas» y fechas de inicio con una semana de diferencia.
@@ -29,7 +32,7 @@ Tecnología: React + Vite (PWA) · Dexie/IndexedDB (copia local) · Supabase (ba
 1. Entra a <https://supabase.com> → **New project**. Anota la contraseña de la base de datos.
 2. **SQL Editor → New query**: pega **todo** el contenido de [`supabase/schema.sql`](supabase/schema.sql) y pulsa **Run**.
    - La zona horaria se elige al crear cada parroquia desde la app (por omisión, Ciudad de México).
-   - Si ya tenías el proyecto de antes, **no** vuelvas a pegar `schema.sql`: ejecuta en orden los archivos nuevos de `supabase/migrations/` (`20261029_multi_parroquia.sql` activa las varias parroquias, `20261030_vigencia_colores_diocesanos.sql`, la vigencia automática, los colores por tipo y los eventos diocesanos, y `20261101_calendario_avisos_ministros.sql`, los ministros sin cuenta, el borrado de eventos, el obispo y los avisos diocesanos, y `20261102_obispo_al_invitar.sql`, el obispo al crear la cuenta). Publica la app **después** de ejecutar la migración.
+   - Si ya tenías el proyecto de antes, **no** vuelvas a pegar `schema.sql`: ejecuta en orden los archivos nuevos de `supabase/migrations/` (`20261029_multi_parroquia.sql` activa las varias parroquias, `20261030_vigencia_colores_diocesanos.sql`, la vigencia automática, los colores por tipo y los eventos diocesanos, y `20261101_calendario_avisos_ministros.sql`, los ministros sin cuenta, el borrado de eventos, el obispo y los avisos diocesanos, `20261102_obispo_al_invitar.sql`, el obispo al crear la cuenta, y `20261103_secretaria_pin_vicarios_tipos.sql`, la Secretaría con PIN, vicarios y ministros por separado, intenciones por tipo y nombres de tipos). Publica la app **después** de ejecutar la migración.
 3. **Authentication → Providers → Email**: desactiva **Confirm email**. (No hace falta confirmar el correo: el párroco ya aprueba cada cuenta a mano.)
 4. **Project Settings → API**: copia la **Project URL** y la clave **anon / publishable**.
 
@@ -74,12 +77,13 @@ Las claves del servicio de avisos (VAPID) se generan solas la primera vez y se g
 | | Párroco | Secretaria | Vicario |
 |---|:-:|:-:|:-:|
 | Ver la agenda y los conflictos | ✔ | ✔ | ✔ |
-| Crear, editar y cancelar eventos | ✔ | ✔ | ✔ |
-| Eliminar eventos | todos | todos | los que creó |
-| Ministros y vicarios sin cuenta | ✔ | ✔ | solo ver |
+| Crear eventos | ✔ | ✔ (con PIN) | ✔ |
+| Editar, cancelar y eliminar eventos | todos | solo los que agendó la Secretaría (con PIN) | los que creó |
 | Ver las intenciones de cualquier evento | ✔ | ✔ | ✔ |
 | Capturar o editar intenciones | solo en sus misas | en todas | solo en sus misas |
-| Lugares y misas fijas | ✔ | ✔ | solo ver |
+| Lugares, misas fijas y tipos de evento (agregar y editar nombres) | ✔ | ✔ | solo ver |
+| Vicarios, ministros extraordinarios y personas de la Secretaría | ✔ | — | — |
+| Usuarios e invitaciones | ✔ | — | — |
 | Avisos parroquiales: ver | ✔ | ✔ | ✔ |
 | Avisos parroquiales: crear y editar | ✔ | ✔ | — |
 | Tipos de evento guardados: crear | ✔ | ✔ | ✔ |

@@ -4,6 +4,7 @@ import { actualizarPerfil, cancelarInvitacion, invitarUsuario, listarInvitacione
 import { esErrorDeRed, mensajeDeError, useEstadoSync } from '../lib/sync';
 import { compartir, conGuion, mensajeInvitacion } from '../lib/invitaciones';
 import { nombrePerfil, ROLES, type Invitacion, type Perfil, type Rol } from '../types';
+import { PersonasSecretaria } from './PersonasSecretaria';
 import { VolverAjustes } from './VolverAjustes';
 
 /** Solo el párroco: invita personas, aprueba cuentas y decide el rol de cada una. */
@@ -78,8 +79,8 @@ export function Usuarios({ perfil }: { perfil: Perfil }) {
       <VolverAjustes />
       <h2 style={{ marginBottom: 6 }}>Usuarios</h2>
       <p className="ayuda" style={{ marginTop: 0 }}>
-        El <b>párroco</b> puede todo; la <b>secretaria</b> maneja la agenda, avisos, lugares y misas fijas; el <b>vicario</b> ve
-        toda la agenda y crea o edita eventos.
+        El <b>párroco</b> puede todo; la <b>secretaria</b> maneja la agenda, avisos, lugares y misas fijas (la cuenta la comparten
+        varias personas, cada una con su PIN: más abajo); el <b>vicario</b> ve toda la agenda y crea o edita eventos.
       </p>
       {!enLinea && <div className="aviso">Sin conexión: los cambios de usuarios requieren internet.</div>}
       {error && <div className="aviso error">{error}</div>}
@@ -98,6 +99,12 @@ export function Usuarios({ perfil }: { perfil: Perfil }) {
         <select id="ir" value={rol} onChange={(e) => setRol(e.target.value as Rol)}>
           {Object.entries(ROLES).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
         </select>
+        {rol === 'secretaria' && (
+          <p className="ayuda" style={{ margin: '6px 0 0' }}>
+            Esta cuenta la usarán las personas de la Secretaría. Después de crearla, registra a cada una con su PIN en «Personas de la
+            Secretaría», más abajo.
+          </p>
+        )}
         <button className="btn ancho" style={{ marginTop: 12 }} disabled={trabajando || !enLinea}>
           {trabajando ? 'Creando…' : 'Crear invitación'}
         </button>
@@ -129,6 +136,8 @@ export function Usuarios({ perfil }: { perfil: Perfil }) {
           </div>
         </>
       )}
+
+      <PersonasSecretaria perfil={perfil} />
 
       <h3 className="dia-titulo">Cuentas</h3>
       {pendientes > 0 && <div className="aviso">Hay {pendientes} cuenta(s) esperando tu aprobación.</div>}

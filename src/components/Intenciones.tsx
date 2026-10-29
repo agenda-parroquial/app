@@ -77,7 +77,7 @@ export function Intenciones({ evento, onCerrar, editable = false }: { evento: Ev
 
         {!editable && (
           <p className="ayuda" style={{ marginBottom: 0 }}>
-            Solo lectura. Las agrega la secretaria o quien celebra esta misa, desde «Editar evento».
+            Solo lectura. Las agrega la secretaria o quien celebra esta misa.
           </p>
         )}
 

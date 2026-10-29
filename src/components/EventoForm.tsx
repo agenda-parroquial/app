@@ -3,14 +3,15 @@ import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '../lib/db';
 import { aISO, deClave, fechaDe, fechaHoraCorta, horaDe, sumarDias, sumarMinutos } from '../lib/fechas';
 import { useAuth } from '../lib/auth';
-import { useLugares, useMinistros, usePerfiles, useTiposEvento } from '../lib/hooks';
+import { useLugares, useMinistros, useNombresTipos, usePerfiles, useSecretarias, useTiposEvento } from '../lib/hooks';
 import { cancelarEvento, crearEvento, editarEvento, eliminarEvento, guardarTipoEvento, reactivarEvento } from '../lib/store';
 import { buscarTraslapes } from '../lib/traslapes';
 import {
-  celebranteDeValor, esSacerdote, nombrePerfil, nombreTipo, TIPOS_EVENTO, TIPOS_MINISTRO, valorCelebrante,
+  celebranteDeValor, esSacerdote, nombreCreador, nombrePerfil, nombreTipo, nombreTipoBase, TIPOS_EVENTO, valorCelebrante,
   type DatosEvento, type Evento, type TipoEvento,
 } from '../types';
 import { Icono } from './Iconos';
+import { usePedirPin } from './PedirPin';
 import { nombreLugar } from './TarjetaEvento';
 
 interface Props {
@@ -35,13 +36,22 @@ export function EventoForm({ evento, fecha, onCerrar, onIntenciones, selector }:
   const perfiles = usePerfiles();
   const ministros = useMinistros();
   const { perfil } = useAuth();
+  const secretarias = useSecretarias();
+  const nombresTipos = useNombresTipos(perfil?.parroquia_id);
+  const { pedir, dialogo } = usePedirPin(perfil?.parroquia_id);
   const tiposTodos = useTiposEvento();
+  // La cuenta de Secretaría la usan varias personas: cada una se identifica con su PIN al agendar, editar o eliminar,
+  // y solo puede cambiar lo que agendó la Secretaría (no lo del párroco ni las misas fijas).
+  const esSecretaria = perfil?.rol === 'secretaria';
+  const soloLectura = esSecretaria && !!evento && !evento.secretaria_id;
   const sacerdotes = useMemo(() => perfiles.filter((p) => p.activo && esSacerdote(p)), [perfiles]);
   // Los ministros sin cuenta que están disponibles (y el que ya tenga este evento, aunque ya no lo esté).
   const ministrosLista = useMemo(
     () => ministros.filter((m) => m.activo || m.id === evento?.ministro_id).sort((a, b) => a.nombre.localeCompare(b.nombre, 'es')),
     [ministros, evento?.ministro_id],
   );
+  const vicariosSinCuenta = ministrosLista.filter((m) => m.tipo === 'vicario');
+  const ministrosExtra = ministrosLista.filter((m) => m.tipo === 'ministro');
   const tiposGuardados = useMemo(
     () => tiposTodos.filter((t) => t.activo).sort((a, b) => a.nombre.localeCompare(b.nombre, 'es')),
     [tiposTodos],
@@ -97,11 +107,32 @@ export function EventoForm({ evento, fecha, onCerrar, onIntenciones, selector }:
       )
     : [];
 
+  // El tipo elegido, para saber si lleva intenciones (misa sí; bautizo, boda, confesiones, unción y reunión no).
+  const tipoGuardadoSel = tipoSel.startsWith('guardado:') ? tiposTodos.find((t) => t.id === tipoSel.slice(9)) : undefined;
+  const llevaInt = tipoSel === 'misa' || !!tipoGuardadoSel?.lleva_intenciones;
+
+  /** Si quien usa la app es la cuenta de Secretaría, pide el PIN y devuelve a la persona; el resto no necesita PIN. */
+  async function identificar(texto: string): Promise<{ ok: boolean; secretariaId?: string }> {
+    if (!esSecretaria) return { ok: true };
+    if (!evento && !secretarias.some((s) => s.activo)) {
+      setError('Todavía no hay personas de la Secretaría con PIN. El párroco las registra en Ajustes → Usuarios e invitaciones.');
+      return { ok: false };
+    }
+    const persona = await pedir({
+      texto, exigirId: evento?.secretaria_id ?? null, exigirNombre: evento ? nombreCreador(evento, perfiles, secretarias) : null,
+    });
+    return persona ? { ok: true, secretariaId: persona.id } : { ok: false };
+  }
+
   async function guardar(e: FormEvent) {
     e.preventDefault();
     if (!horasValidas) return setError('La hora de fin debe ser posterior a la de inicio.');
     if (!lugarSel) return setError('Elige el lugar del evento.');
     if (lugarSel === 'otro' && !lugarTexto.trim()) return setError('Escribe dónde será el evento.');
+    if (tipoSel === 'otro' && !tipoTexto.trim()) return setError('Escribe el nombre del tipo de evento.');
+    setError('');
+    const quien = await identificar(evento ? 'Escribe tu PIN para guardar los cambios.' : 'Escribe tu PIN para agendar este evento. Quedará a tu nombre.');
+    if (!quien.ok) return;
 
     // Tipo: de la lista, uno guardado, o uno escrito ahora (que se puede guardar para la próxima).
     let tipo: TipoEvento;
@@ -146,13 +177,14 @@ export function EventoForm({ evento, fecha, onCerrar, onIntenciones, selector }:
       ) as Partial<DatosEvento>;
       if (Object.keys(cambios).length) await editarEvento(evento.id, cambios);
     } else {
-      await crearEvento(datos);
+      await crearEvento(datos, quien.secretariaId);
     }
     onCerrar();
   }
 
   async function cancelar() {
     if (!evento || !confirm('¿Cancelar este evento? Se avisará a los demás.')) return;
+    if (!(await identificar('Escribe tu PIN para cancelar este evento.')).ok) return;
     await cancelarEvento(evento.id);
     onCerrar();
   }
@@ -163,29 +195,33 @@ export function EventoForm({ evento, fecha, onCerrar, onIntenciones, selector }:
       ? '¿Eliminar este evento? Se borra de la agenda de toda la parroquia y no se puede deshacer.'
       : '¿Eliminar este evento? Se borra de la agenda de toda la parroquia, se avisará a los demás y no se puede deshacer. (Si solo no se va a realizar, mejor cancélalo.)';
     if (!confirm(aviso)) return;
+    if (!(await identificar('Escribe tu PIN para eliminar este evento.')).ok) return;
     await eliminarEvento(evento.id);
     onCerrar();
   }
 
   async function reactivar() {
     if (!evento) return;
+    if (!(await identificar('Escribe tu PIN para reactivar este evento.')).ok) return;
     await reactivarEvento(evento.id);
     onCerrar();
   }
 
   const cancelado = evento?.estado === 'cancelado';
   // Una misa fija no se borra (el calendario la volvería a crear): se cancela. Lo demás lo borra el párroco, la
-  // secretaria o quien lo creó (misma regla que en la base de datos).
+  // Secretaría solo lo que agendó alguien de la Secretaría, y el vicario lo que creó (misma regla que en la base de datos).
   const puedeEliminar = !!evento && !evento.misa_fija_id && !!perfil
-    && (perfil.rol === 'parroco' || perfil.rol === 'secretaria' || evento.creado_por === perfil.id);
-  const creador = evento?.creado_por ? nombrePerfil(perfiles.find((p) => p.id === evento.creado_por)) : null;
+    && (perfil.rol === 'parroco' || (perfil.rol === 'secretaria' && !!evento.secretaria_id)
+        || (perfil.rol === 'vicario' && evento.creado_por === perfil.id));
+  const creador = evento ? nombreCreador(evento, perfiles, secretarias) : null;
   const editor = evento?.modificado_por ? nombrePerfil(perfiles.find((p) => p.id === evento.modificado_por)) : null;
 
   return (
+    <>
     <div className="fondo" onMouseDown={(e) => e.target === e.currentTarget && onCerrar()}>
       <form className="hoja" onSubmit={guardar}>
         <div className="hoja-cab">
-          <h2>{evento ? 'Editar evento' : 'Nuevo evento'}</h2>
+          <h2>{evento ? (soloLectura ? 'Evento' : 'Editar evento') : 'Nuevo evento'}</h2>
           <button type="button" onClick={onCerrar} aria-label="Cerrar">×</button>
         </div>
 
@@ -197,14 +233,27 @@ export function EventoForm({ evento, fecha, onCerrar, onIntenciones, selector }:
           <div className="aviso">Es una misa fija. Los cambios aquí solo afectan a esta fecha.</div>
         )}
         {cancelado && <div className="aviso">Este evento está cancelado.</div>}
+        {soloLectura && (
+          <div className="aviso">
+            Este evento no lo agendó la Secretaría, así que solo se puede ver. Lo cambia, cancela o elimina el párroco.
+          </div>
+        )}
+        {soloLectura && onIntenciones && llevaInt && (
+          <button type="button" className="btn sec ancho" style={{ margin: '4px 0 8px' }} onClick={onIntenciones}>
+            <Icono n="cruz" size={17} />Agregar o editar intenciones
+          </button>
+        )}
 
+        <fieldset className="campos" disabled={soloLectura}>
         <div className="seccion-form">Qué</div>
         <label htmlFor="tipo" style={{ marginTop: 14 }}>Tipo</label>
         <select
           id="tipo" value={tipoSel}
           onChange={(e) => { tipoTocado.current = true; setTipoSel(e.target.value); }}
         >
-          {Object.entries(TIPOS_EVENTO).filter(([k]) => k !== 'otro').map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+          {(Object.keys(TIPOS_EVENTO) as TipoEvento[]).filter((k) => k !== 'otro').map((k) => (
+            <option key={k} value={k}>{nombreTipoBase(k, nombresTipos)}</option>
+          ))}
           {tiposGuardados.length > 0 && (
             <optgroup label="Tipos guardados">
               {tiposGuardados.map((t) => <option key={t.id} value={`guardado:${t.id}`}>{t.nombre}</option>)}
@@ -265,9 +314,14 @@ export function EventoForm({ evento, fecha, onCerrar, onIntenciones, selector }:
               {sacerdotes.map((p) => <option key={p.id} value={`p:${p.id}`}>{nombrePerfil(p)}</option>)}
             </optgroup>
           )}
-          {ministrosLista.length > 0 && (
-            <optgroup label="Ministros y vicarios (sin cuenta)">
-              {ministrosLista.map((m) => <option key={m.id} value={`m:${m.id}`}>{m.nombre} · {TIPOS_MINISTRO[m.tipo]}</option>)}
+          {vicariosSinCuenta.length > 0 && (
+            <optgroup label="Vicarios (sin cuenta)">
+              {vicariosSinCuenta.map((m) => <option key={m.id} value={`m:${m.id}`}>{m.nombre}</option>)}
+            </optgroup>
+          )}
+          {ministrosExtra.length > 0 && (
+            <optgroup label="Ministros extraordinarios">
+              {ministrosExtra.map((m) => <option key={m.id} value={`m:${m.id}`}>{m.nombre}</option>)}
             </optgroup>
           )}
         </select>
@@ -275,9 +329,13 @@ export function EventoForm({ evento, fecha, onCerrar, onIntenciones, selector }:
         <div className="seccion-form">Detalles</div>
         <label htmlFor="intencion" style={{ marginTop: 14 }}>Motivo (resumen corto)</label>
         <textarea id="intencion" value={intencion} onChange={(e) => setIntencion(e.target.value)} placeholder="Ej.: Misa de XV años de Sofía" />
-        {!evento ? (
+        {!llevaInt ? (
+          <p className="ayuda" style={{ marginBottom: 0 }}>
+            Este tipo de evento no lleva intenciones (solo la misa y los tipos que lo indiquen en Ajustes → Tipos de evento).
+          </p>
+        ) : !evento ? (
           <p className="ayuda" style={{ marginBottom: 0 }}>Después de guardar podrás agregar las intenciones: difuntos, acción de gracias y salud.</p>
-        ) : onIntenciones ? (
+        ) : soloLectura ? null : onIntenciones ? (
           <button type="button" className="btn sec ancho" style={{ marginTop: 8 }} onClick={onIntenciones}>
             <Icono n="cruz" size={17} />Agregar o editar intenciones (difuntos, acción de gracias, salud)
           </button>
@@ -300,8 +358,9 @@ export function EventoForm({ evento, fecha, onCerrar, onIntenciones, selector }:
 
         <label htmlFor="notas">Notas</label>
         <textarea id="notas" value={notas} onChange={(e) => setNotas(e.target.value)} />
+        </fieldset>
 
-        {choques.length > 0 && (
+        {!soloLectura && choques.length > 0 && (
           <div className="aviso error">
             <b style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}><Icono n="alerta" size={17} />Se empalma con:</b>
             <ul>
@@ -315,13 +374,13 @@ export function EventoForm({ evento, fecha, onCerrar, onIntenciones, selector }:
         {error && <div className="aviso error">{error}</div>}
 
         <div className="acciones barra">
-          <button className="btn" type="submit">Guardar</button>
+          {!soloLectura && <button className="btn" type="submit">Guardar</button>}
           <button className="btn sec" type="button" onClick={onCerrar}>Cerrar</button>
         </div>
-        {evento && !cancelado && (
+        {evento && !cancelado && !soloLectura && (
           <div className="acciones"><button className="btn peligro" type="button" onClick={cancelar}>Cancelar este evento</button></div>
         )}
-        {evento && cancelado && (
+        {evento && cancelado && !soloLectura && (
           <div className="acciones"><button className="btn sec" type="button" onClick={reactivar}>Reactivar evento</button></div>
         )}
         {puedeEliminar && (
@@ -336,10 +395,12 @@ export function EventoForm({ evento, fecha, onCerrar, onIntenciones, selector }:
         {evento && (
           <p className="ayuda" style={{ marginBottom: 0 }}>
             {evento.misa_fija_id ? 'Misa fija: se agenda sola cada semana.' : creador ? `Creado por ${creador} · ${fechaHoraCorta(evento.created_at)}` : ''}
-            {editor && evento.version > 1 ? <><br />Última edición: {editor} · {fechaHoraCorta(evento.updated_at)}</> : null}
+            {editor && evento.version > 1 && !evento.secretaria_id ? <><br />Última edición: {editor} · {fechaHoraCorta(evento.updated_at)}</> : null}
           </p>
         )}
       </form>
     </div>
+    {dialogo}
+    </>
   );
 }

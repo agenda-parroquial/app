@@ -31,7 +31,7 @@ export function Lugares({ perfil }: { perfil: Perfil }) {
       </div>
       <p className="ayuda" style={{ marginTop: 0 }}>
         Parroquia, capillas y demás lugares habituales. Para algo de una sola vez (una unción en una casa) elige
-        «Otro lugar» al crear el evento.
+        «Otro lugar» al crear el evento.{puede && ' Toca un lugar (o su lápiz) para corregir su nombre, su dirección o su punto en el mapa.'}
       </p>
       <div className="segmentos" style={{ marginBottom: 12 }} role="group" aria-label="Vista">
         <button className={verMapa ? '' : 'on'} onClick={() => setVerMapa(false)}>Lista</button>
@@ -62,6 +62,12 @@ export function Lugares({ perfil }: { perfil: Perfil }) {
               <b>{l.nombre}</b>{!l.activo && ' (sin uso)'}
               <div className="ayuda">{TIPOS_LUGAR[l.tipo]}{l.direccion ? ` · ${l.direccion}` : ''}{l.lat != null ? ' · en el mapa' : ''}</div>
             </div>
+            {puede && (
+              <button
+                className="btn sec chico" aria-label={`Editar ${l.nombre}`}
+                onClick={(e) => { e.stopPropagation(); setEditando(l); }}
+              ><Icono n="lapiz" size={15} /></button>
+            )}
           </div>
         ))}
       </div>

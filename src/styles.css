@@ -514,3 +514,9 @@ input[type='date']::-webkit-date-and-time-value, input[type='time']::-webkit-dat
 
 .primera { display: inline-block; }
 .primera::first-letter { text-transform: uppercase; }
+
+/* ---------- PIN de la Secretaría y campos solo lectura ---------- */
+.pin-campo { text-align: center; font-size: 1.6rem; letter-spacing: .5em; font-variant-numeric: tabular-nums; padding-left: .5em; }
+.sr-solo { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+fieldset.campos { border: 0; padding: 0; margin: 0; min-width: 0; }
+fieldset.campos:disabled { opacity: .72; }

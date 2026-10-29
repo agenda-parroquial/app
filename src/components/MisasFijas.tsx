@@ -5,7 +5,7 @@ import { deClave, diaBreve, hhmm, proximasFechas, proximoDia } from '../lib/fech
 import { useLugares, useMinistros, usePerfiles } from '../lib/hooks';
 import { guardarMisaFija } from '../lib/store';
 import {
-  celebranteDeValor, DIAS, esSacerdote, nombreCelebrante, nombrePerfil, puedeEditarCatalogos, TIPOS_MINISTRO, valorCelebrante,
+  celebranteDeValor, DIAS, esSacerdote, nombreCelebrante, nombrePerfil, puedeEditarCatalogos, valorCelebrante,
   type MisaFija, type Perfil,
 } from '../types';
 import { Icono } from './Iconos';
@@ -123,9 +123,14 @@ function FormMisa({ misa, onCerrar }: { misa?: MisaFija; onCerrar: () => void })
               {sacerdotes.map((p) => <option key={p.id} value={`p:${p.id}`}>{nombrePerfil(p)}</option>)}
             </optgroup>
           )}
-          {ministros.length > 0 && (
-            <optgroup label="Ministros y vicarios (sin cuenta)">
-              {ministros.map((m) => <option key={m.id} value={`m:${m.id}`}>{m.nombre} · {TIPOS_MINISTRO[m.tipo]}</option>)}
+          {ministros.some((m) => m.tipo === 'vicario') && (
+            <optgroup label="Vicarios (sin cuenta)">
+              {ministros.filter((m) => m.tipo === 'vicario').map((m) => <option key={m.id} value={`m:${m.id}`}>{m.nombre}</option>)}
+            </optgroup>
+          )}
+          {ministros.some((m) => m.tipo === 'ministro') && (
+            <optgroup label="Ministros extraordinarios">
+              {ministros.filter((m) => m.tipo === 'ministro').map((m) => <option key={m.id} value={`m:${m.id}`}>{m.nombre}</option>)}
             </optgroup>
           )}
         </select>

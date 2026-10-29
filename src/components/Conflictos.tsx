@@ -2,7 +2,8 @@ import { useState } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '../lib/db';
 import { fechaDe, fechaHoraCorta } from '../lib/fechas';
-import { ir, useIdsPendientes, useLugares, useMinistros, usePerfiles } from '../lib/hooks';
+import { useAuth } from '../lib/auth';
+import { ir, useIdsPendientes, useLugares, useMinistros, useNombresTipos, usePerfiles, useSecretarias } from '../lib/hooks';
 import { useEstadoSync, esErrorDeRed, mensajeDeError } from '../lib/sync';
 import {
   cancelarEvento, conservarMiVersion, descartarOp, reintentarOp, resolverConflicto, usarVersionServidor,
@@ -31,6 +32,11 @@ export function Conflictos() {
   const lugares = useLugares();
   const perfiles = usePerfiles();
   const ministros = useMinistros();
+  const secretarias = useSecretarias();
+  const { perfil } = useAuth();
+  const nombresTipos = useNombresTipos(perfil?.parroquia_id);
+  // La Secretaría no cancela desde aquí: abre el evento, donde se le pide su PIN y solo puede cambiar lo que agendó.
+  const puedeCancelarAqui = perfil?.rol !== 'secretaria';
   const pendientes = useIdsPendientes();
   const { enLinea } = useEstadoSync();
   const [error, setError] = useState('');
@@ -86,10 +92,10 @@ export function Conflictos() {
           {[a, b].map((e, i) => (
             <div key={e.id}>
               {i === 1 && <div className="vs">⟷ choca con ⟷</div>}
-              <TarjetaEvento evento={e} lugares={lugares} perfiles={perfiles} ministros={ministros} sinEnviar={pendientes.has(e.id)}>
+              <TarjetaEvento evento={e} lugares={lugares} perfiles={perfiles} ministros={ministros} secretarias={secretarias} nombresTipos={nombresTipos} sinEnviar={pendientes.has(e.id)}>
                 <div className="fila" style={{ marginTop: 10 }}>
                   <button className="btn chico" onClick={() => ir(`agenda/${fechaDe(e.inicio)}/${e.id}`)}>Cambiar horario o lugar</button>
-                  <button className="btn peligro chico" onClick={() => void cancelar(e)}>Cancelar</button>
+                  {puedeCancelarAqui && <button className="btn peligro chico" onClick={() => void cancelar(e)}>Cancelar</button>}
                 </div>
               </TarjetaEvento>
             </div>

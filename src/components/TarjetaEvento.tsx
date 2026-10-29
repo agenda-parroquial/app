@@ -1,6 +1,6 @@
 import type { CSSProperties, ReactNode } from 'react';
 import { horaDe } from '../lib/fechas';
-import { nombreCelebrante, nombrePerfil, nombreTipo, type Evento, type Lugar, type Ministro, type Perfil } from '../types';
+import { nombreCelebrante, nombreCreador, nombreTipo, type Evento, type Lugar, type Ministro, type Perfil, type Secretaria } from '../types';
 import { Icono } from './Iconos';
 
 interface Props {
@@ -9,6 +9,10 @@ interface Props {
   perfiles: Perfil[];
   /** Ministros y vicarios sin cuenta (para poner el nombre del celebrante). */
   ministros?: Ministro[];
+  /** Personas de la Secretaría (para decir quién agendó el evento). */
+  secretarias?: Secretaria[];
+  /** Nombres propios que la parroquia puso a los tipos de siempre. */
+  nombresTipos?: Record<string, string>;
   sinEnviar: boolean;
   onClick?: () => void;
   /** Si se pasa, la tarjeta muestra el botón de intenciones con su cantidad. */
@@ -22,16 +26,17 @@ interface Props {
 }
 
 const SIN_MINISTROS: Ministro[] = [];
+const SIN_SECRETARIAS: Secretaria[] = [];
 
 export const nombreLugar = (e: Evento, lugares: Lugar[]) =>
   (e.lugar_id && lugares.find((l) => l.id === e.lugar_id)?.nombre) || e.lugar_texto || 'Sin lugar';
 
 export function TarjetaEvento({
-  evento: e, lugares, perfiles, ministros = SIN_MINISTROS, sinEnviar, onClick, onIntenciones, nIntenciones = 0, color, momento, children,
+  evento: e, lugares, perfiles, ministros = SIN_MINISTROS, secretarias = SIN_SECRETARIAS, nombresTipos, sinEnviar, onClick, onIntenciones, nIntenciones = 0, color, momento, children,
 }: Props) {
   const celebrante = nombreCelebrante(e, perfiles, ministros);
-  const creador = !e.misa_fija_id && e.creado_por ? nombrePerfil(perfiles.find((p) => p.id === e.creado_por)) : null;
-  const tipo = nombreTipo(e);
+  const creador = !e.misa_fija_id ? nombreCreador(e, perfiles, secretarias) : null;
+  const tipo = nombreTipo(e, nombresTipos);
   const clases = ['tarjeta', e.misa_fija_id ? 'fija' : '', e.estado === 'en_conflicto' ? 'conflicto' : '', e.estado === 'cancelado' ? 'cancelado' : '']
     .filter(Boolean).join(' ');
   // El color solo se ve cuando el evento está normal: un conflicto o una cancelación mantienen su señal.

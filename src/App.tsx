@@ -17,7 +17,7 @@ import { Icono } from './components/Iconos';
 import { Login } from './components/Login';
 import { Lugares } from './components/Lugares';
 import { MisasFijas } from './components/MisasFijas';
-import { Ministros } from './components/Ministros';
+import { Ministros, Vicarios } from './components/Ministros';
 import { abrirNotificacion, Notificaciones } from './components/Notificaciones';
 import { Parroquiales } from './components/Parroquiales';
 import { Pendiente, SinAcceso } from './components/Pendiente';
@@ -58,7 +58,7 @@ function BannerActualizacion() {
 // (la ruta «avisos» es la de notificaciones; se conserva porque los avisos push ya enviados apuntan a ella)
 const TITULOS: Record<string, string> = {
   agenda: 'Agenda', conflictos: 'Conflictos', avisos: 'Notificaciones', parroquiales: 'Avisos',
-  ajustes: 'Ajustes', mas: 'Ajustes', lugares: 'Lugares', ministros: 'Ministros', misas: 'Misas fijas', tipos: 'Tipos de evento', usuarios: 'Usuarios',
+  ajustes: 'Ajustes', mas: 'Ajustes', lugares: 'Lugares', ministros: 'Ministros', vicarios: 'Vicarios', misas: 'Misas fijas', tipos: 'Tipos de evento', usuarios: 'Usuarios',
   superadmin: 'Administración',
 };
 
@@ -138,7 +138,7 @@ function Shell({ perfil, superadmin, diocesano, parroquia }: { perfil: Perfil; s
     return () => window.clearTimeout(t);
   }, [toast]);
 
-  const enAjustes = ['ajustes', 'mas', 'lugares', 'ministros', 'misas', 'tipos', 'usuarios', 'superadmin'].includes(seccion);
+  const enAjustes = ['ajustes', 'mas', 'lugares', 'ministros', 'vicarios', 'misas', 'tipos', 'usuarios', 'superadmin'].includes(seccion);
 
   return (
     <div className="app">
@@ -176,6 +176,7 @@ function Shell({ perfil, superadmin, diocesano, parroquia }: { perfil: Perfil; s
           : seccion === 'ajustes' || seccion === 'mas' ? <Ajustes perfil={perfil} />
           : seccion === 'lugares' ? <Lugares perfil={perfil} />
           : seccion === 'ministros' ? <Ministros perfil={perfil} />
+          : seccion === 'vicarios' ? <Vicarios perfil={perfil} />
           : seccion === 'misas' ? <MisasFijas perfil={perfil} />
           : seccion === 'tipos' ? <TiposEvento perfil={perfil} />
           : seccion === 'usuarios' && perfil.rol === 'parroco' ? <Usuarios perfil={perfil} />

@@ -22,18 +22,39 @@ export interface Parroquia {
   activa: boolean; // false = suspendida por el superadmin
   vigente_hasta?: string | null; // 'YYYY-MM-DD': último día con acceso; null = sin límite
   colores?: Record<string, string>; // color de cada tipo de evento (ver claveTipo)
+  nombres_tipos?: Record<string, string>; // nombre propio de los tipos de siempre ('misa', 'confesion'…)
   created_at: string;
   updated_at: string;
 }
 
-/** Persona sin cuenta que la parroquia registra para poder elegirla como celebrante. */
+/**
+ * Persona sin cuenta que el párroco registra para poder elegirla como celebrante:
+ * un vicario (sacerdote que aún no usa la app) o un ministro extraordinario (nunca tiene cuenta).
+ */
 export type TipoMinistro = 'ministro' | 'vicario';
 export interface Ministro {
   id: string;
   nombre: string;
   tipo: TipoMinistro;
   activo: boolean;
+  perfil_id?: string | null; // vicario que ya tiene cuenta: su cuenta (el registro queda sin uso)
   created_at: string;
+  updated_at: string;
+}
+
+/** Persona de la Secretaría: varias usan la misma cuenta y se identifican con su PIN. */
+export interface Secretaria {
+  id: string;
+  nombre: string;
+  activo: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+/** Huella del PIN de una persona de la Secretaría (solo la recibe la cuenta de Secretaría). */
+export interface SecretariaPin {
+  id: string; // = id de la persona
+  pin_hash: string;
   updated_at: string;
 }
 
@@ -108,6 +129,7 @@ export interface TipoEventoGuardado {
   id: string;
   nombre: string;
   activo: boolean;
+  lleva_intenciones: boolean; // los eventos de este tipo llevan intenciones (como la misa)
   created_at: string;
   updated_at: string;
 }
@@ -137,6 +159,7 @@ export interface Evento {
   lugar_texto: string | null;
   asignado_a: string | null;
   ministro_id: string | null; // celebrante sin cuenta (si no, asignado_a)
+  secretaria_id?: string | null; // persona de la Secretaría que lo agendó (con su PIN)
   intencion: string | null;
   contacto_nombre: string | null;
   contacto_telefono: string | null;
@@ -239,13 +262,15 @@ export const ROLES: Record<Rol, string> = {
 };
 
 export const TIPOS_MINISTRO: Record<TipoMinistro, string> = {
-  ministro: 'Ministro',
+  ministro: 'Ministro extraordinario',
   vicario: 'Vicario',
 };
 
 export const DIAS = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
 
 export const puedeEditarCatalogos = (rol: Rol | undefined) => rol === 'parroco' || rol === 'secretaria';
+/** Solo el párroco registra a las personas sin cuenta (vicarios y ministros) y a las de la Secretaría. */
+export const puedeRegistrarPersonas = (rol: Rol | undefined) => rol === 'parroco';
 export const esSacerdote = (p: Perfil) => p.rol === 'parroco' || p.rol === 'vicario';
 
 /** Nombre a mostrar de una persona (si aún no puso el suyo, el inicio de su correo). */
@@ -267,9 +292,27 @@ export const nombreCelebrante = (
   x.asignado_a ? nombrePerfil(perfiles.find((p) => p.id === x.asignado_a))
     : x.ministro_id ? ministros.find((m) => m.id === x.ministro_id)?.nombre ?? null : null;
 
-/** Nombre del tipo de un evento: el escrito a mano si es «Otro», o el de la lista. */
-export const nombreTipo = (e: Pick<Evento, 'tipo' | 'tipo_texto'>) =>
-  e.tipo === 'otro' && e.tipo_texto?.trim() ? e.tipo_texto.trim() : TIPOS_EVENTO[e.tipo];
+/** Nombre de un tipo de siempre: el que le puso la parroquia (si lo corrigió) o el de la lista. */
+export const nombreTipoBase = (tipo: TipoEvento, nombres?: Record<string, string>) => nombres?.[tipo]?.trim() || TIPOS_EVENTO[tipo];
+
+/** Nombre del tipo de un evento: el escrito a mano si es «Otro», o el de la lista (con el nombre propio de la parroquia). */
+export const nombreTipo = (e: Pick<Evento, 'tipo' | 'tipo_texto'>, nombres?: Record<string, string>) =>
+  e.tipo === 'otro' && e.tipo_texto?.trim() ? e.tipo_texto.trim() : nombreTipoBase(e.tipo, nombres);
+
+/**
+ * ¿Los eventos de este tipo llevan intenciones? Misa sí. Bautizo, boda, confesiones, unción de enfermos y reunión no.
+ * Los tipos que agrega la parroquia lo deciden con «lleva_intenciones» (por omisión, no).
+ */
+export const llevaIntenciones = (e: Pick<Evento, 'tipo' | 'tipo_texto'>, tipos: TipoEventoGuardado[]) =>
+  e.tipo === 'misa'
+  || (e.tipo === 'otro' && !!e.tipo_texto
+      && tipos.some((t) => t.lleva_intenciones && t.nombre.trim().toLowerCase() === e.tipo_texto!.trim().toLowerCase()));
+
+/** Quién agendó un evento: la persona de la Secretaría (si la hubo) o la cuenta que lo creó. */
+export const nombreCreador = (e: Pick<Evento, 'secretaria_id' | 'creado_por'>, perfiles: Perfil[], secretarias: Secretaria[]) =>
+  e.secretaria_id
+    ? secretarias.find((s) => s.id === e.secretaria_id)?.nombre ?? null
+    : e.creado_por ? nombrePerfil(perfiles.find((p) => p.id === e.creado_por)) : null;
 
 /** Clave con la que se guarda el color de un tipo: 'misa'…, o 't:<nombre>' para los escritos con «Otro». */
 export const claveTipoNombre = (nombre: string) => `t:${nombre.trim().toLowerCase()}`;

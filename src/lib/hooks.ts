@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from './db';
-import type { AvisoParroquial, Lugar, Ministro, Perfil, TipoEventoGuardado } from '../types';
+import type { AvisoParroquial, Lugar, Ministro, Perfil, Secretaria, TipoEventoGuardado } from '../types';
 
 /** Ruta basada en el hash: '#/agenda/2030-03-05/ID' → ['agenda', '2030-03-05', 'ID'] */
 export function useRuta(): string[] {
@@ -25,9 +25,15 @@ const SIN_PERFILES: Perfil[] = [];
 const SIN_TIPOS: TipoEventoGuardado[] = [];
 const SIN_AVISOS: AvisoParroquial[] = [];
 const SIN_MINISTROS: Ministro[] = [];
+const SIN_SECRETARIAS: Secretaria[] = [];
+const SIN_NOMBRES: Record<string, string> = {};
 
 export const useLugares = () => useLiveQuery(() => db.lugares.toArray(), [], SIN_LUGARES);
 export const useTiposEvento = () => useLiveQuery(() => db.tipos_evento.toArray(), [], SIN_TIPOS);
+export const useSecretarias = () => useLiveQuery(() => db.secretarias.toArray(), [], SIN_SECRETARIAS);
+/** Los nombres propios que la parroquia puso a los tipos de siempre (los demás usan el nombre de la lista). */
+export const useNombresTipos = (parroquiaId: string | null | undefined) =>
+  useLiveQuery(async () => (parroquiaId ? (await db.parroquias.get(parroquiaId))?.nombres_tipos : undefined) ?? SIN_NOMBRES, [parroquiaId], SIN_NOMBRES);
 export const useMinistros = () => useLiveQuery(() => db.ministros.toArray(), [], SIN_MINISTROS);
 export const useAvisosParroquiales = () => useLiveQuery(() => db.avisos_parroquiales.toArray(), [], SIN_AVISOS);
 /** La parroquia propia (nombre y si está suspendida); undefined mientras no se ha descargado. */
