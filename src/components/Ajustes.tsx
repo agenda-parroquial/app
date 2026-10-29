@@ -25,7 +25,7 @@ function Fila({ href, icono, titulo, texto, tono }: { href: string; icono: Nombr
 
 /** Ajustes: mi cuenta, administración de la parroquia (lugares, misas, tipos, usuarios) y preferencias de este teléfono. */
 export function Ajustes({ perfil }: { perfil: Perfil }) {
-  const { cerrarSesion, usuario, superadmin, diocesano } = useAuth();
+  const { cerrarSesion, usuario, superadmin, diocesano, cambiarCorreo, cambiarClave, recargarPerfil } = useAuth();
   const parroquia = useParroquia(perfil.parroquia_id);
   const estado = useEstadoSync();
   const porEnviar = useLiveQuery(() => db.outbox.count(), [], 0);
@@ -36,6 +36,37 @@ export function Ajustes({ perfil }: { perfil: Perfil }) {
   // Sin parroquia = el creador (o un obispo sin parroquia): no hay menús de parroquia ni avisos de agenda.
   const sinParroquia = !perfil.parroquia_id;
   const pref = usePrefDiocesanos();
+  const [cuenta, setCuenta] = useState<'correo' | 'clave' | null>(null);
+  const [correoNuevo, setCorreoNuevo] = useState('');
+  const [claveNueva, setClaveNueva] = useState('');
+  const [claveRepite, setClaveRepite] = useState('');
+  const [msgCuenta, setMsgCuenta] = useState<{ tipo: 'ok' | 'error'; texto: string } | null>(null);
+  const [cambiando, setCambiando] = useState(false);
+
+  /** Cambia el correo o la contraseña de esta cuenta; la persona escribe los valores aquí, nunca pasan por otra parte. */
+  async function cambiarDatosDeAcceso(e: React.FormEvent) {
+    e.preventDefault();
+    setMsgCuenta(null);
+    if (cuenta === 'clave') {
+      if (claveNueva.length < 6) return setMsgCuenta({ tipo: 'error', texto: 'La contraseña debe tener al menos 6 caracteres.' });
+      if (claveNueva !== claveRepite) return setMsgCuenta({ tipo: 'error', texto: 'Las dos contraseñas no son iguales.' });
+    }
+    setCambiando(true);
+    try {
+      const r = cuenta === 'correo' ? await cambiarCorreo(correoNuevo) : await cambiarClave(claveNueva);
+      if (r.error) return setMsgCuenta({ tipo: 'error', texto: r.error });
+      setMsgCuenta({ tipo: 'ok', texto: r.aviso ?? (cuenta === 'correo' ? 'Correo cambiado. Desde ahora entras con el correo nuevo.' : 'Contraseña cambiada.') });
+      if (cuenta === 'correo' && !r.aviso) void recargarPerfil();
+      setCuenta(null);
+      setCorreoNuevo('');
+      setClaveNueva('');
+      setClaveRepite('');
+    } catch (err) {
+      setMsgCuenta({ tipo: 'error', texto: esErrorDeRed(err) ? 'Necesitas internet para hacer este cambio.' : mensajeDeError(err) });
+    } finally {
+      setCambiando(false);
+    }
+  }
 
   async function guardarNombre() {
     setMensaje(null);
@@ -102,6 +133,37 @@ export function Ajustes({ perfil }: { perfil: Perfil }) {
         </div>
         <p className="ayuda" style={{ marginBottom: 0 }}>Este nombre aparece como «Creado por» en lo que agendas.</p>
         {mensaje && <div className={`aviso ${mensaje.tipo === 'ok' ? 'ok' : 'error'}`}>{mensaje.texto}</div>}
+      </div>
+
+      <div className="grupo">
+        <h3 className="fila" style={{ gap: 8 }}><Icono n="escudo" size={19} />Correo y contraseña</h3>
+        <p className="ayuda">Entras con <b>{usuario?.email}</b>. Cambiar estos datos requiere internet.</p>
+        <div className="fila">
+          <button type="button" className={`btn chico ${cuenta === 'correo' ? '' : 'sec'}`} onClick={() => { setCuenta(cuenta === 'correo' ? null : 'correo'); setMsgCuenta(null); }}>Cambiar correo</button>
+          <button type="button" className={`btn chico ${cuenta === 'clave' ? '' : 'sec'}`} onClick={() => { setCuenta(cuenta === 'clave' ? null : 'clave'); setMsgCuenta(null); }}>Cambiar contraseña</button>
+        </div>
+        {cuenta && (
+          <form onSubmit={(e) => void cambiarDatosDeAcceso(e)} autoComplete="off">
+            {cuenta === 'correo' ? (
+              <>
+                <label htmlFor="cc">Correo nuevo</label>
+                <input id="cc" type="email" value={correoNuevo} onChange={(e) => setCorreoNuevo(e.target.value)} required autoCapitalize="none" autoComplete="email" placeholder="nuevo@correo.com" />
+              </>
+            ) : (
+              <>
+                <label htmlFor="cn">Contraseña nueva (mínimo 6 caracteres)</label>
+                <input id="cn" type="password" value={claveNueva} onChange={(e) => setClaveNueva(e.target.value)} required autoComplete="new-password" />
+                <label htmlFor="cr">Repite la contraseña nueva</label>
+                <input id="cr" type="password" value={claveRepite} onChange={(e) => setClaveRepite(e.target.value)} required autoComplete="new-password" />
+              </>
+            )}
+            <div className="fila" style={{ marginTop: 10 }}>
+              <button className="btn" disabled={cambiando || !estado.enLinea}>{cambiando ? 'Guardando…' : 'Guardar'}</button>
+              <button type="button" className="btn sec" onClick={() => setCuenta(null)}>Cancelar</button>
+            </div>
+          </form>
+        )}
+        {msgCuenta && <div className={`aviso ${msgCuenta.tipo === 'ok' ? 'ok' : 'error'}`}>{msgCuenta.texto}</div>}
       </div>
 
       <div className="seccion-etq">En este teléfono</div>

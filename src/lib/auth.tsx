@@ -24,6 +24,9 @@ interface AuthCtx {
   iniciarSesion: (email: string, password: string) => Promise<Resultado>;
   registrar: (email: string, password: string, nombre: string, codigo?: string) => Promise<Resultado>;
   cerrarSesion: () => Promise<void>;
+  /** Cambia el correo de esta cuenta (requiere internet). `aviso` si falta confirmarlo desde el correo. */
+  cambiarCorreo: (email: string) => Promise<Resultado>;
+  cambiarClave: (password: string) => Promise<Resultado>;
   recargarPerfil: () => Promise<void>;
 }
 
@@ -39,6 +42,8 @@ function traducir(msg: string): string {
   if (/email not confirmed/i.test(msg)) return 'Falta confirmar tu correo. Revisa tu bandeja de entrada.';
   if (/already registered|already been registered/i.test(msg)) return 'Ese correo ya está registrado. Inicia sesión.';
   if (/password should be at least/i.test(msg)) return 'La contraseña debe tener al menos 6 caracteres.';
+  if (/different from the old/i.test(msg)) return 'La contraseña nueva debe ser distinta de la actual.';
+  if (/email address .* invalid|invalid.*email/i.test(msg)) return 'Ese correo no es válido.';
   if (/rate limit/i.test(msg)) return 'Demasiados intentos. Espera unos minutos.';
   if (/failed to fetch|network|load failed/i.test(msg)) return 'No hay conexión a internet.';
   return msg;
@@ -195,6 +200,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setPerfil(null);
         ponerPermisos({ superadmin: false, diocesano: false });
         setIdentidadGuardada(false);
+      },
+      cambiarCorreo: async (email) => {
+        const nuevo = email.trim().toLowerCase();
+        const { data, error } = await supabase.auth.updateUser({ email: nuevo });
+        if (error) return { error: traducir(error.message) };
+        if (data.user?.email?.toLowerCase() === nuevo) {
+          setUsuario((u) => (u ? { ...u, email: nuevo } : u));      // el cambio se aplicó al instante
+          return {};
+        }
+        return { aviso: `Te enviamos un correo para confirmar el cambio. Revisa ${nuevo} (y también el correo actual) y abre el enlace.` };
+      },
+      cambiarClave: async (password) => {
+        const { error } = await supabase.auth.updateUser({ password });
+        return error ? { error: traducir(error.message) } : {};
       },
       recargarPerfil: async () => {
         if (usuarioRef.current) setPerfil(await leerPerfil(usuarioRef.current));
