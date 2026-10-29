@@ -8,7 +8,7 @@ import { configurado } from './lib/supabase';
 import { iniciarSync } from './lib/sync';
 import { esIPhone, estaInstalada, estadoPush, sincronizarPush } from './lib/push';
 import { ir, useContadorConflictos, useNoLeidas, useParroquia, useRuta } from './lib/hooks';
-import { diasDeVigencia, parroquiaSinAcceso, type Notificacion, type Parroquia, type Perfil } from './types';
+import { diasDeVigencia, nombreParroquia, parroquiaSinAcceso, type Notificacion, type Parroquia, type Perfil } from './types';
 import { Agenda } from './components/Agenda';
 import { Ajustes } from './components/Ajustes';
 import { Conflictos } from './components/Conflictos';
@@ -147,7 +147,7 @@ function Shell({ perfil, superadmin, diocesano, parroquia }: { perfil: Perfil; s
       <header className="top">
         <div className="titulos">
           <h1>{TITULOS[seccion] ?? 'Agenda'}</h1>
-          {parroquia && <div className="sub">{parroquia.nombre}</div>}
+          {parroquia && <div className="sub">{nombreParroquia(parroquia)}</div>}
         </div>
         <EstadoSync />
         <button className="icono-btn" onClick={() => ir('avisos')} aria-label={noLeidas ? `Notificaciones (${noLeidas} sin leer)` : 'Notificaciones'}>
@@ -269,8 +269,8 @@ function Puerta() {
         parroquiaId={parroquia.id}
         titulo={suspendida ? 'Parroquia suspendida' : 'Acceso vencido'}
         texto={suspendida
-          ? `El acceso de ${parroquia.nombre} está suspendido. Comunícate con quien administra la Agenda Parroquial.`
-          : `El acceso de ${parroquia.nombre} venció. Comunícate con quien administra la Agenda Parroquial para renovarlo; tu información se conserva.`}
+          ? `El acceso de ${nombreParroquia(parroquia)} está suspendido. Comunícate con quien administra la Agenda Parroquial.`
+          : `El acceso de ${nombreParroquia(parroquia)} venció. Comunícate con quien administra la Agenda Parroquial para renovarlo; tu información se conserva.`}
       />
     );
   }

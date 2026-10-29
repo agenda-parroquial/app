@@ -43,7 +43,7 @@ function FormAviso({ aviso, autorId, onCerrar }: { aviso?: AvisoParroquial; auto
   }
 
   return (
-    <div className="fondo" onMouseDown={(e) => e.target === e.currentTarget && onCerrar()}>
+    <div className="fondo">
       <form className="hoja" onSubmit={guardar}>
         <div className="hoja-cab">
           <h2>{aviso ? 'Editar aviso' : 'Nuevo aviso parroquial'}</h2>

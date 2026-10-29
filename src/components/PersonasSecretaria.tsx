@@ -38,7 +38,7 @@ function Formulario({ persona, parroquiaId, onCerrar }: { persona?: Secretaria; 
   }
 
   return (
-    <div className="fondo" onMouseDown={(e) => e.target === e.currentTarget && onCerrar()}>
+    <div className="fondo">
       <form className="hoja" onSubmit={guardar} autoComplete="off">
         <div className="hoja-cab">
           <h2>{persona ? 'Editar persona' : 'Agregar persona de la Secretaría'}</h2>

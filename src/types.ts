@@ -23,6 +23,8 @@ export interface Parroquia {
   vigente_hasta?: string | null; // 'YYYY-MM-DD': último día con acceso; null = sin límite
   colores?: Record<string, string>; // color de cada tipo de evento (ver claveTipo)
   nombres_tipos?: Record<string, string>; // nombre propio de los tipos de siempre ('misa', 'confesion'…)
+  intenciones_tipos?: Record<string, boolean>; // qué tipos de siempre llevan intenciones (lo que falta: solo la misa)
+  lugar?: string; // dónde está la parroquia (hay parroquias con el mismo nombre en lugares distintos)
   created_at: string;
   updated_at: string;
 }
@@ -300,14 +302,20 @@ export const nombreTipoBase = (tipo: TipoEvento, nombres?: Record<string, string
 export const nombreTipo = (e: Pick<Evento, 'tipo' | 'tipo_texto'>, nombres?: Record<string, string>) =>
   e.tipo === 'otro' && e.tipo_texto?.trim() ? e.tipo_texto.trim() : nombreTipoBase(e.tipo, nombres);
 
+/** Nombre de la parroquia con su lugar: «Parroquia Cristo Rey, Arroyo Hondo». */
+export const nombreParroquia = (p: Pick<Parroquia, 'nombre' | 'lugar'>) => (p.lugar?.trim() ? `${p.nombre}, ${p.lugar.trim()}` : p.nombre);
+
+/** ¿Un tipo de siempre lleva intenciones? Lo decide la parroquia; de origen solo la misa. */
+export const baseLlevaIntenciones = (tipo: TipoEvento, config?: Record<string, boolean>) => config?.[tipo] ?? tipo === 'misa';
+
 /**
- * ¿Los eventos de este tipo llevan intenciones? Misa sí. Bautizo, boda, confesiones, unción de enfermos y reunión no.
+ * ¿Los eventos de este tipo llevan intenciones? De origen solo la misa (la parroquia puede cambiarlo en cualquier tipo de siempre).
  * Los tipos que agrega la parroquia lo deciden con «lleva_intenciones» (por omisión, no).
  */
-export const llevaIntenciones = (e: Pick<Evento, 'tipo' | 'tipo_texto'>, tipos: TipoEventoGuardado[]) =>
-  e.tipo === 'misa'
-  || (e.tipo === 'otro' && !!e.tipo_texto
-      && tipos.some((t) => t.lleva_intenciones && t.nombre.trim().toLowerCase() === e.tipo_texto!.trim().toLowerCase()));
+export const llevaIntenciones = (e: Pick<Evento, 'tipo' | 'tipo_texto'>, tipos: TipoEventoGuardado[], config?: Record<string, boolean>) =>
+  e.tipo !== 'otro'
+    ? baseLlevaIntenciones(e.tipo, config)
+    : !!e.tipo_texto && tipos.some((t) => t.lleva_intenciones && t.nombre.trim().toLowerCase() === e.tipo_texto!.trim().toLowerCase());
 
 /** Quién hizo la última edición de un evento: la persona de la Secretaría (con su PIN) o la cuenta que lo editó. */
 export const nombreEditor = (

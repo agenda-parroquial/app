@@ -1,9 +1,9 @@
 import { useEffect, useMemo, useState, type FormEvent } from 'react';
-import { useNombresTipos, useParroquia, useTiposEvento } from '../lib/hooks';
-import { guardarColores, guardarNombresTipos, guardarTipoEvento, renombrarTipo } from '../lib/store';
+import { useIntencionesTipos, useNombresTipos, useParroquia, useTiposEvento } from '../lib/hooks';
+import { guardarColores, guardarIntencionesTipos, guardarNombresTipos, guardarTipoEvento, renombrarTipo } from '../lib/store';
 import { esErrorDeRed, mensajeDeError, useEstadoSync } from '../lib/sync';
 import {
-  claveTipoNombre, nombreTipoBase, puedeEditarCatalogos, TIPOS_EVENTO, type Perfil, type TipoEvento, type TipoEventoGuardado,
+  baseLlevaIntenciones, claveTipoNombre, nombreTipoBase, puedeEditarCatalogos, TIPOS_EVENTO, type Perfil, type TipoEvento, type TipoEventoGuardado,
 } from '../types';
 import { Icono } from './Iconos';
 import { PaletaColor } from './PaletaColor';
@@ -16,15 +16,16 @@ type Renombrando =
   | { base: TipoEvento }                  // un tipo de siempre (misa, bautizo…): se le puede poner otro nombre
   | { propio: TipoEventoGuardado };       // un tipo que agregó la parroquia
 
-/** Corregir el nombre de un tipo y, en los que agrega la parroquia, decidir si llevan intenciones. */
-function RenombrarTipo({ que, nombresTipos, parroquiaId, onCerrar }: {
-  que: Renombrando; nombresTipos: Record<string, string>; parroquiaId: string; onCerrar: () => void;
+/** Corregir el nombre de un tipo y decidir si lleva intenciones. */
+function RenombrarTipo({ que, nombresTipos, intencionesTipos, parroquiaId, onCerrar }: {
+  que: Renombrando; nombresTipos: Record<string, string>; intencionesTipos: Record<string, boolean>; parroquiaId: string; onCerrar: () => void;
 }) {
   const { enLinea } = useEstadoSync();
   const base = 'base' in que ? que.base : null;
   const propio = 'propio' in que ? que.propio : null;
   const [nombre, setNombre] = useState(base ? nombreTipoBase(base, nombresTipos) : propio!.nombre);
-  const [lleva, setLleva] = useState(propio?.lleva_intenciones ?? false);
+  const llevaActual = base ? baseLlevaIntenciones(base, intencionesTipos) : propio!.lleva_intenciones;
+  const [lleva, setLleva] = useState(llevaActual);
   const [error, setError] = useState('');
   const [trabajando, setTrabajando] = useState(false);
 
@@ -38,22 +39,29 @@ function RenombrarTipo({ que, nombresTipos, parroquiaId, onCerrar }: {
       if (base) {
         const nuevos = { ...nombresTipos };
         if (n === TIPOS_EVENTO[base]) delete nuevos[base]; else nuevos[base] = n;
-        await guardarNombresTipos(parroquiaId, nuevos);
+        const llevaCambio = lleva !== llevaActual;
+        if (n !== nombreTipoBase(base, nombresTipos)) await guardarNombresTipos(parroquiaId, nuevos);
+        if (llevaCambio) {
+          const valores = { ...intencionesTipos };
+          if (lleva === (base === 'misa')) delete valores[base]; else valores[base] = lleva;   // igual que de origen: no se guarda
+          await guardarIntencionesTipos(parroquiaId, valores);
+        }
       } else if (propio) {
         if (n !== propio.nombre) await renombrarTipo(propio.id, n);   // requiere internet; cambia también los eventos y el color
         if (lleva !== propio.lleva_intenciones) await guardarTipoEvento({ lleva_intenciones: lleva }, propio.id);
       }
       onCerrar();
     } catch (err) {
-      setError(esErrorDeRed(err) ? 'Necesitas internet para cambiar el nombre.' : mensajeDeError(err));
+      setError(esErrorDeRed(err) ? 'Necesitas internet para guardar este cambio.' : mensajeDeError(err));
       setTrabajando(false);
     }
   }
 
-  const soloLleva = !base && nombre.trim() === propio?.nombre;   // solo cambia «lleva intenciones»: no necesita internet
+  // Solo cambiar «lleva intenciones» en un tipo agregado por la parroquia se guarda sin internet; lo demás va al servidor.
+  const soloLleva = !base && nombre.trim() === propio?.nombre;
 
   return (
-    <div className="fondo" onMouseDown={(e) => e.target === e.currentTarget && onCerrar()}>
+    <div className="fondo">
       <form className="hoja" onSubmit={guardar}>
         <div className="hoja-cab">
           <h2>Editar tipo de evento</h2>
@@ -67,19 +75,17 @@ function RenombrarTipo({ que, nombresTipos, parroquiaId, onCerrar }: {
           </button>
         )}
 
-        {propio && (
-          <label className="check">
-            <input type="checkbox" checked={lleva} onChange={(e) => setLleva(e.target.checked)} />
-            Lleva intenciones (como la misa)
-          </label>
-        )}
+        <label className="check">
+          <input type="checkbox" checked={lleva} onChange={(e) => setLleva(e.target.checked)} />
+          Lleva intenciones (como la misa)
+        </label>
         <p className="ayuda">
           {base
-            ? `El cambio se ve en toda la parroquia: agenda, formularios y avisos. ${base === 'misa' ? 'La misa siempre lleva intenciones.' : 'Este tipo no lleva intenciones.'}`
+            ? 'El cambio se ve en toda la parroquia: agenda, formularios y avisos. Si lleva intenciones, sus eventos muestran el botón para capturarlas.'
             : 'Al cambiar el nombre, los eventos que ya tienen este tipo y su color pasan al nombre nuevo.'}
         </p>
         {error && <div className="aviso error">{error}</div>}
-        {!enLinea && !soloLleva && <div className="aviso">Para cambiar el nombre necesitas internet.</div>}
+        {!enLinea && !soloLleva && <div className="aviso">Para guardar este cambio necesitas internet.</div>}
         <div className="acciones barra">
           <button className="btn" type="submit" disabled={trabajando || (!enLinea && !soloLleva)}>{trabajando ? 'Guardando…' : 'Guardar'}</button>
           <button className="btn sec" type="button" onClick={onCerrar}>Cancelar</button>
@@ -99,6 +105,7 @@ export function TiposEvento({ perfil }: { perfil: Perfil }) {
   const parroquia = useParroquia(perfil.parroquia_id);
   const nombresTipos = useNombresTipos(perfil.parroquia_id);
   const { enLinea } = useEstadoSync();
+  const intencionesTipos = useIntencionesTipos(perfil.parroquia_id);
   const guardados = parroquia?.colores ?? SIN_COLORES;
   const [nombre, setNombre] = useState('');
   const [llevaNuevo, setLlevaNuevo] = useState(false);
@@ -197,7 +204,7 @@ export function TiposEvento({ perfil }: { perfil: Perfil }) {
       <h2 style={{ marginBottom: 6 }}>Tipos de evento</h2>
       <p className="ayuda" style={{ marginTop: 0 }}>
         Cada tipo puede tener un color, que se ve en el borde de sus tarjetas en la agenda. Toca un tipo para elegirlo y el lápiz para
-        corregir su nombre. Solo la misa (y los tipos que lo indiquen) lleva intenciones. Los colores y los nombres son de toda la parroquia.
+        corregir su nombre. De origen solo la misa lleva intenciones, pero en el lápiz de cada tipo puedes marcar u ocultar eso. Los colores y los nombres son de toda la parroquia.
       </p>
       {!puede && <div className="aviso">Solo el párroco y la secretaria pueden agregar tipos, cambiar colores y corregir nombres.</div>}
 
@@ -219,7 +226,7 @@ export function TiposEvento({ perfil }: { perfil: Perfil }) {
       <div className="seccion-etq">Incluidos</div>
       <div className="lista">
         {(Object.keys(TIPOS_EVENTO) as TipoEvento[]).filter((k) => k !== 'otro').map((k) =>
-          fila(k, nombreTipoBase(k, nombresTipos), { lleva: k === 'misa', renombrar: { base: k } }))}
+          fila(k, nombreTipoBase(k, nombresTipos), { lleva: baseLlevaIntenciones(k, intencionesTipos), renombrar: { base: k } }))}
       </div>
 
       {propios.length > 0 && (
@@ -263,7 +270,7 @@ export function TiposEvento({ perfil }: { perfil: Perfil }) {
         />
       )}
       {renombrando && parroquia && (
-        <RenombrarTipo que={renombrando} nombresTipos={nombresTipos} parroquiaId={parroquia.id} onCerrar={() => setRenombrando(null)} />
+        <RenombrarTipo que={renombrando} nombresTipos={nombresTipos} intencionesTipos={intencionesTipos} parroquiaId={parroquia.id} onCerrar={() => setRenombrando(null)} />
       )}
     </>
   );

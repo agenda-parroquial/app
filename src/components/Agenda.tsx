@@ -6,7 +6,7 @@ import {
   claveDia, deClave, diaCorto, diaLargo, fechaDe, hoyClave, inicioSemana, mesAnio, sumarDias, sumarMeses,
 } from '../lib/fechas';
 import {
-  ir, useAvisosParroquiales, useIdsPendientes, useLugares, useMinistros, useNombresTipos, useParroquia, usePerfiles, useSecretarias,
+  ir, useAvisosParroquiales, useIdsPendientes, useIntencionesTipos, useLugares, useMinistros, useNombresTipos, useParroquia, usePerfiles, useSecretarias,
   useTiposEvento,
 } from '../lib/hooks';
 import { usePrefDiocesanos } from '../lib/preferencias';
@@ -58,6 +58,7 @@ export function Agenda({ ruta, perfil, soloDiocesana = false }: { ruta: string[]
   const ministros = useMinistros();
   const secretarias = useSecretarias();
   const tiposGuardados = useTiposEvento();
+  const intencionesTipos = useIntencionesTipos(perfil.parroquia_id);
   const nombresTipos = useNombresTipos(perfil.parroquia_id);
   const pendientes = useIdsPendientes();
 
@@ -245,7 +246,7 @@ export function Agenda({ ruta, perfil, soloDiocesana = false }: { ruta: string[]
                 sinEnviar={pendientes.has(e.id)} onClick={() => ir(`agenda/${fecha}/${e.id}`)}
                 nIntenciones={conteo.get(e.id) ?? 0}
                 // Solo las misas (y los tipos que lo indiquen) llevan intenciones; quien las captura entra directo a editarlas.
-                onIntenciones={llevaIntenciones(e, tiposGuardados) || (conteo.get(e.id) ?? 0) > 0
+                onIntenciones={llevaIntenciones(e, tiposGuardados, intencionesTipos) || (conteo.get(e.id) ?? 0) > 0
                   ? () => ir(`agenda/${fecha}/${e.id}/${puedeEditarIntenciones(perfil, e) ? 'editar-intenciones' : 'intenciones'}`)
                   : undefined}
               />

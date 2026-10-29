@@ -27,12 +27,15 @@ const SIN_AVISOS: AvisoParroquial[] = [];
 const SIN_MINISTROS: Ministro[] = [];
 const SIN_SECRETARIAS: Secretaria[] = [];
 const SIN_NOMBRES: Record<string, string> = {};
+const SIN_INTENCIONES: Record<string, boolean> = {};
 
 export const useLugares = () => useLiveQuery(() => db.lugares.toArray(), [], SIN_LUGARES);
 export const useTiposEvento = () => useLiveQuery(() => db.tipos_evento.toArray(), [], SIN_TIPOS);
 export const useSecretarias = () => useLiveQuery(() => db.secretarias.toArray(), [], SIN_SECRETARIAS);
 /** Los nombres propios que la parroquia puso a los tipos de siempre (los demás usan el nombre de la lista). */
-export const useNombresTipos = (parroquiaId: string | null | undefined) =>
+export const useIntencionesTipos = (parroquiaId: string | null | undefined) =>
+  useLiveQuery(async () => (parroquiaId ? (await db.parroquias.get(parroquiaId))?.intenciones_tipos : undefined) ?? SIN_INTENCIONES, [parroquiaId], SIN_INTENCIONES);
+export const useNombresTipos =(parroquiaId: string | null | undefined) =>
   useLiveQuery(async () => (parroquiaId ? (await db.parroquias.get(parroquiaId))?.nombres_tipos : undefined) ?? SIN_NOMBRES, [parroquiaId], SIN_NOMBRES);
 export const useMinistros = () => useLiveQuery(() => db.ministros.toArray(), [], SIN_MINISTROS);
 export const useAvisosParroquiales = () => useLiveQuery(() => db.avisos_parroquiales.toArray(), [], SIN_AVISOS);

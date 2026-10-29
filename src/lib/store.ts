@@ -140,6 +140,13 @@ export async function guardarNombresTipos(parroquia: string, nombres: Record<str
   await db.parroquias.update(parroquia, { nombres_tipos: nombres });
 }
 
+/** Qué tipos de siempre llevan intenciones ('misa', 'confesion'…: true o false); requiere internet. */
+export async function guardarIntencionesTipos(parroquia: string, valores: Record<string, boolean>) {
+  const { error } = await supabase.rpc('guardar_intenciones_tipos', { p_valores: valores });
+  if (error) throw error;
+  await db.parroquias.update(parroquia, { intenciones_tipos: valores });
+}
+
 /** Renombra un tipo que agregó la parroquia: también cambia el nombre en sus eventos y su color; requiere internet. */
 export async function renombrarTipo(id: string, nombre: string) {
   const { error } = await supabase.rpc('renombrar_tipo', { p_id: id, p_nombre: nombre });
@@ -245,10 +252,10 @@ export async function listarParroquias(): Promise<ParroquiaAdmin[]> {
 
 /** Crea la parroquia y la invitación de su primer párroco; devuelve el código para dárselo. */
 export async function crearParroquia(
-  d: { nombre: string; zona: string; email: string; nombreParroco: string; vigenteHasta?: string; esObispo?: boolean },
+  d: { nombre: string; lugar: string; email: string; nombreParroco: string; vigenteHasta?: string; esObispo?: boolean },
 ) {
   const { data, error } = await supabase.rpc('crear_parroquia', {
-    p_nombre: d.nombre, p_zona: d.zona, p_email: d.email, p_nombre_parroco: d.nombreParroco,
+    p_nombre: d.nombre, p_lugar: d.lugar, p_email: d.email, p_nombre_parroco: d.nombreParroco,
     p_vigente_hasta: d.vigenteHasta || null, p_es_obispo: d.esObispo ?? false,
   });
   if (error) throw error;
@@ -269,10 +276,10 @@ export async function cancelarInvitacionParroco(id: string) {
   if (error) throw error;
 }
 
-/** Renombra, cambia la zona horaria o suspende/reactiva (lo que no se pasa no cambia). */
-export async function editarParroquia(id: string, cambios: { nombre?: string; activa?: boolean; zona?: string }) {
+/** Cambia el nombre o el lugar, o suspende/reactiva (lo que no se pasa no cambia). */
+export async function editarParroquia(id: string, cambios: { nombre?: string; lugar?: string; activa?: boolean }) {
   const { error } = await supabase.rpc('editar_parroquia', {
-    p_id: id, p_nombre: cambios.nombre ?? null, p_activa: cambios.activa ?? null, p_zona: cambios.zona ?? null,
+    p_id: id, p_nombre: cambios.nombre ?? null, p_activa: cambios.activa ?? null, p_lugar: cambios.lugar ?? null,
   });
   if (error) throw error;
 }

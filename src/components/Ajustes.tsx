@@ -6,7 +6,7 @@ import { useParroquia } from '../lib/hooks';
 import { mostrarDiocesano, ocultarTodosDiocesanos, usePrefDiocesanos } from '../lib/preferencias';
 import { actualizarMiNombre } from '../lib/store';
 import { esErrorDeRed, mensajeDeError, sincronizar, useEstadoSync } from '../lib/sync';
-import { nombrePerfil, puedeEditarCatalogos, puedeRegistrarPersonas, ROLES, type Perfil } from '../types';
+import { nombreParroquia, nombrePerfil, puedeEditarCatalogos, puedeRegistrarPersonas, ROLES, type Perfil } from '../types';
 import { AvisosPush } from './AvisosPush';
 import { Icono, type NombreIcono } from './Iconos';
 
@@ -63,7 +63,7 @@ export function Ajustes({ perfil }: { perfil: Perfil }) {
         <span className="avatar" aria-hidden>{iniciales(nombrePerfil(perfil))}</span>
         <div className="quien">
           <b>{nombrePerfil(perfil)}</b>
-          <div className="rol">{sinParroquia ? (superadmin ? 'Creador' : 'Diócesis') : ROLES[perfil.rol]}{parroquia ? ` · ${parroquia.nombre}` : ''}</div>
+          <div className="rol">{sinParroquia ? (superadmin ? 'Creador' : 'Diócesis') : ROLES[perfil.rol]}{parroquia ? ` · ${nombreParroquia(parroquia)}` : ''}</div>
           <div className="correo">{usuario?.email}</div>
         </div>
       </div>

@@ -3,11 +3,11 @@ import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '../lib/db';
 import { aISO, deClave, fechaDe, fechaHoraCorta, horaDe, sumarDias, sumarMinutos } from '../lib/fechas';
 import { useAuth } from '../lib/auth';
-import { useLugares, useMinistros, useNombresTipos, usePerfiles, useSecretarias, useTiposEvento } from '../lib/hooks';
+import { useIntencionesTipos, useLugares, useMinistros, useNombresTipos, usePerfiles, useSecretarias, useTiposEvento } from '../lib/hooks';
 import { cancelarEvento, crearEvento, editarEvento, eliminarEvento, guardarTipoEvento, reactivarEvento } from '../lib/store';
 import { buscarTraslapes } from '../lib/traslapes';
 import {
-  celebranteDeValor, esSacerdote, nombreCreador, nombreEditor, nombrePerfil, nombreTipo, nombreTipoBase, TIPOS_EVENTO, valorCelebrante,
+  baseLlevaIntenciones, celebranteDeValor, esSacerdote, nombreCreador, nombreEditor, nombrePerfil, nombreTipo, nombreTipoBase, TIPOS_EVENTO, valorCelebrante,
   type DatosEvento, type Evento, type TipoEvento,
 } from '../types';
 import { Icono } from './Iconos';
@@ -40,6 +40,7 @@ export function EventoForm({ evento, fecha, onCerrar, onIntenciones, selector }:
   const nombresTipos = useNombresTipos(perfil?.parroquia_id);
   const { pedir, dialogo } = usePedirPin(perfil?.parroquia_id);
   const tiposTodos = useTiposEvento();
+  const intencionesTipos = useIntencionesTipos(perfil?.parroquia_id);
   // La cuenta de Secretaría la usan varias personas: cada una se identifica con su PIN al agendar, editar, cancelar o
   // eliminar, y el evento guarda quién lo creó y quién lo editó.
   const esSecretaria = perfil?.rol === 'secretaria';
@@ -108,7 +109,8 @@ export function EventoForm({ evento, fecha, onCerrar, onIntenciones, selector }:
 
   // El tipo elegido, para saber si lleva intenciones (misa sí; bautizo, boda, confesiones, unción y reunión no).
   const tipoGuardadoSel = tipoSel.startsWith('guardado:') ? tiposTodos.find((t) => t.id === tipoSel.slice(9)) : undefined;
-  const llevaInt = tipoSel === 'misa' || !!tipoGuardadoSel?.lleva_intenciones;
+  const llevaInt = tipoSel.startsWith('guardado:') ? !!tipoGuardadoSel?.lleva_intenciones
+    : baseLlevaIntenciones(tipoSel as TipoEvento, intencionesTipos);
 
   /** Si quien usa la app es la cuenta de Secretaría, pide el PIN y devuelve a la persona; el resto no necesita PIN. */
   async function identificar(texto: string): Promise<{ ok: boolean; secretariaId?: string }> {
@@ -219,7 +221,7 @@ export function EventoForm({ evento, fecha, onCerrar, onIntenciones, selector }:
 
   return (
     <>
-    <div className="fondo" onMouseDown={(e) => e.target === e.currentTarget && onCerrar()}>
+    <div className="fondo">
       <form className="hoja" onSubmit={guardar}>
         <div className="hoja-cab">
           <h2>{evento ? 'Editar evento' : 'Nuevo evento'}</h2>

@@ -65,7 +65,7 @@ export function Intenciones({ evento, onCerrar, editable = false }: { evento: Ev
   }
 
   return (
-    <div className="fondo" onMouseDown={(e) => e.target === e.currentTarget && onCerrar()}>
+    <div className="fondo">
       <div className="hoja">
         <div className="hoja-cab">
           <div>

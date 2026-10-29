@@ -39,7 +39,7 @@ function Formulario({ tipo, persona, onCerrar }: { tipo: TipoMinistro; persona?:
   }
 
   return (
-    <div className="fondo" onMouseDown={(e) => e.target === e.currentTarget && onCerrar()}>
+    <div className="fondo">
       <form className="hoja" onSubmit={guardar}>
         <div className="hoja-cab">
           <h2>{persona ? 'Editar' : 'Agregar'} {t.singular}</h2>
@@ -87,7 +87,7 @@ function Vincular({ vicario, cuentas, onCerrar }: { vicario: Ministro; cuentas: 
   }
 
   return (
-    <div className="fondo" onMouseDown={(e) => e.target === e.currentTarget && onCerrar()}>
+    <div className="fondo">
       <form className="hoja" onSubmit={vincular}>
         <div className="hoja-cab">
           <h2>{vicario.nombre} ya tiene cuenta</h2>

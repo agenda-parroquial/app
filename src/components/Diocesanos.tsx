@@ -42,7 +42,7 @@ export function FormularioDiocesano(
   }
 
   return (
-    <div className="fondo" onMouseDown={(e) => e.target === e.currentTarget && onCerrar()}>
+    <div className="fondo">
       <form className="hoja" onSubmit={guardar}>
         <div className="hoja-cab">
           <h2>{evento ? 'Editar evento diocesano' : 'Nuevo evento diocesano'}</h2>

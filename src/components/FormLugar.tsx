@@ -83,7 +83,7 @@ export function FormLugar({ lugar, titulo, encabezado, otros, onGuardar, onCerra
   }
 
   return (
-    <div className="fondo" onMouseDown={(e) => e.target === e.currentTarget && onCerrar()}>
+    <div className="fondo">
       <form className="hoja" onSubmit={guardar}>
         <div className="hoja-cab">
           <h2>{titulo ?? (lugar ? 'Editar lugar' : 'Nuevo lugar')}</h2>

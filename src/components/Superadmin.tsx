@@ -12,14 +12,6 @@ import { Icono } from './Iconos';
 import { LugaresParroquias } from './LugaresParroquias';
 import { VolverAjustes } from './VolverAjustes';
 
-const ZONAS = [
-  'America/Mexico_City', 'America/Bogota', 'America/Lima', 'America/Caracas', 'America/Santiago',
-  'America/Argentina/Buenos_Aires', 'America/Montevideo', 'America/Asuncion', 'America/La_Paz', 'America/Guayaquil',
-  'America/Guatemala', 'America/El_Salvador', 'America/Tegucigalpa', 'America/Managua', 'America/Costa_Rica',
-  'America/Panama', 'America/Havana', 'America/Santo_Domingo', 'America/Puerto_Rico', 'America/New_York',
-  'America/Chicago', 'America/Denver', 'America/Los_Angeles', 'Europe/Madrid',
-];
-
 interface Creada {
   parroquia: string;
   nombre: string;
@@ -67,7 +59,7 @@ export function Superadmin(
   const [error, setError] = useState('');
   const [creada, setCreada] = useState<Creada | null>(null);
   const [nombre, setNombre] = useState('');
-  const [zona, setZona] = useState('America/Mexico_City');
+  const [lugar, setLugar] = useState('');
   const [email, setEmail] = useState('');
   const [nombreParroco, setNombreParroco] = useState('');
   const [vigenteNueva, setVigenteNueva] = useState('');
@@ -105,9 +97,10 @@ export function Superadmin(
     setError('');
     setTrabajando(true);
     try {
-      const r = await crearParroquia({ nombre, zona, email, nombreParroco, vigenteHasta: vigenteNueva, esObispo });
-      setCreada({ parroquia: r.parroquia_id, nombre: nombre.trim(), email: email.trim().toLowerCase(), codigo: r.codigo, obispo: esObispo });
+      const r = await crearParroquia({ nombre, lugar, email, nombreParroco, vigenteHasta: vigenteNueva, esObispo });
+      setCreada({ parroquia: r.parroquia_id, nombre: `${nombre.trim()}, ${lugar.trim()}`, email: email.trim().toLowerCase(), codigo: r.codigo, obispo: esObispo });
       setNombre('');
+      setLugar('');
       setEmail('');
       setNombreParroco('');
       setVigenteNueva('');
@@ -170,9 +163,8 @@ export function Superadmin(
         <h3 style={{ marginBottom: 4 }}>Nueva cuenta de parroquia u obispo</h3>
         <label htmlFor="pn" style={{ marginTop: 0 }}>Nombre de la parroquia (o del obispado)</label>
         <input id="pn" value={nombre} onChange={(e) => setNombre(e.target.value)} placeholder="Ej.: Parroquia San José" required />
-        <label htmlFor="pz">Zona horaria</label>
-        <input id="pz" list="zonas" value={zona} onChange={(e) => setZona(e.target.value)} required autoCapitalize="none" />
-        <datalist id="zonas">{ZONAS.map((z) => <option key={z} value={z} />)}</datalist>
+        <label htmlFor="pl">Lugar</label>
+        <input id="pl" value={lugar} onChange={(e) => setLugar(e.target.value)} placeholder="Ej.: Arroyo Hondo, Yumbo" required />
         <label htmlFor="pp">{esObispo ? 'Nombre del obispo' : 'Nombre del párroco'}</label>
         <input id="pp" value={nombreParroco} onChange={(e) => setNombreParroco(e.target.value)} placeholder="Ej.: Pbro. Juan Pérez" />
         <label htmlFor="pe">{esObispo ? 'Correo del obispo' : 'Correo del párroco'}</label>
@@ -220,11 +212,15 @@ export function Superadmin(
                 onBlur={(e) => e.target.value.trim() && e.target.value.trim() !== p.nombre &&
                   void accion(() => editarParroquia(p.id, { nombre: e.target.value.trim() }))}
               />
+              <input
+                defaultValue={p.lugar ?? ''} aria-label="Lugar de la parroquia" placeholder="Lugar"
+                onBlur={(e) => e.target.value.trim() !== (p.lugar ?? '') && void accion(() => editarParroquia(p.id, { lugar: e.target.value.trim() }))}
+              />
               {!p.activa && <span className="etq">Suspendida</span>}
               {p.activa && vig.vencida && <span className="etq conflicto">Vencida</span>}
             </div>
             <div className="ayuda">
-              {p.usuarios} usuario(s) activo(s){p.pendientes > 0 ? ` · ${p.pendientes} sin aprobar` : ''} · {p.zona_horaria}
+              {p.usuarios} usuario(s) activo(s){p.pendientes > 0 ? ` · ${p.pendientes} sin aprobar` : ''}
             </div>
             <div className="ayuda">
               Párroco: {p.parrocos.length ? p.parrocos.map((x) => `${x.nombre || x.email} (${x.email})${x.obispo ? ' · OBISPO' : ''}`).join(', ') : 'aún no se ha registrado'}
