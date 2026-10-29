@@ -160,6 +160,7 @@ export interface Evento {
   asignado_a: string | null;
   ministro_id: string | null; // celebrante sin cuenta (si no, asignado_a)
   secretaria_id?: string | null; // persona de la Secretaría que lo agendó (con su PIN)
+  editado_por_secretaria_id?: string | null; // persona de la Secretaría que lo editó por última vez (con su PIN)
   intencion: string | null;
   contacto_nombre: string | null;
   contacto_telefono: string | null;
@@ -307,6 +308,14 @@ export const llevaIntenciones = (e: Pick<Evento, 'tipo' | 'tipo_texto'>, tipos: 
   e.tipo === 'misa'
   || (e.tipo === 'otro' && !!e.tipo_texto
       && tipos.some((t) => t.lleva_intenciones && t.nombre.trim().toLowerCase() === e.tipo_texto!.trim().toLowerCase()));
+
+/** Quién hizo la última edición de un evento: la persona de la Secretaría (con su PIN) o la cuenta que lo editó. */
+export const nombreEditor = (
+  e: Pick<Evento, 'editado_por_secretaria_id' | 'modificado_por' | 'version'>, perfiles: Perfil[], secretarias: Secretaria[],
+) =>
+  e.version <= 1 ? null
+    : e.editado_por_secretaria_id ? secretarias.find((s) => s.id === e.editado_por_secretaria_id)?.nombre ?? null
+    : e.modificado_por ? nombrePerfil(perfiles.find((p) => p.id === e.modificado_por)) : null;
 
 /** Quién agendó un evento: la persona de la Secretaría (si la hubo) o la cuenta que lo creó. */
 export const nombreCreador = (e: Pick<Evento, 'secretaria_id' | 'creado_por'>, perfiles: Perfil[], secretarias: Secretaria[]) =>

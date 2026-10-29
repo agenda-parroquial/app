@@ -7,7 +7,7 @@ import { useLugares, useMinistros, useNombresTipos, usePerfiles, useSecretarias,
 import { cancelarEvento, crearEvento, editarEvento, eliminarEvento, guardarTipoEvento, reactivarEvento } from '../lib/store';
 import { buscarTraslapes } from '../lib/traslapes';
 import {
-  celebranteDeValor, esSacerdote, nombreCreador, nombrePerfil, nombreTipo, nombreTipoBase, TIPOS_EVENTO, valorCelebrante,
+  celebranteDeValor, esSacerdote, nombreCreador, nombreEditor, nombrePerfil, nombreTipo, nombreTipoBase, TIPOS_EVENTO, valorCelebrante,
   type DatosEvento, type Evento, type TipoEvento,
 } from '../types';
 import { Icono } from './Iconos';
@@ -40,10 +40,9 @@ export function EventoForm({ evento, fecha, onCerrar, onIntenciones, selector }:
   const nombresTipos = useNombresTipos(perfil?.parroquia_id);
   const { pedir, dialogo } = usePedirPin(perfil?.parroquia_id);
   const tiposTodos = useTiposEvento();
-  // La cuenta de Secretaría la usan varias personas: cada una se identifica con su PIN al agendar, editar o eliminar,
-  // y solo puede cambiar lo que agendó la Secretaría (no lo del párroco ni las misas fijas).
+  // La cuenta de Secretaría la usan varias personas: cada una se identifica con su PIN al agendar, editar, cancelar o
+  // eliminar, y el evento guarda quién lo creó y quién lo editó.
   const esSecretaria = perfil?.rol === 'secretaria';
-  const soloLectura = esSecretaria && !!evento && !evento.secretaria_id;
   const sacerdotes = useMemo(() => perfiles.filter((p) => p.activo && esSacerdote(p)), [perfiles]);
   // Los ministros sin cuenta que están disponibles (y el que ya tenga este evento, aunque ya no lo esté).
   const ministrosLista = useMemo(
@@ -114,13 +113,11 @@ export function EventoForm({ evento, fecha, onCerrar, onIntenciones, selector }:
   /** Si quien usa la app es la cuenta de Secretaría, pide el PIN y devuelve a la persona; el resto no necesita PIN. */
   async function identificar(texto: string): Promise<{ ok: boolean; secretariaId?: string }> {
     if (!esSecretaria) return { ok: true };
-    if (!evento && !secretarias.some((s) => s.activo)) {
+    if (!secretarias.some((s) => s.activo)) {
       setError('Todavía no hay personas de la Secretaría con PIN. El párroco las registra en Ajustes → Usuarios e invitaciones.');
       return { ok: false };
     }
-    const persona = await pedir({
-      texto, exigirId: evento?.secretaria_id ?? null, exigirNombre: evento ? nombreCreador(evento, perfiles, secretarias) : null,
-    });
+    const persona = await pedir({ texto });
     return persona ? { ok: true, secretariaId: persona.id } : { ok: false };
   }
 
@@ -131,7 +128,7 @@ export function EventoForm({ evento, fecha, onCerrar, onIntenciones, selector }:
     if (lugarSel === 'otro' && !lugarTexto.trim()) return setError('Escribe dónde será el evento.');
     if (tipoSel === 'otro' && !tipoTexto.trim()) return setError('Escribe el nombre del tipo de evento.');
     setError('');
-    const quien = await identificar(evento ? 'Escribe tu PIN para guardar los cambios.' : 'Escribe tu PIN para agendar este evento. Quedará a tu nombre.');
+    const quien = await identificar(evento ? 'Escribe tu PIN para guardar los cambios. Quedará anotado que los hiciste tú.' : 'Escribe tu PIN para agendar este evento. Quedará a tu nombre.');
     if (!quien.ok) return;
 
     // Tipo: de la lista, uno guardado, o uno escrito ahora (que se puede guardar para la próxima).
@@ -175,7 +172,9 @@ export function EventoForm({ evento, fecha, onCerrar, onIntenciones, selector }:
           .filter((k) => datos[k] !== (evento[k] ?? null))
           .map((k) => [k, datos[k]]),
       ) as Partial<DatosEvento>;
-      if (Object.keys(cambios).length) await editarEvento(evento.id, cambios);
+      if (Object.keys(cambios).length) {
+        await editarEvento(evento.id, { ...cambios, ...(quien.secretariaId ? { editado_por_secretaria_id: quien.secretariaId } : {}) });
+      }
     } else {
       await crearEvento(datos, quien.secretariaId);
     }
@@ -184,8 +183,9 @@ export function EventoForm({ evento, fecha, onCerrar, onIntenciones, selector }:
 
   async function cancelar() {
     if (!evento || !confirm('¿Cancelar este evento? Se avisará a los demás.')) return;
-    if (!(await identificar('Escribe tu PIN para cancelar este evento.')).ok) return;
-    await cancelarEvento(evento.id);
+    const quien = await identificar('Escribe tu PIN para cancelar este evento.');
+    if (!quien.ok) return;
+    await cancelarEvento(evento.id, quien.secretariaId);
     onCerrar();
   }
 
@@ -195,33 +195,34 @@ export function EventoForm({ evento, fecha, onCerrar, onIntenciones, selector }:
       ? '¿Eliminar este evento? Se borra de la agenda de toda la parroquia y no se puede deshacer.'
       : '¿Eliminar este evento? Se borra de la agenda de toda la parroquia, se avisará a los demás y no se puede deshacer. (Si solo no se va a realizar, mejor cancélalo.)';
     if (!confirm(aviso)) return;
-    if (!(await identificar('Escribe tu PIN para eliminar este evento.')).ok) return;
-    await eliminarEvento(evento.id);
+    const quien = await identificar('Escribe tu PIN para eliminar este evento.');
+    if (!quien.ok) return;
+    await eliminarEvento(evento.id, quien.secretariaId);
     onCerrar();
   }
 
   async function reactivar() {
     if (!evento) return;
-    if (!(await identificar('Escribe tu PIN para reactivar este evento.')).ok) return;
-    await reactivarEvento(evento.id);
+    const quien = await identificar('Escribe tu PIN para reactivar este evento.');
+    if (!quien.ok) return;
+    await reactivarEvento(evento.id, quien.secretariaId);
     onCerrar();
   }
 
   const cancelado = evento?.estado === 'cancelado';
-  // Una misa fija no se borra (el calendario la volvería a crear): se cancela. Lo demás lo borra el párroco, la
-  // Secretaría solo lo que agendó alguien de la Secretaría, y el vicario lo que creó (misma regla que en la base de datos).
+  // Una misa fija no se borra (el calendario la volvería a crear): se cancela. Lo demás lo borran el párroco y la
+  // Secretaría, y el vicario lo que creó (misma regla que en la base de datos).
   const puedeEliminar = !!evento && !evento.misa_fija_id && !!perfil
-    && (perfil.rol === 'parroco' || (perfil.rol === 'secretaria' && !!evento.secretaria_id)
-        || (perfil.rol === 'vicario' && evento.creado_por === perfil.id));
+    && (perfil.rol === 'parroco' || perfil.rol === 'secretaria' || (perfil.rol === 'vicario' && evento.creado_por === perfil.id));
   const creador = evento ? nombreCreador(evento, perfiles, secretarias) : null;
-  const editor = evento?.modificado_por ? nombrePerfil(perfiles.find((p) => p.id === evento.modificado_por)) : null;
+  const editor = evento ? nombreEditor(evento, perfiles, secretarias) : null;
 
   return (
     <>
     <div className="fondo" onMouseDown={(e) => e.target === e.currentTarget && onCerrar()}>
       <form className="hoja" onSubmit={guardar}>
         <div className="hoja-cab">
-          <h2>{evento ? (soloLectura ? 'Evento' : 'Editar evento') : 'Nuevo evento'}</h2>
+          <h2>{evento ? 'Editar evento' : 'Nuevo evento'}</h2>
           <button type="button" onClick={onCerrar} aria-label="Cerrar">×</button>
         </div>
 
@@ -233,18 +234,6 @@ export function EventoForm({ evento, fecha, onCerrar, onIntenciones, selector }:
           <div className="aviso">Es una misa fija. Los cambios aquí solo afectan a esta fecha.</div>
         )}
         {cancelado && <div className="aviso">Este evento está cancelado.</div>}
-        {soloLectura && (
-          <div className="aviso">
-            Este evento no lo agendó la Secretaría, así que solo se puede ver. Lo cambia, cancela o elimina el párroco.
-          </div>
-        )}
-        {soloLectura && onIntenciones && llevaInt && (
-          <button type="button" className="btn sec ancho" style={{ margin: '4px 0 8px' }} onClick={onIntenciones}>
-            <Icono n="cruz" size={17} />Agregar o editar intenciones
-          </button>
-        )}
-
-        <fieldset className="campos" disabled={soloLectura}>
         <div className="seccion-form">Qué</div>
         <label htmlFor="tipo" style={{ marginTop: 14 }}>Tipo</label>
         <select
@@ -335,7 +324,7 @@ export function EventoForm({ evento, fecha, onCerrar, onIntenciones, selector }:
           </p>
         ) : !evento ? (
           <p className="ayuda" style={{ marginBottom: 0 }}>Después de guardar podrás agregar las intenciones: difuntos, acción de gracias y salud.</p>
-        ) : soloLectura ? null : onIntenciones ? (
+        ) : onIntenciones ? (
           <button type="button" className="btn sec ancho" style={{ marginTop: 8 }} onClick={onIntenciones}>
             <Icono n="cruz" size={17} />Agregar o editar intenciones (difuntos, acción de gracias, salud)
           </button>
@@ -358,9 +347,8 @@ export function EventoForm({ evento, fecha, onCerrar, onIntenciones, selector }:
 
         <label htmlFor="notas">Notas</label>
         <textarea id="notas" value={notas} onChange={(e) => setNotas(e.target.value)} />
-        </fieldset>
 
-        {!soloLectura && choques.length > 0 && (
+        {choques.length > 0 && (
           <div className="aviso error">
             <b style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}><Icono n="alerta" size={17} />Se empalma con:</b>
             <ul>
@@ -374,13 +362,13 @@ export function EventoForm({ evento, fecha, onCerrar, onIntenciones, selector }:
         {error && <div className="aviso error">{error}</div>}
 
         <div className="acciones barra">
-          {!soloLectura && <button className="btn" type="submit">Guardar</button>}
+          <button className="btn" type="submit">Guardar</button>
           <button className="btn sec" type="button" onClick={onCerrar}>Cerrar</button>
         </div>
-        {evento && !cancelado && !soloLectura && (
+        {evento && !cancelado && (
           <div className="acciones"><button className="btn peligro" type="button" onClick={cancelar}>Cancelar este evento</button></div>
         )}
-        {evento && cancelado && !soloLectura && (
+        {evento && cancelado && (
           <div className="acciones"><button className="btn sec" type="button" onClick={reactivar}>Reactivar evento</button></div>
         )}
         {puedeEliminar && (
@@ -395,7 +383,7 @@ export function EventoForm({ evento, fecha, onCerrar, onIntenciones, selector }:
         {evento && (
           <p className="ayuda" style={{ marginBottom: 0 }}>
             {evento.misa_fija_id ? 'Misa fija: se agenda sola cada semana.' : creador ? `Creado por ${creador} · ${fechaHoraCorta(evento.created_at)}` : ''}
-            {editor && evento.version > 1 && !evento.secretaria_id ? <><br />Última edición: {editor} · {fechaHoraCorta(evento.updated_at)}</> : null}
+            {editor ? <><br />Última edición: {editor} · {fechaHoraCorta(evento.updated_at)}</> : null}
           </p>
         )}
       </form>

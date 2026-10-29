@@ -1,6 +1,6 @@
 import type { CSSProperties, ReactNode } from 'react';
 import { horaDe } from '../lib/fechas';
-import { nombreCelebrante, nombreCreador, nombreTipo, type Evento, type Lugar, type Ministro, type Perfil, type Secretaria } from '../types';
+import { nombreCelebrante, nombreCreador, nombreEditor, nombreTipo, type Evento, type Lugar, type Ministro, type Perfil, type Secretaria } from '../types';
 import { Icono } from './Iconos';
 
 interface Props {
@@ -36,6 +36,7 @@ export function TarjetaEvento({
 }: Props) {
   const celebrante = nombreCelebrante(e, perfiles, ministros);
   const creador = !e.misa_fija_id ? nombreCreador(e, perfiles, secretarias) : null;
+  const editor = nombreEditor(e, perfiles, secretarias);
   const tipo = nombreTipo(e, nombresTipos);
   const clases = ['tarjeta', e.misa_fija_id ? 'fija' : '', e.estado === 'en_conflicto' ? 'conflicto' : '', e.estado === 'cancelado' ? 'cancelado' : '']
     .filter(Boolean).join(' ');
@@ -72,6 +73,7 @@ export function TarjetaEvento({
           </div>
         )}
         {creador && <div className="meta"><Icono n="lapiz" size={15} />Creado por {creador}</div>}
+        {editor && <div className="meta"><Icono n="lapiz" size={15} />Editado por {editor}</div>}
         {hayEtiquetas && (
           <div className="etiquetas">
             {momento === 'ahora' && <span className="etq ahora">En curso</span>}

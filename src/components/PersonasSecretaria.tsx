@@ -74,7 +74,7 @@ function Formulario({ persona, parroquiaId, onCerrar }: { persona?: Secretaria; 
         )}
         <p className="ayuda">
           Cada persona tiene su propio PIN y no se pueden repetir. Quien lo escriba queda como la persona que agendó, editó o eliminó
-          el evento. El PIN sirve para saber quién hizo cada cosa, no es una contraseña de seguridad: pídeles que no lo compartan.
+          el evento: el evento muestra «Creado por…» y «Editado por…». El PIN sirve para saber quién hizo cada cosa, no es una contraseña de seguridad: pídeles que no lo compartan.
         </p>
         {error && <div className="aviso error">{error}</div>}
         {!enLinea && <div className="aviso">Para guardar necesitas internet.</div>}
@@ -89,7 +89,7 @@ function Formulario({ persona, parroquiaId, onCerrar }: { persona?: Secretaria; 
 
 /**
  * Las personas que usan la cuenta de Secretaría. Cada una tiene su PIN: al agendar un evento la app lo pide y el evento
- * queda a su nombre; solo ella (con su PIN) puede editarlo o eliminarlo después.
+ * queda a su nombre; quien lo edite después también firma con su PIN.
  */
 export function PersonasSecretaria({ perfil }: { perfil: Perfil }) {
   const secretarias = useSecretarias();
@@ -105,8 +105,8 @@ export function PersonasSecretaria({ perfil }: { perfil: Perfil }) {
         </button>
       </div>
       <p className="ayuda">
-        La cuenta con el rol <b>Secretaría</b> la comparten varias personas. Regístralas aquí, cada una con su PIN: al agendar un evento la
-        app pide el PIN y lo deja a su nombre, y la Secretaría solo puede editar o eliminar lo que agendó alguien de la Secretaría.
+        La cuenta con el rol <b>Secretaría</b> la comparten varias personas. Regístralas aquí, cada una con su PIN: al agendar, editar,
+        cancelar o eliminar un evento la app pide el PIN y lo deja a su nombre («Creado por…» y «Editado por…»).
       </p>
       {orden.length === 0 && (
         <div className="aviso">

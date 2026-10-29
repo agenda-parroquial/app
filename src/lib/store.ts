@@ -57,7 +57,10 @@ export async function crearEvento(datos: DatosEvento, secretariaId?: string): Pr
   return id;
 }
 
-export async function editarEvento(id: string, cambios: Partial<DatosEvento> & { estado?: Evento['estado'] }) {
+/** `editado_por_secretaria_id`: la persona de la Secretaría que edita (identificada con su PIN); solo lo usa esa cuenta. */
+export async function editarEvento(
+  id: string, cambios: Partial<DatosEvento> & { estado?: Evento['estado']; editado_por_secretaria_id?: string | null },
+) {
   await db.transaction('rw', db.eventos, db.outbox, async () => {
     const actual = await db.eventos.get(id);
     if (!actual) return;
@@ -71,7 +74,7 @@ export async function editarEvento(id: string, cambios: Partial<DatosEvento> & {
  * Eliminar = borrar el evento para toda la parroquia (a diferencia de cancelarlo, no queda registro).
  * Se quita de inmediato aquí y se envía en cuanto haya internet; los demás reciben un aviso.
  */
-export async function eliminarEvento(id: string) {
+export async function eliminarEvento(id: string, editor?: string) {
   await db.transaction('rw', [db.eventos, db.intenciones, db.conflictos, db.outbox], async () => {
     const actual = await db.eventos.get(id);
     const ops = await db.outbox.toArray();
@@ -84,14 +87,15 @@ export async function eliminarEvento(id: string) {
     // Si el evento nunca llegó al servidor, no hay nada que borrar allá.
     const nuncaSalio = !actual || actual.version === 0;
     if (!nuncaSalio) {
-      await db.outbox.add({ tabla: 'eventos', rowId: id, tipo: 'borrar', datos: {}, baseVersion: actual.version, estado: 'pendiente' });
+      await db.outbox.add({ tabla: 'eventos', rowId: id, tipo: 'borrar', datos: { ...firma(editor) }, baseVersion: actual.version, estado: 'pendiente' });
     }
   });
   void sincronizar();
 }
 
-export const cancelarEvento = (id: string) => editarEvento(id, { estado: 'cancelado' });
-export const reactivarEvento = (id: string) => editarEvento(id, { estado: 'confirmado' });
+const firma = (editor?: string) => (editor ? { editado_por_secretaria_id: editor } : {});
+export const cancelarEvento = (id: string, editor?: string) => editarEvento(id, { estado: 'cancelado', ...firma(editor) });
+export const reactivarEvento = (id: string, editor?: string) => editarEvento(id, { estado: 'confirmado', ...firma(editor) });
 
 // ---------- Lugares y misas fijas -------------------------------------
 async function guardarCatalogo<T extends { id: string }>(tabla: Tabla, datos: Partial<T>, id?: string) {

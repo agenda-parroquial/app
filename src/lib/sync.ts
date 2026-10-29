@@ -77,6 +77,12 @@ async function enviarOp(op: OpPendiente) {
   const seq = op.seq!;
 
   if (op.tipo === 'borrar') {
+    // La Secretaría firma el borrado con su PIN: se anota antes de eliminar para que el aviso diga quién fue.
+    const editor = op.datos.editado_por_secretaria_id as string | undefined;
+    if (editor) {
+      const { error: e0 } = await supabase.from(op.tabla).update({ editado_por_secretaria_id: editor }).eq('id', op.rowId);
+      if (e0) throw e0;
+    }
     const { data, error } = await supabase.from(op.tabla).delete().eq('id', op.rowId).select('id');
     if (error) throw error;
     if (!data.length) {
@@ -85,7 +91,7 @@ async function enviarOp(op: OpPendiente) {
       if (e2) throw e2;
       if (sigue) {
         await db.table(op.tabla).put(normalizar(op.tabla, sigue));
-        throw new Error('No tienes permiso para eliminar este evento: lo puede eliminar el párroco, o quien lo agendó (la Secretaría solo los suyos).');
+        throw new Error('No tienes permiso para eliminar este evento: lo pueden eliminar el párroco y la Secretaría, o quien lo creó.');
       }
     }
     await db.outbox.delete(seq);
