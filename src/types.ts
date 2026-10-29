@@ -102,8 +102,11 @@ export interface Lugar {
 /** Lugar de una parroquia tal como lo ve el superadmin (función `listar_lugares_parroquia`). */
 export type LugarAdmin = Pick<Lugar, 'id' | 'nombre' | 'tipo' | 'direccion' | 'lat' | 'lng' | 'activo'>;
 
+/** Un evento fijo (se llama «misa fija» por su origen): un horario que se repite, de cualquier tipo de evento. */
 export interface MisaFija {
   id: string;
+  tipo: TipoEvento; // 'misa' si no se dice otra cosa
+  tipo_texto: string | null; // nombre del tipo cuando tipo = 'otro' (p. ej. «Hora Santa»)
   dia_semana: number; // 0 = domingo
   hora: string; // 'HH:MM:SS'
   duracion_min: number;

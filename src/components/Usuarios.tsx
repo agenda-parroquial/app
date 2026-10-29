@@ -79,7 +79,7 @@ export function Usuarios({ perfil }: { perfil: Perfil }) {
       <VolverAjustes />
       <h2 style={{ marginBottom: 6 }}>Usuarios</h2>
       <p className="ayuda" style={{ marginTop: 0 }}>
-        El <b>párroco</b> puede todo; la <b>oficina</b> (secretaria o secretario) maneja la agenda, avisos, lugares y misas fijas (si la usan
+        El <b>párroco</b> puede todo; la <b>oficina</b> (secretaria o secretario) maneja la agenda, avisos, lugares y eventos fijos (si la usan
         varias personas, cada una se registra con su PIN: más abajo); el <b>vicario</b> ve toda la agenda y crea o edita eventos.
       </p>
       {!enLinea && <div className="aviso">Sin conexión: los cambios de usuarios requieren internet.</div>}

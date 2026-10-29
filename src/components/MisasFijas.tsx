@@ -2,11 +2,12 @@ import { useState, type FormEvent } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '../lib/db';
 import { deClave, diaBreve, hhmm, proximasFechas, proximoDia } from '../lib/fechas';
-import { useLugares, useMinistros, usePerfiles } from '../lib/hooks';
-import { guardarMisaFija } from '../lib/store';
+import { useIntencionesTipos, useLugares, useMinistros, useNombresTipos, usePerfiles, useTiposEvento } from '../lib/hooks';
+import { guardarMisaFija, guardarTipoEvento } from '../lib/store';
 import {
-  celebranteDeValor, DIAS, esSacerdote, nombreCelebrante, nombrePerfil, puedeEditarCatalogos, valorCelebrante,
-  type MisaFija, type Perfil,
+  baseLlevaIntenciones, celebranteDeValor, DIAS, esSacerdote, nombreCelebrante, nombrePerfil, nombreTipo, nombreTipoBase,
+  puedeEditarCatalogos, TIPOS_EVENTO, valorCelebrante,
+  type MisaFija, type Perfil, type TipoEvento,
 } from '../types';
 import { Icono } from './Iconos';
 import { VolverAjustes } from './VolverAjustes';
@@ -19,6 +20,7 @@ const FRECUENCIAS: Record<number, string> = {
   4: 'Cada 4 semanas',
 };
 const SIN_MISAS: MisaFija[] = [];
+const norm = (s: string) => s.trim().toLowerCase();
 
 /** Texto corto de la frecuencia para la lista: «Cada 2 semanas · próx. dom, 8 nov». */
 const textoFrecuencia = (m: MisaFija) => {
@@ -27,7 +29,23 @@ const textoFrecuencia = (m: MisaFija) => {
   return `Cada ${cada} semanas · próx. ${diaBreve(proximasFechas(m.desde, cada, 1)[0])}`;
 };
 
-function FormMisa({ misa, onCerrar }: { misa?: MisaFija; onCerrar: () => void }) {
+function FormMisa({ misa, parroquiaId, onCerrar }: { misa?: MisaFija; parroquiaId: string | null; onCerrar: () => void }) {
+  const tiposTodos = useTiposEvento();
+  const nombresTipos = useNombresTipos(parroquiaId);
+  const intencionesTipos = useIntencionesTipos(parroquiaId);
+  const tiposGuardados = tiposTodos.filter((t) => t.activo || (misa?.tipo === 'otro' && norm(t.nombre) === norm(misa.tipo_texto ?? '')))
+    .sort((a, b) => a.nombre.localeCompare(b.nombre, 'es'));
+  // El selector vale: un tipo de la lista ('misa'…), 'guardado:<id>' o 'otro' (escribirlo, p. ej. «Hora Santa»).
+  const [tipoSel, setTipoSel] = useState<string>(() => {
+    if (!misa || misa.tipo !== 'otro') return misa?.tipo ?? 'misa';
+    const g = tiposTodos.find((t) => norm(t.nombre) === norm(misa.tipo_texto ?? ''));
+    return g ? `guardado:${g.id}` : 'otro';
+  });
+  const [tipoTexto, setTipoTexto] = useState(misa?.tipo === 'otro' ? misa.tipo_texto ?? '' : '');
+  const [error, setError] = useState('');
+  const tipoGuardadoSel = tipoSel.startsWith('guardado:') ? tiposTodos.find((t) => t.id === tipoSel.slice(9)) : undefined;
+  const llevaInt = tipoSel.startsWith('guardado:') ? !!tipoGuardadoSel?.lleva_intenciones
+    : tipoSel === 'otro' ? false : baseLlevaIntenciones(tipoSel as TipoEvento, intencionesTipos);
   const lugares = useLugares().filter((l) => l.activo || l.id === misa?.lugar_id);
   const sacerdotes = usePerfiles().filter((p) => p.activo && esSacerdote(p));
   const ministros = useMinistros().filter((m) => m.activo || m.id === misa?.ministro_id);
@@ -53,10 +71,28 @@ function FormMisa({ misa, onCerrar }: { misa?: MisaFija; onCerrar: () => void })
 
   async function guardar(e: FormEvent) {
     e.preventDefault();
+    setError('');
+    let tipo: TipoEvento = 'misa';
+    let tipo_texto: string | null = null;
+    if (tipoSel.startsWith('guardado:')) {
+      tipo = 'otro';
+      tipo_texto = tipoGuardadoSel?.nombre ?? null;
+    } else if (tipoSel === 'otro') {
+      tipo_texto = tipoTexto.trim();
+      if (!tipo_texto) return setError('Escribe el nombre del tipo de evento.');
+      tipo = 'otro';
+      // Un tipo escrito aquí se guarda en «Tipos de evento» para poder usarlo también en la agenda.
+      const existente = tiposTodos.find((t) => norm(t.nombre) === norm(tipo_texto!));
+      if (!existente) await guardarTipoEvento({ nombre: tipo_texto, activo: true });
+      else if (!existente.activo) await guardarTipoEvento({ activo: true }, existente.id);
+    } else {
+      tipo = tipoSel as TipoEvento;
+    }
     await guardarMisaFija(
       {
+        tipo, tipo_texto,
         dia_semana: dia, hora, duracion_min: duracion, lugar_id: lugarId, ...celebranteDeValor(celebrante),
-        intencion: intencion.trim() || null, activo, cada_semanas: cada, desde: cada > 1 ? desde : null,
+        intencion: llevaInt ? intencion.trim() || null : null, activo, cada_semanas: cada, desde: cada > 1 ? desde : null,
       },
       misa?.id,
     );
@@ -67,9 +103,27 @@ function FormMisa({ misa, onCerrar }: { misa?: MisaFija; onCerrar: () => void })
     <div className="fondo">
       <form className="hoja" onSubmit={guardar}>
         <div className="hoja-cab">
-          <h2>{misa ? 'Editar misa fija' : 'Nueva misa fija'}</h2>
+          <h2>{misa ? 'Editar evento fijo' : 'Nuevo evento fijo'}</h2>
           <button type="button" onClick={onCerrar} aria-label="Cerrar">×</button>
         </div>
+        <label htmlFor="mt" style={{ marginTop: 6 }}>Tipo de evento</label>
+        <select id="mt" value={tipoSel} onChange={(e) => setTipoSel(e.target.value)}>
+          {(Object.keys(TIPOS_EVENTO) as TipoEvento[]).filter((k) => k !== 'otro').map((k) => (
+            <option key={k} value={k}>{nombreTipoBase(k, nombresTipos)}</option>
+          ))}
+          {tiposGuardados.length > 0 && (
+            <optgroup label="Tipos guardados">
+              {tiposGuardados.map((t) => <option key={t.id} value={`guardado:${t.id}`}>{t.nombre}</option>)}
+            </optgroup>
+          )}
+          <option value="otro">Otro (escribirlo)…</option>
+        </select>
+        {tipoSel === 'otro' && (
+          <input
+            style={{ marginTop: 8 }} value={tipoTexto} onChange={(e) => setTipoTexto(e.target.value)}
+            placeholder="Ej.: Hora Santa" maxLength={60} aria-label="Nombre del tipo de evento"
+          />
+        )}
         <label htmlFor="md">Día de la semana</label>
         <select id="md" value={dia} onChange={(e) => cambiarDia(Number(e.target.value))}>
           {DIAS.map((d, i) => <option key={d} value={i}>{d}</option>)}
@@ -134,8 +188,12 @@ function FormMisa({ misa, onCerrar }: { misa?: MisaFija; onCerrar: () => void })
             </optgroup>
           )}
         </select>
-        <label htmlFor="mi">Intención habitual (opcional)</label>
-        <input id="mi" value={intencion} onChange={(e) => setIntencion(e.target.value)} placeholder="Ej.: Por la comunidad" />
+        {llevaInt && (
+          <>
+            <label htmlFor="mi">Intención habitual (opcional)</label>
+            <input id="mi" value={intencion} onChange={(e) => setIntencion(e.target.value)} placeholder="Ej.: Por la comunidad" />
+          </>
+        )}
         {misa && (
           <label className="check">
             <input type="checkbox" checked={activo} onChange={(e) => setActivo(e.target.checked)} />
@@ -145,6 +203,7 @@ function FormMisa({ misa, onCerrar }: { misa?: MisaFija; onCerrar: () => void })
         <p className="ayuda">
           Al guardar se agenda sola en los próximos 90 días. Las fechas que ya se hayan modificado a mano no se tocan.
         </p>
+        {error && <div className="aviso error">{error}</div>}
         <div className="acciones barra">
           <button className="btn" type="submit">Guardar</button>
           <button className="btn sec" type="button" onClick={onCerrar}>Cancelar</button>
@@ -158,6 +217,7 @@ export function MisasFijas({ perfil }: { perfil: Perfil }) {
   const lugares = useLugares();
   const perfiles = usePerfiles();
   const ministros = useMinistros();
+  const nombresTipos = useNombresTipos(perfil.parroquia_id);
   const misas = useLiveQuery(() => db.misas_fijas.toArray(), [], SIN_MISAS);
   const [editando, setEditando] = useState<MisaFija | 'nueva' | null>(null);
   const puede = puedeEditarCatalogos(perfil.rol);
@@ -166,18 +226,18 @@ export function MisasFijas({ perfil }: { perfil: Perfil }) {
     <>
       <VolverAjustes />
       <div className="fila entre" style={{ marginBottom: 12 }}>
-        <h2>Misas fijas</h2>
+        <h2>Eventos fijos</h2>
         {puede && <button className="btn chico" onClick={() => setEditando('nueva')} disabled={!lugares.some((l) => l.activo)}><Icono n="mas" size={17} strokeWidth={2.4} />Agregar</button>}
       </div>
       <p className="ayuda" style={{ marginTop: 0 }}>
-        Los horarios de misa que se repiten cada semana. Aparecen solos en la agenda y avisan si algo se empalma con ellos.
+        Los horarios que se repiten: misas, hora santa, confesiones, reuniones… Cada uno es de un tipo de evento. Aparecen solos en la agenda y avisan si algo se empalma con ellos.
       </p>
       {puede && !lugares.some((l) => l.activo) && <div className="aviso">Primero agrega al menos un lugar.</div>}
       {misas.length === 0 && (
         <div className="vacio grande">
           <span className="vacio-ico"><Icono n="iglesia" size={26} /></span>
-          <b>Aún no hay misas fijas</b>
-          <span>Agrega los horarios de misa que se repiten y aparecerán solos en la agenda.</span>
+          <b>Aún no hay eventos fijos</b>
+          <span>Agrega los horarios que se repiten (misas, hora santa, confesiones…) y aparecerán solos en la agenda.</span>
         </div>
       )}
       {DIAS.map((nombre, d) => {
@@ -191,7 +251,7 @@ export function MisasFijas({ perfil }: { perfil: Perfil }) {
                 <div key={m.id} className={`item ${puede ? 'clic' : ''} ${m.activo ? '' : 'inactivo'}`} onClick={() => puede && setEditando(m)}>
                   <span className="ico oro"><Icono n="reloj" /></span>
                   <div>
-                    <b>{hhmm(m.hora)}</b> · {lugares.find((l) => l.id === m.lugar_id)?.nombre ?? '—'}{!m.activo && ' (inactiva)'}
+                    <b>{hhmm(m.hora)}</b> · {nombreTipo({ tipo: m.tipo ?? 'misa', tipo_texto: m.tipo_texto ?? null }, nombresTipos)} · {lugares.find((l) => l.id === m.lugar_id)?.nombre ?? '—'}{!m.activo && ' (inactivo)'}
                     <div className="ayuda">
                       {textoFrecuencia(m) && <b>{textoFrecuencia(m)} · </b>}
                       {m.duracion_min} min
@@ -205,7 +265,7 @@ export function MisasFijas({ perfil }: { perfil: Perfil }) {
           </section>
         );
       })}
-      {editando && <FormMisa misa={editando === 'nueva' ? undefined : editando} onCerrar={() => setEditando(null)} />}
+      {editando && <FormMisa misa={editando === 'nueva' ? undefined : editando} parroquiaId={perfil.parroquia_id} onCerrar={() => setEditando(null)} />}
     </>
   );
 }

@@ -104,7 +104,7 @@ export function Ajustes({ perfil }: { perfil: Perfil }) {
         <Fila href="#/lugares" icono="ubicacion" titulo="Lugares" texto="Templo, capillas y su mapa" />
         {puedeRegistrarPersonas(perfil.rol) && <Fila href="#/vicarios" icono="persona" titulo="Vicarios" texto="Sacerdotes que celebran contigo, con o sin cuenta" tono="oro" />}
         {puedeRegistrarPersonas(perfil.rol) && <Fila href="#/ministros" icono="personas" titulo="Ministros extraordinarios" texto="Quienes ayudan con la comunión (sin cuenta)" tono="dio" />}
-        <Fila href="#/misas" icono="iglesia" titulo="Misas fijas" texto="Horarios que se repiten (semanales o alternos)" tono="oro" />
+        <Fila href="#/misas" icono="iglesia" titulo="Eventos fijos" texto="Misas, hora santa, confesiones… que se repiten (semanales o alternos)" tono="oro" />
         {editaCatalogos && <Fila href="#/tipos" icono="paleta" titulo="Tipos de evento" texto="Corregir nombres, agregar tipos, color e intenciones" tono="ok" />}
         {perfil.rol === 'parroco' && <Fila href="#/usuarios" icono="personas" titulo="Usuarios e invitaciones" texto="Invitar personas, aprobar cuentas y asignar roles" tono="dio" />}
       </div></>}

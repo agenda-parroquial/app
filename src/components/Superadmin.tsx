@@ -334,7 +334,7 @@ export function Superadmin(
               <div className="zona-peligro">
                 <b>Eliminar {nombreParroquia(p)}</b>
                 <p className="ayuda" style={{ color: 'var(--alerta)', margin: '4px 0 8px' }}>
-                  Se borra para siempre, sin poder deshacerlo: {p.eventos ?? 0} evento(s), {p.lugares ?? 0} lugar(es), sus misas fijas, ministros, tipos,
+                  Se borra para siempre, sin poder deshacerlo: {p.eventos ?? 0} evento(s), {p.lugares ?? 0} lugar(es), sus eventos fijos, ministros, tipos,
                   avisos, invitaciones y las cuentas de sus {p.usuarios + p.pendientes} usuario(s). Los dispositivos con esa parroquia perderán el acceso.
                 </p>
                 <label htmlFor={`el-${p.id}`} style={{ marginTop: 0 }}>Para confirmar, escribe: <b>{nombreParroquia(p)}</b></label>

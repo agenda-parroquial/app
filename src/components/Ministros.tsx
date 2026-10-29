@@ -13,7 +13,7 @@ const TEXTOS: Record<TipoMinistro, { titulo: string; singular: string; vacio: st
     vacio: 'Aún no hay ministros extraordinarios',
     vacioTexto: 'Agrega a quienes ayudan con la comunión para poder asignarles eventos.',
     intro: 'Quienes ayudan con la comunión (ministros extraordinarios, no ordenados). No tienen cuenta ni usan la app: aquí los registras '
-      + 'y los eliges como celebrante al agendar un evento o una misa fija. La app avisa si les empalmas dos eventos a la misma hora.',
+      + 'y los eliges como celebrante al agendar un evento, también en los eventos fijos. La app avisa si les empalmas dos eventos a la misma hora.',
     ej: 'Ej.: Ana López',
   },
   vicario: {
@@ -94,7 +94,7 @@ function Vincular({ vicario, cuentas, onCerrar }: { vicario: Ministro; cuentas: 
           <button type="button" onClick={onCerrar} aria-label="Cerrar">×</button>
         </div>
         <p className="ayuda" style={{ marginTop: 0 }}>
-          Elige su cuenta. Sus eventos y misas fijas pasan a ella, y este registro deja de usarse para no verlo dos veces como celebrante.
+          Elige su cuenta. Sus eventos y eventos fijos pasan a ella, y este registro deja de usarse para no verlo dos veces como celebrante.
         </p>
         <label htmlFor="vc">Cuenta del vicario</label>
         <select id="vc" value={cuenta} onChange={(e) => setCuenta(e.target.value)} required>

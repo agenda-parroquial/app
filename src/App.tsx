@@ -58,7 +58,7 @@ function BannerActualizacion() {
 // (la ruta «avisos» es la de notificaciones; se conserva porque los avisos push ya enviados apuntan a ella)
 const TITULOS: Record<string, string> = {
   agenda: 'Agenda', conflictos: 'Conflictos', avisos: 'Notificaciones', parroquiales: 'Avisos',
-  ajustes: 'Ajustes', mas: 'Ajustes', lugares: 'Lugares', ministros: 'Ministros', vicarios: 'Vicarios', misas: 'Misas fijas', tipos: 'Tipos de evento', usuarios: 'Usuarios',
+  ajustes: 'Ajustes', mas: 'Ajustes', lugares: 'Lugares', ministros: 'Ministros', vicarios: 'Vicarios', misas: 'Eventos fijos', tipos: 'Tipos de evento', usuarios: 'Usuarios',
   superadmin: 'Administración',
 };
 

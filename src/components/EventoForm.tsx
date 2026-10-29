@@ -232,7 +232,7 @@ export function EventoForm({ evento, fecha, onCerrar, onIntenciones, selector }:
           <div className="aviso error">Este evento está en conflicto con otro. Revisa la pestaña Conflictos.</div>
         )}
         {evento?.misa_fija_id && (
-          <div className="aviso">Es una misa fija. Los cambios aquí solo afectan a esta fecha.</div>
+          <div className="aviso">Es un evento fijo. Los cambios aquí solo afectan a esta fecha.</div>
         )}
         {cancelado && <div className="aviso">Este evento está cancelado.</div>}
         <div className="seccion-form">Qué</div>
@@ -378,12 +378,12 @@ export function EventoForm({ evento, fecha, onCerrar, onIntenciones, selector }:
           </div>
         )}
         {evento?.misa_fija_id && (
-          <p className="ayuda" style={{ marginBottom: 0 }}>Una misa fija no se elimina: se cancela. Para quitarla de todas las semanas, desactívala en Ajustes → Misas fijas.</p>
+          <p className="ayuda" style={{ marginBottom: 0 }}>Un evento fijo no se elimina: se cancela. Para quitarlo de todas las semanas, desactívalo en Ajustes → Eventos fijos.</p>
         )}
 
         {evento && (
           <p className="ayuda" style={{ marginBottom: 0 }}>
-            {evento.misa_fija_id ? 'Misa fija: se agenda sola cada semana.' : creador ? `Creado por ${creador} · ${fechaHoraCorta(evento.created_at)}` : ''}
+            {evento.misa_fija_id ? 'Evento fijo: se agenda solo cada semana.' : creador ? `Creado por ${creador} · ${fechaHoraCorta(evento.created_at)}` : ''}
             {editor ? <><br />Última edición: {editor} · {fechaHoraCorta(evento.updated_at)}</> : null}
           </p>
         )}

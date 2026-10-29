@@ -80,7 +80,7 @@ export function TarjetaEvento({
             {momento === 'siguiente' && <span className="etq siguiente">Sigue</span>}
             {e.estado === 'en_conflicto' && <span className="etq conflicto">EN CONFLICTO</span>}
             {e.estado === 'cancelado' && <span className="etq cancelado">CANCELADO</span>}
-            {e.misa_fija_id && <span className="etq fija"><Icono n="repetir" size={11} strokeWidth={2.4} />Misa fija</span>}
+            {e.misa_fija_id && <span className="etq fija"><Icono n="repetir" size={11} strokeWidth={2.4} />Evento fijo</span>}
             {sinEnviar && <span className="etq pendiente">Sin enviar</span>}
           </div>
         )}
