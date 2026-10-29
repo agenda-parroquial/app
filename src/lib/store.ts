@@ -252,10 +252,10 @@ export async function listarParroquias(): Promise<ParroquiaAdmin[]> {
 
 /** Crea la parroquia y la invitación de su primer párroco; devuelve el código para dárselo. */
 export async function crearParroquia(
-  d: { nombre: string; lugar?: string; email: string; nombreParroco: string; vigenteHasta?: string; esObispo?: boolean },
+  d: { nombre: string; lugar: string; email: string; nombreParroco: string; vigenteHasta?: string; esObispo?: boolean },
 ) {
   const { data, error } = await supabase.rpc('crear_parroquia', {
-    p_nombre: d.nombre, p_lugar: d.lugar ?? '', p_email: d.email, p_nombre_parroco: d.nombreParroco,
+    p_nombre: d.nombre, p_lugar: d.lugar, p_email: d.email, p_nombre_parroco: d.nombreParroco,
     p_vigente_hasta: d.vigenteHasta || null, p_es_obispo: d.esObispo ?? false,
   });
   if (error) throw error;

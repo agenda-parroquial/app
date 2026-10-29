@@ -42,22 +42,29 @@ function sumarMeses(clave: string, meses: number) {
 
 export type Pestana = 'resumen' | 'parroquias' | 'lugares' | 'diocesanos';
 
-/** El nombre de la parroquia: se cambia aquí y se guarda con el botón «Guardar nombre». */
-function NombreParroquia({ p, enLinea, onGuardar }: { p: ParroquiaAdmin; enLinea: boolean; onGuardar: (nombre: string) => Promise<void> }) {
+/** El nombre de la parroquia y su lugar (solo para distinguirlas): se cambian aquí y se guardan con el botón «Guardar». */
+function NombreParroquia({ p, enLinea, onGuardar }: {
+  p: ParroquiaAdmin; enLinea: boolean; onGuardar: (cambios: { nombre: string; lugar: string }) => Promise<void>;
+}) {
   const [nombre, setNombre] = useState(p.nombre);
+  const [lugar, setLugar] = useState(p.lugar ?? '');
   const [guardando, setGuardando] = useState(false);
   useEffect(() => setNombre(p.nombre), [p.nombre]);
-  const cambio = nombre.trim() !== p.nombre && nombre.trim() !== '';
+  useEffect(() => setLugar(p.lugar ?? ''), [p.lugar]);
+  const cambio = nombre.trim() !== '' && (nombre.trim() !== p.nombre || lugar.trim() !== (p.lugar ?? ''));
   return (
-    <>
+    <div style={{ width: '100%' }}>
+      <label className="ayuda" style={{ margin: 0 }}>Nombre de la parroquia</label>
       <input value={nombre} onChange={(e) => setNombre(e.target.value)} aria-label="Nombre de la parroquia" maxLength={120} />
+      <label className="ayuda" style={{ margin: '8px 0 0' }}>Lugar (solo para distinguirla)</label>
+      <input value={lugar} onChange={(e) => setLugar(e.target.value)} aria-label="Lugar de la parroquia" maxLength={120} placeholder="Ej.: Arroyo Hondo" />
       {cambio && (
         <button
-          className="btn chico" disabled={!enLinea || guardando}
-          onClick={async () => { setGuardando(true); try { await onGuardar(nombre.trim()); } finally { setGuardando(false); } }}
-        >{guardando ? '…' : 'Guardar nombre'}</button>
+          className="btn chico" style={{ marginTop: 8 }} disabled={!enLinea || guardando}
+          onClick={async () => { setGuardando(true); try { await onGuardar({ nombre: nombre.trim(), lugar: lugar.trim() }); } finally { setGuardando(false); } }}
+        >{guardando ? 'Guardando…' : 'Guardar'}</button>
       )}
-    </>
+    </div>
   );
 }
 
@@ -73,6 +80,7 @@ export function Superadmin(
   const [error, setError] = useState('');
   const [creada, setCreada] = useState<Creada | null>(null);
   const [nombre, setNombre] = useState('');
+  const [lugar, setLugar] = useState('');
   const [email, setEmail] = useState('');
   const [nombreParroco, setNombreParroco] = useState('');
   const [vigenteNueva, setVigenteNueva] = useState('');
@@ -115,9 +123,10 @@ export function Superadmin(
     setError('');
     setTrabajando(true);
     try {
-      const r = await crearParroquia({ nombre, email, nombreParroco, vigenteHasta: vigenteNueva, esObispo });
+      const r = await crearParroquia({ nombre, lugar, email, nombreParroco, vigenteHasta: vigenteNueva, esObispo });
       setCreada({ parroquia: r.parroquia_id, nombre: nombre.trim(), email: email.trim().toLowerCase(), codigo: r.codigo, obispo: esObispo });
       setNombre('');
+      setLugar('');
       setEmail('');
       setNombreParroco('');
       setVigenteNueva('');
@@ -203,6 +212,9 @@ export function Superadmin(
         <input id="pn" value={nombre} onChange={(e) => setNombre(e.target.value)} placeholder="Ej.: Parroquia San José" required />
         <label htmlFor="pp">{esObispo ? 'Nombre del obispo' : 'Nombre del párroco'}</label>
         <input id="pp" value={nombreParroco} onChange={(e) => setNombreParroco(e.target.value)} placeholder="Ej.: Pbro. Juan Pérez" />
+        <label htmlFor="pl">Lugar</label>
+        <input id="pl" value={lugar} onChange={(e) => setLugar(e.target.value)} placeholder="Ej.: Arroyo Hondo, Yumbo" required />
+        <p className="ayuda" style={{ margin: '4px 0 0' }}>Solo sirve para distinguir parroquias con el mismo nombre; en la app se muestra únicamente el nombre.</p>
         <label htmlFor="pe">{esObispo ? 'Correo del obispo' : 'Correo del párroco'}</label>
         <input id="pe" type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="padre@correo.com" required autoCapitalize="none" />
         <label className="check">
@@ -240,7 +252,7 @@ export function Superadmin(
           return (
           <div key={p.id} className={`item cuenta ${estado}`} style={{ display: 'block', opacity: estado === 'suspendida' || estado === 'vencida' ? 0.85 : 1 }}>
             <div className="fila" style={{ flexWrap: 'nowrap', alignItems: 'center' }}>
-              <NombreParroquia p={p} enLinea={enLinea} onGuardar={(nombre) => accion(() => editarParroquia(p.id, { nombre }))} />
+              <NombreParroquia p={p} enLinea={enLinea} onGuardar={(cambios) => accion(() => editarParroquia(p.id, cambios))} />
             </div>
             <div className="fila" style={{ alignItems: 'center', gap: 8, marginTop: 6 }}>
               <span className={`etq-vig ${estado}`}>{ETIQUETA_ACCESO[estado]}</span>

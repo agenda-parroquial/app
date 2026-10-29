@@ -306,8 +306,8 @@ export const nombreTipoBase = (tipo: TipoEvento, nombres?: Record<string, string
 export const nombreTipo = (e: Pick<Evento, 'tipo' | 'tipo_texto'>, nombres?: Record<string, string>) =>
   e.tipo === 'otro' && e.tipo_texto?.trim() ? e.tipo_texto.trim() : nombreTipoBase(e.tipo, nombres);
 
-/** Nombre de la parroquia con su lugar: «Parroquia Cristo Rey, Arroyo Hondo». */
-export const nombreParroquia = (p: Pick<Parroquia, 'nombre' | 'lugar'>) => (p.lugar?.trim() ? `${p.nombre}, ${p.lugar.trim()}` : p.nombre);
+/** Cómo se muestra una parroquia: solo su nombre. El «lugar» solo sirve para distinguir parroquias con el mismo nombre en el panel del Creador. */
+export const nombreParroquia = (p: Pick<Parroquia, 'nombre'>) => p.nombre;
 
 /** ¿Un tipo de siempre lleva intenciones? Lo decide la parroquia; de origen solo la misa. */
 export const baseLlevaIntenciones = (tipo: TipoEvento, config?: Record<string, boolean>) => config?.[tipo] ?? tipo === 'misa';
