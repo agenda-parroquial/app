@@ -7,7 +7,7 @@ import { useIntencionesTipos, useLugares, useMinistros, useNombresTipos, usePerf
 import { cancelarEvento, crearEvento, editarEvento, eliminarEvento, guardarTipoEvento, reactivarEvento } from '../lib/store';
 import { buscarTraslapes } from '../lib/traslapes';
 import {
-  baseLlevaIntenciones, celebranteDeValor, esSacerdote, nombreCreador, nombreEditor, nombrePerfil, nombreTipo, nombreTipoBase, TIPOS_EVENTO, valorCelebrante,
+  baseLlevaIntenciones, celebranteDeValor, esSacerdote, nombreCelebrante, nombreCreador, nombreEditor, nombrePerfil, nombreTipo, nombreTipoBase, TIPOS_EVENTO, valorCelebrante,
   type DatosEvento, type Evento, type TipoEvento,
 } from '../types';
 import { Icono } from './Iconos';
@@ -37,6 +37,8 @@ export function EventoForm({ evento, fecha, onCerrar, onIntenciones, selector }:
   const ministros = useMinistros();
   const { perfil } = useAuth();
   const secretarias = useSecretarias();
+  // Si es una fecha de un evento fijo, su plantilla: de ahí sale el celebrante «de siempre».
+  const plantilla = useLiveQuery(() => (evento?.misa_fija_id ? db.misas_fijas.get(evento.misa_fija_id) : undefined), [evento?.misa_fija_id]);
   const nombresTipos = useNombresTipos(perfil?.parroquia_id);
   const { pedir, dialogo } = usePedirPin(perfil?.parroquia_id);
   const tiposTodos = useTiposEvento();
@@ -232,7 +234,10 @@ export function EventoForm({ evento, fecha, onCerrar, onIntenciones, selector }:
           <div className="aviso error">Este evento está en conflicto con otro. Revisa la pestaña Conflictos.</div>
         )}
         {evento?.misa_fija_id && (
-          <div className="aviso">Es un evento fijo. Los cambios aquí solo afectan a esta fecha.</div>
+          <div className="aviso">
+            Es un evento fijo. Lo que cambies aquí (el celebrante, la hora, el lugar…) vale <b>solo para esta fecha</b>; las demás siguen igual.
+            Para cambiarlo en todas, edítalo en Ajustes → Eventos fijos.
+          </div>
         )}
         {cancelado && <div className="aviso">Este evento está cancelado.</div>}
         <div className="seccion-form">Qué</div>
@@ -315,6 +320,12 @@ export function EventoForm({ evento, fecha, onCerrar, onIntenciones, selector }:
             </optgroup>
           )}
         </select>
+        {plantilla && (
+          <p className="ayuda" style={{ margin: '6px 0 0' }}>
+            Celebrante de siempre en este evento fijo: <b>{nombreCelebrante(plantilla, perfiles, ministros) ?? 'sin asignar'}</b>.
+            {celebrante !== valorCelebrante(plantilla) && ' Aquí lo estás cambiando solo para esta fecha.'}
+          </p>
+        )}
 
         <div className="seccion-form">Detalles</div>
         <label htmlFor="intencion" style={{ marginTop: 14 }}>Motivo (resumen corto)</label>
