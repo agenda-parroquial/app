@@ -1,15 +1,16 @@
 import { useCallback, useEffect, useState, type FormEvent } from 'react';
 import { compartir, conGuion, mensajeInvitacion } from '../lib/invitaciones';
 import {
-  cancelarInvitacionParroco, crearParroquia, editarParroquia, fijarVigencia, invitarParroco,
+  cancelarInvitacionParroco, crearParroquia, editarParroquia, eliminarParroquia, fijarVigencia, invitarParroco,
   listarParroquias,
 } from '../lib/store';
 import { esErrorDeRed, mensajeDeError, useEstadoSync } from '../lib/sync';
 import { claveDia, deClave, diaBreve } from '../lib/fechas';
-import { diasDeVigencia, type ParroquiaAdmin } from '../types';
+import { diasDeVigencia, nombreParroquia, type ParroquiaAdmin } from '../types';
 import { Diocesanos } from './Diocesanos';
 import { Icono } from './Iconos';
 import { LugaresParroquias } from './LugaresParroquias';
+import { ResumenCreador } from './ResumenCreador';
 import { VolverAjustes } from './VolverAjustes';
 
 interface Creada {
@@ -67,7 +68,9 @@ export function Superadmin(
   const [nuevaAbierta, setNuevaAbierta] = useState(false);
   const [esObispoInv, setEsObispoInv] = useState(false);
   const [fechaVig, setFechaVig] = useState<Record<string, string>>({});
-  const [pestana, setPestana] = useState<'parroquias' | 'lugares' | 'diocesanos'>('parroquias');
+  const [pestana, setPestana] = useState<'resumen' | 'parroquias' | 'lugares' | 'diocesanos'>('resumen');
+  const [eliminando, setEliminando] = useState<string | null>(null);
+  const [textoElimina, setTextoElimina] = useState('');
   const [trabajando, setTrabajando] = useState(false);
   const [invitando, setInvitando] = useState<string | null>(null);
   const [emailInv, setEmailInv] = useState('');
@@ -126,6 +129,27 @@ export function Superadmin(
     });
   }
 
+  /** Da más tiempo de acceso: desde el vencimiento actual, o desde hoy si ya venció o no tenía fecha. */
+  const extender = (p: ParroquiaAdmin, meses: number) => {
+    const hoyP = hoyEn(p.zona_horaria);
+    const base = p.vigente_hasta && p.vigente_hasta >= hoyP ? p.vigente_hasta : hoyP;
+    return accion(() => fijarVigencia(p.id, sumarMeses(base, meses)));
+  };
+
+  /** Del Resumen a la tarjeta de esa parroquia en la pestaña Parroquias. */
+  function verCuenta(p: ParroquiaAdmin) {
+    setPestana('parroquias');
+    setTimeout(() => document.getElementById(`parroquia-${p.id}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 60);
+  }
+
+  async function eliminar(p: ParroquiaAdmin) {
+    await accion(async () => {
+      await eliminarParroquia(p.id, textoElimina);
+      setEliminando(null);
+      setTextoElimina('');
+    });
+  }
+
   const mensajeParroco = (c: { nombre?: string; email: string; codigo: string; obispo?: boolean }, parroquia: string) =>
     mensajeInvitacion({ nombre: c.nombre ?? '', email: c.email, codigo: c.codigo, rol: 'parroco', obispo: c.obispo }, parroquia);
 
@@ -134,12 +158,18 @@ export function Superadmin(
       {!soloEsto && <VolverAjustes />}
       {soloDiocesanos && <><h2 style={{ marginBottom: 10 }}>Eventos diocesanos</h2><Diocesanos esAdmin={false} /></>}
       {!soloDiocesanos && !soloEsto && <h2 style={{ marginBottom: 10 }}>Administración</h2>}
-      {!soloDiocesanos && <div className="segmentos lleno" style={{ marginBottom: 14 }} role="tablist" aria-label="Secciones de administración">
+      {!soloDiocesanos && <div className="segmentos lleno compacto" style={{ marginBottom: 14 }} role="tablist" aria-label="Secciones de administración">
+        <button className={pestana === 'resumen' ? 'on' : ''} onClick={() => setPestana('resumen')}>Resumen</button>
         <button className={pestana === 'parroquias' ? 'on' : ''} onClick={() => setPestana('parroquias')}>Parroquias</button>
         <button className={pestana === 'lugares' ? 'on' : ''} onClick={() => setPestana('lugares')}>Lugares</button>
         <button className={pestana === 'diocesanos' ? 'on' : ''} onClick={() => setPestana('diocesanos')}>Diocesanos</button>
       </div>}
 
+      {!soloDiocesanos && pestana === 'resumen' && <>
+        {!enLinea && <div className="aviso">Sin conexión: este panel requiere internet.</div>}
+        {error && <div className="aviso error">{error}</div>}
+        <ResumenCreador parroquias={parroquias} enLinea={enLinea} onExtender={(p, m) => void extender(p, m)} onVer={verCuenta} />
+      </>}
       {!soloDiocesanos && pestana === 'diocesanos' && <Diocesanos esAdmin />}
       {!soloDiocesanos && pestana === 'lugares' && <LugaresParroquias />}
 
@@ -201,11 +231,8 @@ export function Superadmin(
       <div className="lista">
         {parroquias?.map((p) => {
           const vig = describirVigencia(p);
-          const hoyP = hoyEn(p.zona_horaria);
-          const base = p.vigente_hasta && p.vigente_hasta >= hoyP ? p.vigente_hasta : hoyP; // desde dónde se extiende
-          const extender = (meses: number) => accion(() => fijarVigencia(p.id, sumarMeses(base, meses)));
           return (
-          <div key={p.id} className="item" style={{ display: 'block', opacity: p.activa && !vig.vencida ? 1 : 0.7 }}>
+          <div key={p.id} id={`parroquia-${p.id}`} className="item" style={{ display: 'block', scrollMarginTop: 70, opacity: p.activa && !vig.vencida ? 1 : 0.7 }}>
             <div className="fila" style={{ flexWrap: 'nowrap', alignItems: 'center' }}>
               <input
                 defaultValue={p.nombre} aria-label="Nombre de la parroquia"
@@ -227,8 +254,8 @@ export function Superadmin(
             </div>
             <div className="ayuda" style={vig.vencida ? { color: 'var(--alerta)', fontWeight: 700 } : undefined}><Icono n="calendario" size={14} style={{ display: "inline", verticalAlign: "-2px", marginRight: 5 }} />{vig.texto}</div>
             <div className="fila" style={{ marginTop: 6, alignItems: 'center' }}>
-              <button className="btn sec chico" onClick={() => void extender(1)} disabled={!enLinea}>+1 mes</button>
-              <button className="btn sec chico" onClick={() => void extender(12)} disabled={!enLinea}>+1 año</button>
+              <button className="btn sec chico" onClick={() => void extender(p, 1)} disabled={!enLinea}>+1 mes</button>
+              <button className="btn sec chico" onClick={() => void extender(p, 12)} disabled={!enLinea}>+1 año</button>
               <input
                 type="date" aria-label="Fecha de vigencia" style={{ width: 'auto', minHeight: 36 }}
                 value={fechaVig[p.id] ?? ''} onChange={(e) => setFechaVig({ ...fechaVig, [p.id]: e.target.value })}
@@ -287,6 +314,30 @@ export function Superadmin(
                   <button className="btn chico" onClick={() => void accion(() => editarParroquia(p.id, { activa: true }))}>Reactivar</button>
                 )}
               </div>
+            )}
+
+            {eliminando === p.id ? (
+              <div className="zona-peligro">
+                <b>Eliminar {nombreParroquia(p)}</b>
+                <p className="ayuda" style={{ color: 'var(--alerta)', margin: '4px 0 8px' }}>
+                  Se borra para siempre, sin poder deshacerlo: {p.eventos ?? 0} evento(s), {p.lugares ?? 0} lugar(es), sus misas fijas, ministros, tipos,
+                  avisos, invitaciones y las cuentas de sus {p.usuarios + p.pendientes} usuario(s). Los dispositivos con esa parroquia perderán el acceso.
+                </p>
+                <label htmlFor={`el-${p.id}`} style={{ marginTop: 0 }}>Para confirmar, escribe: <b>{nombreParroquia(p)}</b></label>
+                <input id={`el-${p.id}`} value={textoElimina} onChange={(e) => setTextoElimina(e.target.value)} autoComplete="off" autoCapitalize="none" />
+                <div className="fila" style={{ marginTop: 8 }}>
+                  <button
+                    className="btn peligro chico" disabled={!enLinea || textoElimina.trim().toLowerCase() !== nombreParroquia(p).trim().toLowerCase()}
+                    onClick={() => void eliminar(p)}
+                  >Eliminar para siempre</button>
+                  <button className="btn sec chico" onClick={() => { setEliminando(null); setTextoElimina(''); }}>Cancelar</button>
+                </div>
+              </div>
+            ) : (
+              <button
+                className="enlace" style={{ marginTop: 10, padding: 0, color: 'var(--alerta)' }}
+                onClick={() => { setEliminando(p.id); setTextoElimina(''); }}
+              >Eliminar esta parroquia…</button>
             )}
           </div>
           );

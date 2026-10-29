@@ -262,6 +262,13 @@ export async function crearParroquia(
   return data as { parroquia_id: string; codigo: string };
 }
 
+/** Elimina una parroquia con todo lo suyo (eventos, lugares, cuentas…); hay que escribir su nombre completo. Requiere internet. */
+export async function eliminarParroquia(id: string, confirmacion: string) {
+  const { data, error } = await supabase.rpc('eliminar_parroquia', { p_id: id, p_confirmacion: confirmacion });
+  if (error) throw error;
+  return data as { eventos: number; usuarios: number; lugares: number };
+}
+
 /** El párroco invitado puede ser el obispo: además podrá publicar eventos diocesanos. */
 export async function invitarParroco(parroquia: string, email: string, nombre: string, esObispo = false) {
   const { data, error } = await supabase.rpc('invitar_parroco', {

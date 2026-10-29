@@ -520,3 +520,27 @@ input[type='date']::-webkit-date-and-time-value, input[type='time']::-webkit-dat
 .sr-solo { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 fieldset.campos { border: 0; padding: 0; margin: 0; min-width: 0; }
 fieldset.campos:disabled { opacity: .72; }
+
+/* ---------- Panel del Creador ---------- */
+.datos { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin-bottom: 6px; }
+.dato { background: #fff; border: 1px solid var(--linea); border-radius: var(--r); padding: 12px 14px; box-shadow: var(--sombra-1); display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+.dato b { font-family: var(--serif); font-size: 1.9rem; line-height: 1.1; color: var(--vino); font-variant-numeric: tabular-nums; }
+.dato span { font-weight: 700; font-size: .9rem; }
+.dato small { color: var(--gris); font-size: .78rem; }
+.dato.aviso { background: var(--aviso-fondo); border-color: #ecc786; }
+.dato.aviso b { color: var(--aviso); }
+.dato.alerta { background: var(--alerta-fondo); border-color: rgba(179, 38, 30, .22); }
+.dato.alerta b { color: var(--alerta); }
+.dato:first-child:nth-last-child(odd) { grid-column: 1 / -1; }
+.etq-vig { flex: none; font-size: .72rem; font-weight: 800; padding: 3px 9px; border-radius: 999px; background: var(--ok-fondo); color: var(--ok); }
+.etq-vig.por-vencer { background: var(--aviso-fondo); color: var(--aviso); }
+.etq-vig.vencida, .etq-vig.suspendida { background: var(--alerta-fondo); color: var(--alerta); }
+.etq-vig.sin-limite { background: var(--linea); color: var(--gris); }
+.medidor { height: 6px; border-radius: 999px; background: var(--linea); margin: 8px 0 6px; overflow: hidden; }
+.medidor > span { display: block; height: 100%; border-radius: 999px; background: var(--ok); }
+.item.cuenta.por-vencer .medidor > span { background: var(--oro-osc); }
+.item.cuenta.vencida .medidor > span, .item.cuenta.suspendida .medidor > span { background: var(--alerta); }
+.item.cuenta.sin-limite .medidor > span { background: var(--gris-claro); }
+.zona-peligro { margin-top: 10px; padding: 12px; border: 1px solid rgba(179, 38, 30, .28); background: var(--alerta-fondo); border-radius: var(--r-sm); }
+.segmentos.compacto { flex-wrap: nowrap; }
+.segmentos.compacto button { padding: 6px 4px; font-size: .88rem; min-width: 0; }

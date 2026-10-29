@@ -79,6 +79,9 @@ export interface EventoDiocesano {
 export interface ParroquiaAdmin extends Parroquia {
   usuarios: number;
   pendientes: number;
+  eventos?: number;
+  eventos_proximos?: number;
+  lugares?: number;
   parrocos: { nombre: string; email: string; obispo?: boolean }[];
   invitaciones: { id: string; email: string; nombre: string; codigo: string; obispo?: boolean }[];
 }
