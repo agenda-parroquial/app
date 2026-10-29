@@ -1,12 +1,12 @@
 import { useCallback, useEffect, useState, type FormEvent } from 'react';
 import { compartir, conGuion, mensajeInvitacion } from '../lib/invitaciones';
 import {
-  asignarmeComoParroco, cancelarInvitacionParroco, crearParroquia, editarParroquia, fijarVigencia, invitarParroco,
+  cancelarInvitacionParroco, crearParroquia, editarParroquia, fijarVigencia, invitarParroco,
   listarParroquias,
 } from '../lib/store';
 import { esErrorDeRed, mensajeDeError, useEstadoSync } from '../lib/sync';
 import { claveDia, deClave, diaBreve } from '../lib/fechas';
-import { diasDeVigencia, type ParroquiaAdmin, type Perfil } from '../types';
+import { diasDeVigencia, type ParroquiaAdmin } from '../types';
 import { Diocesanos } from './Diocesanos';
 import { Icono } from './Iconos';
 import { LugaresParroquias } from './LugaresParroquias';
@@ -52,7 +52,7 @@ function describirVigencia(p: ParroquiaAdmin) {
  * y suspender o reactivar parroquias. Solo gestiona accesos; no ve la agenda de nadie.
  */
 export function Superadmin(
-  { perfil, soloEsto = false, soloDiocesanos = false }: { perfil: Perfil | null; soloEsto?: boolean; soloDiocesanos?: boolean },
+  { soloEsto = false, soloDiocesanos = false }: { soloEsto?: boolean; soloDiocesanos?: boolean },
 ) {
   const { enLinea } = useEstadoSync();
   const [parroquias, setParroquias] = useState<ParroquiaAdmin[] | null>(null);
@@ -277,13 +277,6 @@ export function Superadmin(
                 <button className="btn sec chico" onClick={() => { setInvitando(p.id); setEmailInv(''); setNombreInv(''); setEsObispoInv(false); }}>
                   Invitar otro párroco u obispo
                 </button>
-                {perfil && perfil.parroquia_id === null && (
-                  <button
-                    className="btn sec chico"
-                    onClick={() => confirm(`¿Ser párroco de ${p.nombre} y usar su agenda con tu cuenta?`) &&
-                      void accion(async () => { await asignarmeComoParroco(p.id); location.reload(); })}
-                  >Usar mi cuenta aquí</button>
-                )}
                 {p.activa ? (
                   <button
                     className="btn peligro chico"

@@ -180,7 +180,7 @@ function Shell({ perfil, superadmin, diocesano, parroquia }: { perfil: Perfil; s
           : seccion === 'misas' ? <MisasFijas perfil={perfil} />
           : seccion === 'tipos' ? <TiposEvento perfil={perfil} />
           : seccion === 'usuarios' && perfil.rol === 'parroco' ? <Usuarios perfil={perfil} />
-          : seccion === 'superadmin' && diocesano ? <Superadmin perfil={perfil} soloDiocesanos={!superadmin} />
+          : seccion === 'superadmin' && diocesano ? <Superadmin soloDiocesanos={!superadmin} />
           : <Agenda ruta={ruta} perfil={perfil} />}
       </main>
 
@@ -233,7 +233,7 @@ function ShellCreador({ perfil, superadmin }: { perfil: Perfil; superadmin: bool
       </nav>
 
       <main>
-        {seccion === 'cuentas' && superadmin ? <Superadmin perfil={perfil} soloEsto />
+        {seccion === 'cuentas' && superadmin ? <Superadmin soloEsto />
           : seccion === 'ajustes' ? <Ajustes perfil={perfil} />
           : <Agenda ruta={ruta} perfil={perfil} soloDiocesana />}
       </main>

@@ -334,12 +334,6 @@ export async function fijarVigencia(id: string, hasta: string | null) {
   if (error) throw error;
 }
 
-/** Para un superadmin sin parroquia propia: pasar a ser párroco de una. */
-export async function asignarmeComoParroco(parroquia: string) {
-  const { error } = await supabase.rpc('asignarme_como_parroco', { p_parroquia: parroquia });
-  if (error) throw error;
-}
-
 // ---------- Colores de los tipos de evento (los comparte toda la parroquia; requieren internet) ----
 export async function guardarColores(parroquia: string, colores: Record<string, string>) {
   const { error } = await supabase.rpc('guardar_colores', { p_colores: colores });
