@@ -5,12 +5,13 @@ import {
   listarParroquias,
 } from '../lib/store';
 import { esErrorDeRed, mensajeDeError, useEstadoSync } from '../lib/sync';
-import { claveDia, deClave, diaBreve } from '../lib/fechas';
-import { diasDeVigencia, nombreParroquia, type ParroquiaAdmin } from '../types';
+import { claveDia, deClave } from '../lib/fechas';
+import { nombreParroquia, type ParroquiaAdmin } from '../types';
 import { Diocesanos } from './Diocesanos';
 import { Icono } from './Iconos';
 import { LugaresParroquias } from './LugaresParroquias';
 import { ResumenCreador } from './ResumenCreador';
+import { estadoDe, ETIQUETA_ACCESO, porcentajeTiempo, porUrgencia, textoTiempo } from '../lib/vigencia';
 import { VolverAjustes } from './VolverAjustes';
 
 interface Creada {
@@ -36,16 +37,6 @@ function sumarMeses(clave: string, meses: number) {
   const destino = new Date(d.getFullYear(), d.getMonth() + meses, 1);
   const ultimo = new Date(destino.getFullYear(), destino.getMonth() + 1, 0).getDate();
   return claveDia(new Date(destino.getFullYear(), destino.getMonth(), Math.min(d.getDate(), ultimo)));
-}
-
-/** Texto y estado de la vigencia de una parroquia. */
-function describirVigencia(p: ParroquiaAdmin) {
-  const dias = diasDeVigencia(p);
-  if (dias === null) return { texto: 'Sin límite de fecha', vencida: false };
-  const hasta = diaBreve(p.vigente_hasta!);
-  if (dias < 0) return { texto: `Vencida desde el ${hasta}`, vencida: true };
-  if (dias === 0) return { texto: `Vigente hasta hoy (${hasta})`, vencida: false };
-  return { texto: `Vigente hasta el ${hasta} · quedan ${dias} día${dias === 1 ? '' : 's'}`, vencida: false };
 }
 
 /**
@@ -136,12 +127,6 @@ export function Superadmin(
     return accion(() => fijarVigencia(p.id, sumarMeses(base, meses)));
   };
 
-  /** Del Resumen a la tarjeta de esa parroquia en la pestaña Parroquias. */
-  function verCuenta(p: ParroquiaAdmin) {
-    setPestana('parroquias');
-    setTimeout(() => document.getElementById(`parroquia-${p.id}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 60);
-  }
-
   async function eliminar(p: ParroquiaAdmin) {
     await accion(async () => {
       await eliminarParroquia(p.id, textoElimina);
@@ -168,7 +153,7 @@ export function Superadmin(
       {!soloDiocesanos && pestana === 'resumen' && <>
         {!enLinea && <div className="aviso">Sin conexión: este panel requiere internet.</div>}
         {error && <div className="aviso error">{error}</div>}
-        <ResumenCreador parroquias={parroquias} enLinea={enLinea} onExtender={(p, m) => void extender(p, m)} onVer={verCuenta} />
+        <ResumenCreador parroquias={parroquias} onVerParroquias={() => setPestana('parroquias')} />
       </>}
       {!soloDiocesanos && pestana === 'diocesanos' && <Diocesanos esAdmin />}
       {!soloDiocesanos && pestana === 'lugares' && <LugaresParroquias />}
@@ -176,7 +161,7 @@ export function Superadmin(
       {!soloDiocesanos && pestana === 'parroquias' && <>
       <p className="ayuda" style={{ marginTop: 0 }}>
         Aquí das acceso a cada párroco: creas su parroquia y le mandas un código de invitación. Cada párroco invita después a su
-        secretaria y a su vicario, y nadie ve la agenda de otra parroquia. Tú gestionas los accesos, no ves su agenda.
+        oficina y a su vicario, y nadie ve la agenda de otra parroquia. Tú gestionas los accesos, no ves su agenda.
         Con una fecha de vigencia, el acceso de la parroquia se desactiva solo al pasar esa fecha.
       </p>
       {!enLinea && <div className="aviso">Sin conexión: este panel requiere internet.</div>}
@@ -229,10 +214,10 @@ export function Superadmin(
       <h3 className="dia-titulo">Parroquias ({parroquias?.length ?? '…'})</h3>
       {parroquias?.length === 0 && <p className="vacio">Todavía no hay parroquias.</p>}
       <div className="lista">
-        {parroquias?.map((p) => {
-          const vig = describirVigencia(p);
+        {parroquias && [...parroquias].sort(porUrgencia).map((p) => {
+          const { estado, dias } = estadoDe(p);
           return (
-          <div key={p.id} id={`parroquia-${p.id}`} className="item" style={{ display: 'block', scrollMarginTop: 70, opacity: p.activa && !vig.vencida ? 1 : 0.7 }}>
+          <div key={p.id} className={`item cuenta ${estado}`} style={{ display: 'block', opacity: estado === 'suspendida' || estado === 'vencida' ? 0.85 : 1 }}>
             <div className="fila" style={{ flexWrap: 'nowrap', alignItems: 'center' }}>
               <input
                 defaultValue={p.nombre} aria-label="Nombre de la parroquia"
@@ -243,16 +228,20 @@ export function Superadmin(
                 defaultValue={p.lugar ?? ''} aria-label="Lugar de la parroquia" placeholder="Lugar"
                 onBlur={(e) => e.target.value.trim() !== (p.lugar ?? '') && void accion(() => editarParroquia(p.id, { lugar: e.target.value.trim() }))}
               />
-              {!p.activa && <span className="etq">Suspendida</span>}
-              {p.activa && vig.vencida && <span className="etq conflicto">Vencida</span>}
             </div>
+            <div className="fila" style={{ alignItems: 'center', gap: 8, marginTop: 6 }}>
+              <span className={`etq-vig ${estado}`}>{ETIQUETA_ACCESO[estado]}</span>
+              <span className="ayuda" style={{ flex: 1, minWidth: 0 }}>
+                <Icono n="calendario" size={14} style={{ display: 'inline', verticalAlign: '-2px', marginRight: 5 }} />{textoTiempo(p, estado, dias)}
+              </span>
+            </div>
+            <div className="medidor" aria-hidden><span style={{ width: `${porcentajeTiempo(dias)}%` }} /></div>
             <div className="ayuda">
-              {p.usuarios} usuario(s) activo(s){p.pendientes > 0 ? ` · ${p.pendientes} sin aprobar` : ''}
+              {p.usuarios} usuario(s) activo(s){p.pendientes > 0 ? ` · ${p.pendientes} sin aprobar` : ''} · {p.eventos_proximos ?? 0} evento(s) por venir
             </div>
             <div className="ayuda">
               Párroco: {p.parrocos.length ? p.parrocos.map((x) => `${x.nombre || x.email} (${x.email})${x.obispo ? ' · OBISPO' : ''}`).join(', ') : 'aún no se ha registrado'}
             </div>
-            <div className="ayuda" style={vig.vencida ? { color: 'var(--alerta)', fontWeight: 700 } : undefined}><Icono n="calendario" size={14} style={{ display: "inline", verticalAlign: "-2px", marginRight: 5 }} />{vig.texto}</div>
             <div className="fila" style={{ marginTop: 6, alignItems: 'center' }}>
               <button className="btn sec chico" onClick={() => void extender(p, 1)} disabled={!enLinea}>+1 mes</button>
               <button className="btn sec chico" onClick={() => void extender(p, 12)} disabled={!enLinea}>+1 año</button>

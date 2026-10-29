@@ -79,8 +79,8 @@ export function Usuarios({ perfil }: { perfil: Perfil }) {
       <VolverAjustes />
       <h2 style={{ marginBottom: 6 }}>Usuarios</h2>
       <p className="ayuda" style={{ marginTop: 0 }}>
-        El <b>párroco</b> puede todo; la <b>secretaria</b> maneja la agenda, avisos, lugares y misas fijas (la cuenta la comparten
-        varias personas, cada una con su PIN: más abajo); el <b>vicario</b> ve toda la agenda y crea o edita eventos.
+        El <b>párroco</b> puede todo; la <b>oficina</b> (secretaria o secretario) maneja la agenda, avisos, lugares y misas fijas (si la usan
+        varias personas, cada una se registra con su PIN: más abajo); el <b>vicario</b> ve toda la agenda y crea o edita eventos.
       </p>
       {!enLinea && <div className="aviso">Sin conexión: los cambios de usuarios requieren internet.</div>}
       {error && <div className="aviso error">{error}</div>}
@@ -101,8 +101,8 @@ export function Usuarios({ perfil }: { perfil: Perfil }) {
         </select>
         {rol === 'secretaria' && (
           <p className="ayuda" style={{ margin: '6px 0 0' }}>
-            Esta cuenta la usarán las personas de la Secretaría. Después de crearla, registra a cada una con su PIN en «Personas de la
-            Secretaría», más abajo.
+            Si la usará una sola persona no hace falta nada más: lo que agende quedará a nombre de la cuenta. Si la usarán varias,
+            regístralas con su PIN en «Personas de la Oficina», más abajo.
           </p>
         )}
         <button className="btn ancho" style={{ marginTop: 12 }} disabled={trabajando || !enLinea}>

@@ -91,7 +91,7 @@ async function enviarOp(op: OpPendiente) {
       if (e2) throw e2;
       if (sigue) {
         await db.table(op.tabla).put(normalizar(op.tabla, sigue));
-        throw new Error('No tienes permiso para eliminar este evento: lo pueden eliminar el párroco y la Secretaría, o quien lo creó.');
+        throw new Error('No tienes permiso para eliminar este evento: lo pueden eliminar el párroco y la Oficina, o quien lo creó.');
       }
     }
     await db.outbox.delete(seq);

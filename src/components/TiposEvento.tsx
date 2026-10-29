@@ -206,7 +206,7 @@ export function TiposEvento({ perfil }: { perfil: Perfil }) {
         Cada tipo puede tener un color, que se ve en el borde de sus tarjetas en la agenda. Toca un tipo para elegirlo y el lápiz para
         corregir su nombre. De origen solo la misa lleva intenciones, pero en el lápiz de cada tipo puedes marcar u ocultar eso. Los colores y los nombres son de toda la parroquia.
       </p>
-      {!puede && <div className="aviso">Solo el párroco y la secretaria pueden agregar tipos, cambiar colores y corregir nombres.</div>}
+      {!puede && <div className="aviso">Solo el párroco y la oficina pueden agregar tipos, cambiar colores y corregir nombres.</div>}
 
       {puede && (
         <form onSubmit={agregar} className="grupo">

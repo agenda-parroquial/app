@@ -112,13 +112,12 @@ export function EventoForm({ evento, fecha, onCerrar, onIntenciones, selector }:
   const llevaInt = tipoSel.startsWith('guardado:') ? !!tipoGuardadoSel?.lleva_intenciones
     : baseLlevaIntenciones(tipoSel as TipoEvento, intencionesTipos);
 
-  /** Si quien usa la app es la cuenta de Secretaría, pide el PIN y devuelve a la persona; el resto no necesita PIN. */
+  /**
+   * Si quien usa la app es la cuenta de Oficina y la parroquia registró personas, pide el PIN y devuelve a la persona.
+   * Sin personas registradas no hay PIN: firma la cuenta. El resto de las cuentas tampoco necesita PIN.
+   */
   async function identificar(texto: string): Promise<{ ok: boolean; secretariaId?: string }> {
-    if (!esSecretaria) return { ok: true };
-    if (!secretarias.some((s) => s.activo)) {
-      setError('Todavía no hay personas de la Secretaría con PIN. El párroco las registra en Ajustes → Usuarios e invitaciones.');
-      return { ok: false };
-    }
+    if (!esSecretaria || !secretarias.some((s) => s.activo)) return { ok: true };
     const persona = await pedir({ texto });
     return persona ? { ok: true, secretariaId: persona.id } : { ok: false };
   }
@@ -287,7 +286,7 @@ export function EventoForm({ evento, fecha, onCerrar, onIntenciones, selector }:
         <label htmlFor="lugar" style={{ marginTop: 14 }}>Lugar</label>
         <select id="lugar" value={lugarSel} onChange={(e) => setLugarSel(e.target.value)}>
           <option value="">— Elegir —</option>
-          {lugares.filter((l) => l.activo || l.id === evento?.lugar_id).map((l) => <option key={l.id} value={l.id}>{l.nombre}</option>)}
+          {[...lugares].sort((a, b) => Number(!!b.es_sede) - Number(!!a.es_sede)).filter((l) => l.activo || l.id === evento?.lugar_id).map((l) => <option key={l.id} value={l.id}>{l.nombre}</option>)}
           <option value="otro">Otro lugar (solo esta vez)…</option>
         </select>
         {lugarSel === 'otro' && (
@@ -332,7 +331,7 @@ export function EventoForm({ evento, fecha, onCerrar, onIntenciones, selector }:
           </button>
         ) : (
           <p className="ayuda" style={{ marginBottom: 0 }}>
-            Las intenciones las agrega la secretaria o quien celebra esta misa. Las puedes ver con el botón «Intenciones» de la tarjeta.
+            Las intenciones las agrega la oficina o quien celebra esta misa. Las puedes ver con el botón «Intenciones» de la tarjeta.
           </p>
         )}
 

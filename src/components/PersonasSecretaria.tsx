@@ -41,7 +41,7 @@ function Formulario({ persona, parroquiaId, onCerrar }: { persona?: Secretaria; 
     <div className="fondo">
       <form className="hoja" onSubmit={guardar} autoComplete="off">
         <div className="hoja-cab">
-          <h2>{persona ? 'Editar persona' : 'Agregar persona de la Secretaría'}</h2>
+          <h2>{persona ? 'Editar persona' : 'Agregar persona de la Oficina'}</h2>
           <button type="button" onClick={onCerrar} aria-label="Cerrar">×</button>
         </div>
         <label htmlFor="sn" style={{ marginTop: 6 }}>Nombre</label>
@@ -99,18 +99,19 @@ export function PersonasSecretaria({ perfil }: { perfil: Perfil }) {
   return (
     <>
       <div className="fila entre" style={{ marginTop: 18 }}>
-        <h3 className="dia-titulo" style={{ margin: 0, flex: 1 }}>Personas de la Secretaría</h3>
+        <h3 className="dia-titulo" style={{ margin: 0, flex: 1 }}>Personas de la Oficina</h3>
         <button className="btn chico" onClick={() => setEditando('nueva')} disabled={!perfil.parroquia_id}>
           <Icono n="mas" size={17} strokeWidth={2.4} />Agregar
         </button>
       </div>
       <p className="ayuda">
-        La cuenta con el rol <b>Secretaría</b> la comparten varias personas. Regístralas aquí, cada una con su PIN: al agendar, editar,
+        La cuenta con el rol <b>Oficina</b> (secretaria o secretario) puede usarla una sola persona o varias. Si no registras a nadie aquí,
+        no se pide PIN y lo que se haga queda a nombre de la cuenta. Si registras personas, cada una con su PIN: al agendar, editar,
         cancelar o eliminar un evento la app pide el PIN y lo deja a su nombre («Creado por…» y «Editado por…»).
       </p>
       {orden.length === 0 && (
         <div className="aviso">
-          Todavía no hay personas de la Secretaría. Sin ellas, la cuenta de Secretaría no puede agendar eventos.
+          Todavía no hay personas de la Oficina: la cuenta no pide PIN y todo queda a nombre de la cuenta.
         </div>
       )}
       <div className="lista">

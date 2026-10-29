@@ -59,7 +59,7 @@ export function Lugares({ perfil }: { perfil: Perfil }) {
           <div key={l.id} className={`item ${puede ? 'clic' : ''} ${l.activo ? '' : 'inactivo'}`} onClick={() => puede && setEditando(l)}>
             <span className="ico"><Icono n={l.tipo === 'templo' || l.tipo === 'capilla' ? 'iglesia' : 'ubicacion'} /></span>
             <div>
-              <b>{l.nombre}</b>{!l.activo && ' (sin uso)'}
+              <b>{l.nombre}</b>{l.es_sede && ' · sede'}{!l.activo && ' (sin uso)'}
               <div className="ayuda">{TIPOS_LUGAR[l.tipo]}{l.direccion ? ` · ${l.direccion}` : ''}{l.lat != null ? ' · en el mapa' : ''}</div>
             </div>
             {puede && (

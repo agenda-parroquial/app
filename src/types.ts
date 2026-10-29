@@ -94,6 +94,7 @@ export interface Lugar {
   lat: number | null;
   lng: number | null;
   activo: boolean;
+  es_sede?: boolean; // el lugar con el nombre de la propia parroquia (lo crea el sistema)
   created_at: string;
   updated_at: string;
 }
@@ -264,7 +265,7 @@ export const TIPOS_INTENCION: Record<TipoIntencion, { titulo: string; icono: str
 export const ROLES: Record<Rol, string> = {
   parroco: 'Párroco',
   vicario: 'Vicario',
-  secretaria: 'Secretaria',
+  secretaria: 'Oficina',
 };
 
 export const TIPOS_MINISTRO: Record<TipoMinistro, string> = {
