@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState, type FormEvent } from 'react';
+import { ir } from '../lib/hooks';
 import { compartir, conGuion, mensajeInvitacion } from '../lib/invitaciones';
 import {
   cancelarInvitacionParroco, crearParroquia, editarParroquia, eliminarParroquia, fijarVigencia, invitarParroco,
@@ -39,19 +40,39 @@ function sumarMeses(clave: string, meses: number) {
   return claveDia(new Date(destino.getFullYear(), destino.getMonth(), Math.min(d.getDate(), ultimo)));
 }
 
+export type Pestana = 'resumen' | 'parroquias' | 'lugares' | 'diocesanos';
+
+/** El nombre de la parroquia: se cambia aquí y se guarda con el botón «Guardar nombre». */
+function NombreParroquia({ p, enLinea, onGuardar }: { p: ParroquiaAdmin; enLinea: boolean; onGuardar: (nombre: string) => Promise<void> }) {
+  const [nombre, setNombre] = useState(p.nombre);
+  const [guardando, setGuardando] = useState(false);
+  useEffect(() => setNombre(p.nombre), [p.nombre]);
+  const cambio = nombre.trim() !== p.nombre && nombre.trim() !== '';
+  return (
+    <>
+      <input value={nombre} onChange={(e) => setNombre(e.target.value)} aria-label="Nombre de la parroquia" maxLength={120} />
+      {cambio && (
+        <button
+          className="btn chico" disabled={!enLinea || guardando}
+          onClick={async () => { setGuardando(true); try { await onGuardar(nombre.trim()); } finally { setGuardando(false); } }}
+        >{guardando ? '…' : 'Guardar nombre'}</button>
+      )}
+    </>
+  );
+}
+
 /**
  * Panel del superadmin: crear parroquias, darle acceso a su párroco con una invitación
  * y suspender o reactivar parroquias. Solo gestiona accesos; no ve la agenda de nadie.
  */
 export function Superadmin(
-  { soloEsto = false, soloDiocesanos = false }: { soloEsto?: boolean; soloDiocesanos?: boolean },
+  { soloEsto = false, soloDiocesanos = false, seccion }: { soloEsto?: boolean; soloDiocesanos?: boolean; seccion?: Pestana },
 ) {
   const { enLinea } = useEstadoSync();
   const [parroquias, setParroquias] = useState<ParroquiaAdmin[] | null>(null);
   const [error, setError] = useState('');
   const [creada, setCreada] = useState<Creada | null>(null);
   const [nombre, setNombre] = useState('');
-  const [lugar, setLugar] = useState('');
   const [email, setEmail] = useState('');
   const [nombreParroco, setNombreParroco] = useState('');
   const [vigenteNueva, setVigenteNueva] = useState('');
@@ -59,7 +80,10 @@ export function Superadmin(
   const [nuevaAbierta, setNuevaAbierta] = useState(false);
   const [esObispoInv, setEsObispoInv] = useState(false);
   const [fechaVig, setFechaVig] = useState<Record<string, string>>({});
-  const [pestana, setPestana] = useState<'resumen' | 'parroquias' | 'lugares' | 'diocesanos'>('resumen');
+  const [pestanaInterna, setPestanaInterna] = useState<Pestana>('resumen');
+  // Con `seccion` (la interfaz del Creador) la sección la manda el menú; sin ella, las pestañas de arriba.
+  const pestana = seccion ?? pestanaInterna;
+  const irA = (p: Pestana) => (seccion ? ir(p === 'resumen' ? 'cuentas' : p) : setPestanaInterna(p));
   const [eliminando, setEliminando] = useState<string | null>(null);
   const [textoElimina, setTextoElimina] = useState('');
   const [trabajando, setTrabajando] = useState(false);
@@ -91,10 +115,9 @@ export function Superadmin(
     setError('');
     setTrabajando(true);
     try {
-      const r = await crearParroquia({ nombre, lugar, email, nombreParroco, vigenteHasta: vigenteNueva, esObispo });
-      setCreada({ parroquia: r.parroquia_id, nombre: `${nombre.trim()}, ${lugar.trim()}`, email: email.trim().toLowerCase(), codigo: r.codigo, obispo: esObispo });
+      const r = await crearParroquia({ nombre, email, nombreParroco, vigenteHasta: vigenteNueva, esObispo });
+      setCreada({ parroquia: r.parroquia_id, nombre: nombre.trim(), email: email.trim().toLowerCase(), codigo: r.codigo, obispo: esObispo });
       setNombre('');
-      setLugar('');
       setEmail('');
       setNombreParroco('');
       setVigenteNueva('');
@@ -143,17 +166,17 @@ export function Superadmin(
       {!soloEsto && <VolverAjustes />}
       {soloDiocesanos && <><h2 style={{ marginBottom: 10 }}>Eventos diocesanos</h2><Diocesanos esAdmin={false} /></>}
       {!soloDiocesanos && !soloEsto && <h2 style={{ marginBottom: 10 }}>Administración</h2>}
-      {!soloDiocesanos && <div className="segmentos lleno compacto" style={{ marginBottom: 14 }} role="tablist" aria-label="Secciones de administración">
-        <button className={pestana === 'resumen' ? 'on' : ''} onClick={() => setPestana('resumen')}>Resumen</button>
-        <button className={pestana === 'parroquias' ? 'on' : ''} onClick={() => setPestana('parroquias')}>Parroquias</button>
-        <button className={pestana === 'lugares' ? 'on' : ''} onClick={() => setPestana('lugares')}>Lugares</button>
-        <button className={pestana === 'diocesanos' ? 'on' : ''} onClick={() => setPestana('diocesanos')}>Diocesanos</button>
+      {!soloDiocesanos && !seccion && <div className="segmentos lleno compacto" style={{ marginBottom: 14 }} role="tablist" aria-label="Secciones de administración">
+        <button className={pestana === 'resumen' ? 'on' : ''} onClick={() => irA('resumen')}>Resumen</button>
+        <button className={pestana === 'parroquias' ? 'on' : ''} onClick={() => irA('parroquias')}>Parroquias</button>
+        <button className={pestana === 'lugares' ? 'on' : ''} onClick={() => irA('lugares')}>Lugares</button>
+        <button className={pestana === 'diocesanos' ? 'on' : ''} onClick={() => irA('diocesanos')}>Diocesanos</button>
       </div>}
 
       {!soloDiocesanos && pestana === 'resumen' && <>
         {!enLinea && <div className="aviso">Sin conexión: este panel requiere internet.</div>}
         {error && <div className="aviso error">{error}</div>}
-        <ResumenCreador parroquias={parroquias} onVerParroquias={() => setPestana('parroquias')} />
+        <ResumenCreador parroquias={parroquias} onVerParroquias={() => irA('parroquias')} />
       </>}
       {!soloDiocesanos && pestana === 'diocesanos' && <Diocesanos esAdmin />}
       {!soloDiocesanos && pestana === 'lugares' && <LugaresParroquias />}
@@ -178,8 +201,6 @@ export function Superadmin(
         <h3 style={{ marginBottom: 4 }}>Nueva cuenta de parroquia u obispo</h3>
         <label htmlFor="pn" style={{ marginTop: 0 }}>Nombre de la parroquia (o del obispado)</label>
         <input id="pn" value={nombre} onChange={(e) => setNombre(e.target.value)} placeholder="Ej.: Parroquia San José" required />
-        <label htmlFor="pl">Lugar</label>
-        <input id="pl" value={lugar} onChange={(e) => setLugar(e.target.value)} placeholder="Ej.: Arroyo Hondo, Yumbo" required />
         <label htmlFor="pp">{esObispo ? 'Nombre del obispo' : 'Nombre del párroco'}</label>
         <input id="pp" value={nombreParroco} onChange={(e) => setNombreParroco(e.target.value)} placeholder="Ej.: Pbro. Juan Pérez" />
         <label htmlFor="pe">{esObispo ? 'Correo del obispo' : 'Correo del párroco'}</label>
@@ -219,15 +240,7 @@ export function Superadmin(
           return (
           <div key={p.id} className={`item cuenta ${estado}`} style={{ display: 'block', opacity: estado === 'suspendida' || estado === 'vencida' ? 0.85 : 1 }}>
             <div className="fila" style={{ flexWrap: 'nowrap', alignItems: 'center' }}>
-              <input
-                defaultValue={p.nombre} aria-label="Nombre de la parroquia"
-                onBlur={(e) => e.target.value.trim() && e.target.value.trim() !== p.nombre &&
-                  void accion(() => editarParroquia(p.id, { nombre: e.target.value.trim() }))}
-              />
-              <input
-                defaultValue={p.lugar ?? ''} aria-label="Lugar de la parroquia" placeholder="Lugar"
-                onBlur={(e) => e.target.value.trim() !== (p.lugar ?? '') && void accion(() => editarParroquia(p.id, { lugar: e.target.value.trim() }))}
-              />
+              <NombreParroquia p={p} enLinea={enLinea} onGuardar={(nombre) => accion(() => editarParroquia(p.id, { nombre }))} />
             </div>
             <div className="fila" style={{ alignItems: 'center', gap: 8, marginTop: 6 }}>
               <span className={`etq-vig ${estado}`}>{ETIQUETA_ACCESO[estado]}</span>

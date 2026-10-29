@@ -13,7 +13,7 @@ import { Agenda } from './components/Agenda';
 import { Ajustes } from './components/Ajustes';
 import { Conflictos } from './components/Conflictos';
 import { EstadoSync } from './components/EstadoSync';
-import { Icono } from './components/Iconos';
+import { Icono, type NombreIcono } from './components/Iconos';
 import { Login } from './components/Login';
 import { Lugares } from './components/Lugares';
 import { MisasFijas } from './components/MisasFijas';
@@ -193,10 +193,20 @@ function Shell({ perfil, superadmin, diocesano, parroquia }: { perfil: Perfil; s
   );
 }
 
+/** Las seis pantallas del Creador: la ruta de cada una, su nombre y su icono (se eligen desde la flecha de abajo). */
+const SECCIONES_CREADOR: { ruta: string; titulo: string; icono: NombreIcono }[] = [
+  { ruta: 'cuentas', titulo: 'Resumen', icono: 'escudo' },
+  { ruta: 'agenda', titulo: 'Agenda', icono: 'calendario' },
+  { ruta: 'ajustes', titulo: 'Ajustes', icono: 'ajustes' },
+  { ruta: 'parroquias', titulo: 'Parroquias', icono: 'iglesia' },
+  { ruta: 'lugares', titulo: 'Lugares', icono: 'ubicacion' },
+  { ruta: 'diocesanos', titulo: 'Diocesanos', icono: 'diocesis' },
+];
+
 /**
- * Interfaz del Creador: la cuenta que administra la app y no es de ninguna parroquia. Su pantalla principal son las
- * cuentas (parroquias, párrocos y obispo); además tiene la agenda diocesana (solo eventos diocesanos) y sus ajustes.
- * Un obispo sin parroquia ve solo la agenda diocesana y sus ajustes.
+ * Interfaz del Creador: la cuenta que administra la app y no es de ninguna parroquia. Abre en el Resumen (indicadores) y
+ * abajo solo lleva una flecha que despliega las seis pantallas: Resumen, Agenda (solo eventos diocesanos), Ajustes,
+ * Parroquias, Lugares y Diocesanos. Un obispo sin parroquia ve solo la agenda diocesana y sus ajustes.
  */
 function ShellCreador({ perfil, superadmin }: { perfil: Perfil; superadmin: boolean }) {
   const ruta = useRuta();
@@ -204,10 +214,15 @@ function ShellCreador({ perfil, superadmin }: { perfil: Perfil; superadmin: bool
   useEffect(() => iniciarSync(perfil.id, () => {}), [perfil.id]);
   // Sin ruta (o con una de otra interfaz) se abre la pantalla principal del creador.
   useEffect(() => {
-    if (!/^#\/(cuentas|agenda|ajustes)/.test(location.hash)) ir(superadmin ? 'cuentas' : 'agenda');
+    const validas = superadmin ? SECCIONES_CREADOR.map((s) => s.ruta).join('|') : 'agenda|ajustes';
+    if (!new RegExp(`^#/(${validas})`).test(location.hash)) ir(superadmin ? 'cuentas' : 'agenda');
   }, [superadmin]);
+  const [menu, setMenu] = useState(false);
+  useEffect(() => setMenu(false), [seccion]);
 
-  const titulo = seccion === 'cuentas' && superadmin ? 'Cuentas' : seccion === 'ajustes' ? 'Ajustes' : 'Agenda diocesana';
+  const actual = SECCIONES_CREADOR.find((s) => s.ruta === seccion);
+  const titulo = !superadmin ? (seccion === 'ajustes' ? 'Ajustes' : 'Agenda diocesana')
+    : seccion === 'agenda' ? 'Agenda diocesana' : (actual?.titulo ?? 'Resumen');
   return (
     <div className="app">
       <header className="top">
@@ -218,22 +233,44 @@ function ShellCreador({ perfil, superadmin }: { perfil: Perfil; superadmin: bool
         <EstadoSync />
       </header>
 
-      <nav className="tabs" aria-label="Secciones">
-        {superadmin && (
-          <a href="#/cuentas" className={seccion === 'cuentas' ? 'activa' : ''}>
-            <span className="pastilla"><Icono n="escudo" size={22} /></span>Cuentas
+      {superadmin ? (
+        <nav className="tabs una" aria-label="Menú">
+          <button className="menu-flecha" onClick={() => setMenu(true)} aria-label="Abrir el menú" aria-expanded={menu}>
+            <Icono n="arriba" size={28} strokeWidth={2.4} />
+          </button>
+        </nav>
+      ) : (
+        <nav className="tabs" aria-label="Secciones">
+          <a href="#/agenda" className={seccion === 'agenda' ? 'activa' : ''}>
+            <span className="pastilla"><Icono n="calendario" size={22} /></span>Agenda
           </a>
-        )}
-        <a href="#/agenda" className={seccion === 'agenda' ? 'activa' : ''}>
-          <span className="pastilla"><Icono n="calendario" size={22} /></span>Agenda
-        </a>
-        <a href="#/ajustes" className={seccion === 'ajustes' ? 'activa' : ''}>
-          <span className="pastilla"><Icono n="ajustes" size={22} /></span>Ajustes
-        </a>
-      </nav>
+          <a href="#/ajustes" className={seccion === 'ajustes' ? 'activa' : ''}>
+            <span className="pastilla"><Icono n="ajustes" size={22} /></span>Ajustes
+          </a>
+        </nav>
+      )}
+
+      {menu && (
+        <div className="fondo" onMouseDown={(e) => e.target === e.currentTarget && setMenu(false)}>
+          <div className="hoja" role="dialog" aria-label="Menú del Creador">
+            <div className="hoja-cab">
+              <h2>Ir a…</h2>
+              <button type="button" onClick={() => setMenu(false)} aria-label="Cerrar el menú">×</button>
+            </div>
+            <div className="menu-creador">
+              {SECCIONES_CREADOR.map((s) => (
+                <a key={s.ruta} href={`#/${s.ruta}`} className={s.ruta === seccion ? 'activa' : ''} onClick={() => setMenu(false)}>
+                  <span className="pastilla"><Icono n={s.icono} size={24} /></span>{s.titulo}
+                </a>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
 
       <main>
-        {seccion === 'cuentas' && superadmin ? <Superadmin soloEsto />
+        {superadmin && seccion === 'cuentas' ? <Superadmin soloEsto seccion="resumen" />
+          : superadmin && (seccion === 'parroquias' || seccion === 'lugares' || seccion === 'diocesanos') ? <Superadmin soloEsto seccion={seccion} />
           : seccion === 'ajustes' ? <Ajustes perfil={perfil} />
           : <Agenda ruta={ruta} perfil={perfil} soloDiocesana />}
       </main>

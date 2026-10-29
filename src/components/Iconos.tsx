@@ -9,6 +9,7 @@ const TRAZOS = {
   megafono: <><path d="m3 11 18-5v12L3 14v-3z" /><path d="M11.6 16.8a3 3 0 1 1-5.8-1.6" /></>,
   mas: <path d="M5 12h14M12 5v14" />,
   izquierda: <path d="m15 18-6-6 6-6" />,
+  arriba: <path d="m18 15-6-6-6 6" />,
   derecha: <path d="m9 18 6-6-6-6" />,
   atras: <path d="m12 19-7-7 7-7M19 12H5" />,
   cerrar: <path d="M18 6 6 18M6 6l12 12" />,

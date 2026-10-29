@@ -544,3 +544,23 @@ fieldset.campos:disabled { opacity: .72; }
 .zona-peligro { margin-top: 10px; padding: 12px; border: 1px solid rgba(179, 38, 30, .28); background: var(--alerta-fondo); border-radius: var(--r-sm); }
 .segmentos.compacto { flex-wrap: nowrap; }
 .segmentos.compacto button { padding: 6px 4px; font-size: .88rem; min-width: 0; }
+
+/* ---------- menú del Creador: una flecha abajo que despliega las seis pantallas ---------- */
+.tabs.una { justify-content: center; }
+@media (min-width: 860px) {
+  .tabs.una { position: fixed; top: auto; bottom: 0; border-bottom: 0; border-top: 1px solid var(--linea); padding: 6px 10px calc(6px + env(safe-area-inset-bottom)); }
+}
+.menu-flecha {
+  border: 0; background: var(--vino-100); color: var(--vino); width: 96px; height: 40px; border-radius: 999px;
+  display: grid; place-items: center; cursor: pointer; -webkit-tap-highlight-color: transparent;
+}
+.menu-flecha:active { transform: scale(.96); }
+.menu-creador { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-top: 14px; }
+.menu-creador a {
+  display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 14px 6px; border-radius: var(--r);
+  background: #fff; border: 1px solid var(--linea); text-decoration: none; color: var(--tinta); font-weight: 700; font-size: .88rem;
+  box-shadow: var(--sombra-1);
+}
+.menu-creador a .pastilla { display: grid; place-items: center; width: 52px; height: 52px; border-radius: 50%; background: var(--linea); color: var(--vino); }
+.menu-creador a.activa { border-color: var(--vino); }
+.menu-creador a.activa .pastilla { background: var(--vino); color: #fff; }
