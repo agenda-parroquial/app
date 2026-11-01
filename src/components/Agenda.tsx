@@ -63,7 +63,7 @@ export function Agenda({ ruta, perfil, soloDiocesana = false }: { ruta: string[]
   const nombresTipos = useNombresTipos(perfil.parroquia_id);
   const pendientes = useIdsPendientes();
   const vistaCompacta = useVistaCompacta();
-  const [buscando, setBuscando] = useState(false);
+  const buscando = accion === 'buscar';   // la lupa del encabezado abre agenda/<fecha>/buscar
   // Tarjetas compactas que se desplegaron al tocarlas (se vuelven a contraer al cambiar de vista o de día).
   const [abiertas, setAbiertas] = useState<Set<string>>(new Set());
   const alternar = (id: string) => setAbiertas((s) => { const n = new Set(s); if (n.has(id)) n.delete(id); else n.add(id); return n; });
@@ -124,7 +124,7 @@ export function Agenda({ ruta, perfil, soloDiocesana = false }: { ruta: string[]
   const nAvisos = avisos.filter((a) => a.activo && a.desde <= hoy && (!a.hasta || a.hasta >= hoy)).length;
 
   const evAbierto = useLiveQuery(
-    () => (accion && accion !== 'nuevo' && !accion.startsWith('dio:') ? db.eventos.get(accion) : undefined),
+    () => (accion && accion !== 'nuevo' && accion !== 'buscar' && !accion.startsWith('dio:') ? db.eventos.get(accion) : undefined),
     [accion],
   );
   const dioAbierto = useLiveQuery(
@@ -189,9 +189,6 @@ export function Agenda({ ruta, perfil, soloDiocesana = false }: { ruta: string[]
           <button className={modo === 'mes' ? 'on' : ''} onClick={() => setModo('mes')} aria-label="Mes" title="Mes">M</button>
         </div>
         <div className="herramientas">
-          <button className="icono-btn claro" onClick={() => setBuscando(true)} aria-label="Buscar eventos" title="Buscar eventos">
-            <Icono n="buscar" size={20} />
-          </button>
           <div className="segmentos iconos" role="group" aria-label="Cómo ver los eventos">
             <button className={!vistaCompacta ? 'on' : ''} onClick={() => ponerVistaCompacta(false)} aria-label="Vista detallada" aria-pressed={!vistaCompacta} title="Vista detallada">
               <Icono n="tarjetas" size={18} />
@@ -286,8 +283,8 @@ export function Agenda({ ruta, perfil, soloDiocesana = false }: { ruta: string[]
 
       {buscando && (
         <BuscarEventos
-          onCerrar={() => setBuscando(false)}
-          onElegir={(k, ruta) => { setBuscando(false); ir(`agenda/${k}/${ruta}`); }}
+          onCerrar={() => irDia(fecha)}
+          onElegir={(k, ruta) => ir(`agenda/${k}/${ruta}`)}
         />
       )}
 

@@ -258,19 +258,19 @@ input[type='date']::-webkit-date-and-time-value, input[type='time']::-webkit-dat
 
 .barra-agenda { display: flex; align-items: center; justify-content: space-between; gap: 6px; margin: 2px 0 12px; flex-wrap: nowrap; }
 /* siempre en una sola línea, también en teléfonos angostos: D S M, lupa, vistas y Avisos */
-.barra-agenda .segmentos { flex-wrap: nowrap; flex: 0 0 auto; }
-.barra-agenda .segmentos button { padding: 6px 0; width: 38px; justify-content: center; font-weight: 750; }
+/* D / S / M ocupa el espacio que dejó la lupa: se estira hasta donde empiezan las otras herramientas */
+.barra-agenda > .segmentos { flex-wrap: nowrap; flex: 1 1 auto; max-width: 230px; }
+.barra-agenda > .segmentos button { flex: 1; min-width: 36px; }
+.barra-agenda .segmentos button { padding: 6px 0; justify-content: center; font-weight: 750; }
 .barra-agenda .segmentos.iconos button { width: 40px; }
 .barra-agenda .herramientas { flex-wrap: nowrap; gap: 6px; flex: 0 0 auto; }
 .barra-agenda .icono-btn { width: 40px; height: 40px; }
 .barra-agenda .chip { padding: 5px 10px 5px 8px; gap: 5px; font-size: .86rem; min-height: 40px; }
 /* en teléfonos, «Avisos» queda como icono con su número para que todo quepa en una línea */
-@media (max-width: 460px) { .barra-agenda .chip .txt { display: none; } .barra-agenda .chip { padding: 5px 9px; } }
+@media (max-width: 359px) { .barra-agenda .chip .txt { display: none; } .barra-agenda .chip { padding: 5px 9px; } }
 @media (max-width: 350px) {
   .barra-agenda { gap: 4px; }
-  .barra-agenda .segmentos button { width: 32px; }
   .barra-agenda .segmentos.iconos button { width: 34px; }
-  .barra-agenda .icono-btn { width: 34px; height: 34px; }
   .barra-agenda .herramientas { gap: 4px; }
 }
 

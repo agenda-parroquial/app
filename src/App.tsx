@@ -7,6 +7,7 @@ import { avisoDelSistema } from './lib/avisos';
 import { configurado } from './lib/supabase';
 import { iniciarSync } from './lib/sync';
 import { esIPhone, estaInstalada, estadoPush, sincronizarPush } from './lib/push';
+import { hoyClave } from './lib/fechas';
 import { ir, useContadorConflictos, useNoLeidas, useParroquia, useRuta } from './lib/hooks';
 import { diasDeVigencia, nombreParroquia, parroquiaSinAcceso, type Notificacion, type Parroquia, type Perfil } from './types';
 import { Agenda } from './components/Agenda';
@@ -99,6 +100,10 @@ function AvisoVencimiento({ parroquia }: { parroquia: Parroquia | undefined }) {
   );
 }
 
+/** La búsqueda de eventos se abre desde el encabezado: va a la agenda (en el día que se ve, o en hoy) y la despliega. */
+const buscarEventos = (ruta: string[]) =>
+  ir(`agenda/${ruta[0] === 'agenda' && /^\d{4}-\d{2}-\d{2}$/.test(ruta[1] ?? '') ? ruta[1] : hoyClave()}/buscar`);
+
 function Shell({ perfil, superadmin, diocesano, parroquia }: { perfil: Perfil; superadmin: boolean; diocesano: boolean; parroquia: Parroquia | undefined }) {
   const ruta = useRuta();
   const seccion = ruta[0];
@@ -150,6 +155,9 @@ function Shell({ perfil, superadmin, diocesano, parroquia }: { perfil: Perfil; s
           {parroquia && <div className="sub">{nombreParroquia(parroquia)}</div>}
         </div>
         <EstadoSync />
+        <button className="icono-btn" onClick={() => buscarEventos(ruta)} aria-label="Buscar eventos" title="Buscar eventos">
+          <Icono n="buscar" size={21} />
+        </button>
         <button className="icono-btn" onClick={() => ir('avisos')} aria-label={noLeidas ? `Notificaciones (${noLeidas} sin leer)` : 'Notificaciones'}>
           <Icono n="campana" size={21} />
           {noLeidas > 0 && <span className="contador">{noLeidas}</span>}
@@ -231,6 +239,9 @@ function ShellCreador({ perfil, superadmin }: { perfil: Perfil; superadmin: bool
           <div className="sub">{superadmin ? 'Creador' : 'Diócesis'}</div>
         </div>
         <EstadoSync />
+        <button className="icono-btn" onClick={() => buscarEventos(ruta)} aria-label="Buscar eventos" title="Buscar eventos">
+          <Icono n="buscar" size={21} />
+        </button>
       </header>
 
       {superadmin ? (
