@@ -182,6 +182,32 @@ export function Agenda({ ruta, perfil, soloDiocesana = false }: { ruta: string[]
 
   return (
     <>
+      <div className="barra-agenda">
+        <div className="segmentos" role="group" aria-label="Vista">
+          <button className={modo === 'dia' ? 'on' : ''} onClick={() => setModo('dia')} aria-label="Día" title="Día">D</button>
+          <button className={modo === 'semana' ? 'on' : ''} onClick={() => setModo('semana')} aria-label="Semana" title="Semana">S</button>
+          <button className={modo === 'mes' ? 'on' : ''} onClick={() => setModo('mes')} aria-label="Mes" title="Mes">M</button>
+        </div>
+        <div className="herramientas">
+          <button className="icono-btn claro" onClick={() => setBuscando(true)} aria-label="Buscar eventos" title="Buscar eventos">
+            <Icono n="buscar" size={20} />
+          </button>
+          <div className="segmentos iconos" role="group" aria-label="Cómo ver los eventos">
+            <button className={!vistaCompacta ? 'on' : ''} onClick={() => ponerVistaCompacta(false)} aria-label="Vista detallada" aria-pressed={!vistaCompacta} title="Vista detallada">
+              <Icono n="tarjetas" size={18} />
+            </button>
+            <button className={vistaCompacta ? 'on' : ''} onClick={() => ponerVistaCompacta(true)} aria-label="Vista compacta: solo horario y evento" aria-pressed={vistaCompacta} title="Vista compacta: solo horario y evento">
+              <Icono n="lista" size={18} />
+            </button>
+          </div>
+          {!soloDiocesana && (
+            <a className="chip" href="#/parroquiales" aria-label={nAvisos > 0 ? `Avisos parroquiales (${nAvisos})` : 'Avisos parroquiales'} title="Avisos parroquiales">
+              <Icono n="megafono" size={18} /><span className="txt">Avisos</span>{nAvisos > 0 && <span className="num">{nAvisos}</span>}
+            </a>
+          )}
+        </div>
+      </div>
+
       <div className="navfecha">
         <button className="icono-btn claro" onClick={() => paso(-1)} aria-label={modo === 'mes' ? 'Mes anterior' : 'Semana anterior'}>
           <Icono n="izquierda" size={22} />
@@ -214,32 +240,6 @@ export function Agenda({ ruta, perfil, soloDiocesana = false }: { ruta: string[]
           );
         })}
       </div>}
-
-      <div className="barra-agenda">
-        <div className="segmentos" role="group" aria-label="Vista">
-          <button className={modo === 'dia' ? 'on' : ''} onClick={() => setModo('dia')}>Día</button>
-          <button className={modo === 'semana' ? 'on' : ''} onClick={() => setModo('semana')}>Semana</button>
-          <button className={modo === 'mes' ? 'on' : ''} onClick={() => setModo('mes')}>Mes</button>
-        </div>
-        <div className="herramientas">
-          <button className="icono-btn claro" onClick={() => setBuscando(true)} aria-label="Buscar eventos" title="Buscar eventos">
-            <Icono n="buscar" size={20} />
-          </button>
-          <div className="segmentos iconos" role="group" aria-label="Cómo ver los eventos">
-            <button className={!vistaCompacta ? 'on' : ''} onClick={() => ponerVistaCompacta(false)} aria-label="Vista detallada" aria-pressed={!vistaCompacta} title="Vista detallada">
-              <Icono n="tarjetas" size={18} />
-            </button>
-            <button className={vistaCompacta ? 'on' : ''} onClick={() => ponerVistaCompacta(true)} aria-label="Vista compacta: solo horario y evento" aria-pressed={vistaCompacta} title="Vista compacta: solo horario y evento">
-              <Icono n="lista" size={18} />
-            </button>
-          </div>
-          {!soloDiocesana && (
-            <a className="chip" href="#/parroquiales">
-              <Icono n="megafono" size={18} />Avisos{nAvisos > 0 && <span className="num">{nAvisos}</span>}
-            </a>
-          )}
-        </div>
-      </div>
 
       {mostrar.map((k) => {
         const lista = porDia.get(k) ?? [];

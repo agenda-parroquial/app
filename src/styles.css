@@ -256,7 +256,23 @@ input[type='date']::-webkit-date-and-time-value, input[type='time']::-webkit-dat
 .semana i.dio { background: var(--dio); }
 .semana .sel i { background: #fff; }
 
-.barra-agenda { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin: 0 0 2px; flex-wrap: wrap; }
+.barra-agenda { display: flex; align-items: center; justify-content: space-between; gap: 6px; margin: 2px 0 12px; flex-wrap: nowrap; }
+/* siempre en una sola línea, también en teléfonos angostos: D S M, lupa, vistas y Avisos */
+.barra-agenda .segmentos { flex-wrap: nowrap; flex: 0 0 auto; }
+.barra-agenda .segmentos button { padding: 6px 0; width: 38px; justify-content: center; font-weight: 750; }
+.barra-agenda .segmentos.iconos button { width: 40px; }
+.barra-agenda .herramientas { flex-wrap: nowrap; gap: 6px; flex: 0 0 auto; }
+.barra-agenda .icono-btn { width: 40px; height: 40px; }
+.barra-agenda .chip { padding: 5px 10px 5px 8px; gap: 5px; font-size: .86rem; min-height: 40px; }
+/* en teléfonos, «Avisos» queda como icono con su número para que todo quepa en una línea */
+@media (max-width: 460px) { .barra-agenda .chip .txt { display: none; } .barra-agenda .chip { padding: 5px 9px; } }
+@media (max-width: 350px) {
+  .barra-agenda { gap: 4px; }
+  .barra-agenda .segmentos button { width: 32px; }
+  .barra-agenda .segmentos.iconos button { width: 34px; }
+  .barra-agenda .icono-btn { width: 34px; height: 34px; }
+  .barra-agenda .herramientas { gap: 4px; }
+}
 
 .dia-titulo {
   display: flex; align-items: center; gap: 10px; margin: 22px 2px 10px;
@@ -573,7 +589,13 @@ fieldset.campos:disabled { opacity: .72; }
 .tarjeta.compacta { grid-template-columns: auto minmax(0, 1fr) auto auto; align-items: center; gap: 4px 12px; padding: 9px 12px 9px 18px; margin-bottom: 6px; }
 .tarjeta.compacta .rango { font-weight: 750; font-variant-numeric: tabular-nums; font-size: 1rem; white-space: nowrap; }
 .tarjeta.compacta .rango small { font-weight: 500; color: var(--gris-claro); font-size: .8rem; }
-.tarjeta.compacta .titulo { font-size: .98rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+.tarjeta.compacta .titulo { font-size: .98rem; min-width: 0; overflow: hidden; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow-wrap: anywhere; }
+.tarjeta.compacta .etq { font-size: .68rem; padding: 2px 7px; }
+@media (max-width: 400px) {
+  .tarjeta.compacta { gap: 4px 8px; padding-right: 10px; }
+  .tarjeta.compacta .rango { font-size: .92rem; }
+  .tarjeta.compacta .rango small { font-size: .74rem; }
+}
 .tarjeta.compacta > .icono { color: var(--gris-claro); }
 .tarjeta.compacta .etq { margin: 0; }
 .tarjeta.fase-pasado.compacta .rango { color: var(--gris); }
