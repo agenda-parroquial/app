@@ -2,7 +2,7 @@ import { useSyncExternalStore } from 'react';
 import { db } from './db';
 import { supabase } from './supabase';
 import { hoyClave } from './fechas';
-import type { Evento, EventoDiocesano, Notificacion, OpPendiente, Parroquia } from '../types';
+import { notificacionCaducada, type Evento, type EventoDiocesano, type Notificacion, type OpPendiente, type Parroquia } from '../types';
 
 // ---------------------------------------------------------------------
 //  Estado observable (para el indicador de conexión)
@@ -195,7 +195,22 @@ async function traerNotificaciones(usuarioId: string) {
     .from('notificaciones').select('*').eq('usuario_id', usuarioId)
     .order('created_at', { ascending: false }).limit(100);
   if (error) throw error;
-  await db.notificaciones.bulkPut(data as Notificacion[]);
+  // Las leídas hace más de una semana no se guardan.
+  await db.notificaciones.bulkPut((data as Notificacion[]).filter((n) => !notificacionCaducada(n)));
+}
+
+/** Quita de este dispositivo las notificaciones leídas hace más de una semana. */
+async function limpiarNotificacionesLocales() {
+  await db.notificaciones.filter((n) => notificacionCaducada(n)).delete();
+}
+
+/** Una vez al día le pide al servidor que borre las leídas hace más de una semana (solo las de esta cuenta). */
+async function limpiarNotificaciones() {
+  const hoy = hoyClave();
+  if ((await db.meta.get('notificacionesLimpiadasEl'))?.value === hoy) return;
+  const { error } = await supabase.rpc('limpiar_mis_notificaciones');
+  if (error) throw error;
+  await db.meta.put({ key: 'notificacionesLimpiadasEl', value: hoy });
 }
 
 async function traer(usuarioId: string) {
@@ -257,6 +272,8 @@ export async function sincronizar() {
       // Primero la parroquia: si la suspendieron, la app lo sabe aunque lo demás ya no se pueda pedir.
       await traerTabla('parroquias', new Set());
       await generarMisasFijas();
+      await limpiarNotificaciones().catch(() => {});   // no es urgente: si falla, se intenta en la próxima
+      await limpiarNotificacionesLocales();
       await traer(usuarioActual);
       if (conciliarPendiente) {
         await conciliar();

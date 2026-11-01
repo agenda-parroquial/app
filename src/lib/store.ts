@@ -391,11 +391,11 @@ export async function quitarDiocesano(id: string) {
 const enSegundoPlano = (q: PromiseLike<unknown>) => void q.then(undefined, () => {});
 
 export async function marcarLeida(id: string) {
-  await db.notificaciones.update(id, { leida: true });
+  await db.notificaciones.update(id, { leida: true, leida_en: new Date().toISOString() });
   enSegundoPlano(supabase.from('notificaciones').update({ leida: true }).eq('id', id));
 }
 
 export async function marcarTodasLeidas(usuario: string) {
-  await db.notificaciones.toCollection().modify({ leida: true });
+  await db.notificaciones.toCollection().filter((n) => !n.leida).modify({ leida: true, leida_en: new Date().toISOString() });
   enSegundoPlano(supabase.from('notificaciones').update({ leida: true }).eq('usuario_id', usuario).eq('leida', false));
 }

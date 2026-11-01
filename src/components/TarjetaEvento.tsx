@@ -22,6 +22,14 @@ interface Props {
   color?: string;
   /** Solo en la agenda de hoy: el evento que está ocurriendo o el que sigue. */
   momento?: 'ahora' | 'siguiente';
+  /** Si ya terminó (gris) o está ocurriendo ahora mismo (verde); un evento por venir se ve normal. */
+  fase?: 'pasado' | 'curso' | 'proximo';
+  /** Vista compacta: solo el horario y el evento; al tocarla se despliega (`onAlternar`). */
+  compacta?: boolean;
+  /** Muestra el botón para volver a contraer una tarjeta que se desplegó. */
+  puedeContraer?: boolean;
+  /** Despliega la tarjeta compacta o la vuelve a contraer. */
+  onAlternar?: () => void;
   children?: ReactNode;
 }
 
@@ -32,20 +40,43 @@ export const nombreLugar = (e: Evento, lugares: Lugar[]) =>
   (e.lugar_id && lugares.find((l) => l.id === e.lugar_id)?.nombre) || e.lugar_texto || 'Sin lugar';
 
 export function TarjetaEvento({
-  evento: e, lugares, perfiles, ministros = SIN_MINISTROS, secretarias = SIN_SECRETARIAS, nombresTipos, sinEnviar, onClick, onIntenciones, nIntenciones = 0, color, momento, children,
+  evento: e, lugares, perfiles, ministros = SIN_MINISTROS, secretarias = SIN_SECRETARIAS, nombresTipos, sinEnviar, onClick, onIntenciones, nIntenciones = 0, color, momento, fase, compacta, puedeContraer, onAlternar, children,
 }: Props) {
   const celebrante = nombreCelebrante(e, perfiles, ministros);
   const creador = !e.misa_fija_id ? nombreCreador(e, perfiles, secretarias) : null;
   const editor = nombreEditor(e, perfiles, secretarias);
   const tipo = nombreTipo(e, nombresTipos);
-  const clases = ['tarjeta', e.misa_fija_id ? 'fija' : '', e.estado === 'en_conflicto' ? 'conflicto' : '', e.estado === 'cancelado' ? 'cancelado' : '']
+  // El sombreado por estado solo se ve en eventos normales: un conflicto o una cancelación mantienen su señal.
+  const sombra = e.estado === 'confirmado' && fase && fase !== 'proximo' ? `fase-${fase}` : '';
+  const clases = ['tarjeta', e.misa_fija_id ? 'fija' : '', e.estado === 'en_conflicto' ? 'conflicto' : '', e.estado === 'cancelado' ? 'cancelado' : '', sombra, compacta ? 'compacta' : '']
     .filter(Boolean).join(' ');
   // El color solo se ve cuando el evento está normal: un conflicto o una cancelación mantienen su señal.
   const estilo = color && e.estado === 'confirmado' ? ({ '--tipo': color } as CSSProperties) : undefined;
   const hayEtiquetas = e.estado !== 'confirmado' || sinEnviar || !!momento || !!e.misa_fija_id;
 
+  if (compacta) {
+    return (
+      <div
+        className={clases} onClick={onAlternar} style={estilo} role="button" tabIndex={0} aria-expanded={false}
+        onKeyDown={(ev) => { if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); onAlternar?.(); } }}
+      >
+        <span className="rango">{horaDe(e.inicio)}<small> – {horaDe(e.fin)}</small></span>
+        <span className="titulo">{e.titulo || tipo}</span>
+        {fase === 'curso' && e.estado === 'confirmado' && <span className="etq ahora">En curso</span>}
+        {e.estado === 'en_conflicto' && <span className="etq conflicto">CONFLICTO</span>}
+        {e.estado === 'cancelado' && <span className="etq cancelado">CANCELADO</span>}
+        <Icono n="abajo" size={18} />
+      </div>
+    );
+  }
+
   return (
     <div className={clases} onClick={onClick} style={estilo}>
+      {puedeContraer && (
+        <button className="contraer" aria-label="Contraer" onClick={(ev) => { ev.stopPropagation(); onAlternar?.(); }}>
+          <Icono n="arriba" size={18} />
+        </button>
+      )}
       <div className="cuando">
         <span className="hora">{horaDe(e.inicio)}</span>
         <span className="hasta">{horaDe(e.fin)}</span>

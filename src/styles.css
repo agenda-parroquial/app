@@ -564,3 +564,38 @@ fieldset.campos:disabled { opacity: .72; }
 .menu-creador a .pastilla { display: grid; place-items: center; width: 52px; height: 52px; border-radius: 50%; background: var(--linea); color: var(--vino); }
 .menu-creador a.activa { border-color: var(--vino); }
 .menu-creador a.activa .pastilla { background: var(--vino); color: #fff; }
+
+/* ---------- Agenda: sombreado por estado, vista compacta y buscador ---------- */
+/* (el color de la franja de la izquierda sigue siendo el del tipo de evento; esto es el fondo según el estado) */
+.tarjeta.fase-pasado { background: #eeebec; border-color: #ddd6d9; }
+.tarjeta.fase-pasado .hora, .tarjeta.fase-pasado .titulo { color: var(--gris); }
+.tarjeta.fase-curso { background: #e1f3e7; border-color: #9fd2b3; }
+.tarjeta.compacta { grid-template-columns: auto minmax(0, 1fr) auto auto; align-items: center; gap: 4px 12px; padding: 9px 12px 9px 18px; margin-bottom: 6px; }
+.tarjeta.compacta .rango { font-weight: 750; font-variant-numeric: tabular-nums; font-size: 1rem; white-space: nowrap; }
+.tarjeta.compacta .rango small { font-weight: 500; color: var(--gris-claro); font-size: .8rem; }
+.tarjeta.compacta .titulo { font-size: .98rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+.tarjeta.compacta > .icono { color: var(--gris-claro); }
+.tarjeta.compacta .etq { margin: 0; }
+.tarjeta.fase-pasado.compacta .rango { color: var(--gris); }
+.tarjeta .contraer {
+  position: absolute; top: 6px; right: 6px; width: 32px; height: 32px; border-radius: 50%; border: 0; background: rgba(35, 26, 29, .06);
+  color: var(--gris); display: grid; place-items: center; cursor: pointer; padding: 0; z-index: 1;
+}
+.herramientas { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.segmentos.iconos button { padding: 6px 11px; }
+.buscador { padding-top: 6px; }
+.buscador .campo-busca { position: sticky; top: 0; z-index: 3; background: var(--crema); padding: 8px 0 10px; }
+.buscador .campo-busca input { padding-left: 14px; }
+.res {
+  display: grid; grid-template-columns: 72px minmax(0, 1fr); gap: 4px 12px; width: 100%; text-align: left; font: inherit; color: inherit;
+  background: #fff; border: 1px solid var(--linea); border-radius: var(--r-sm); padding: 10px 12px; margin-bottom: 6px; cursor: pointer; box-shadow: var(--sombra-1);
+}
+.res.pasado { background: #f3f0f1; }
+.res.curso { background: #e8f6ed; border-color: #9fd2b3; }
+.res .quand { display: flex; flex-direction: column; font-variant-numeric: tabular-nums; line-height: 1.25; }
+.res .quand b { font-size: .92rem; }
+.res .quand span { color: var(--gris); font-size: .82rem; }
+.res .que { min-width: 0; }
+.res .que b { display: block; font-size: .98rem; line-height: 1.3; }
+.res .que .ayuda { margin: 2px 0 0; overflow-wrap: anywhere; }
+.res mark { background: rgba(201, 162, 75, .35); color: inherit; border-radius: 3px; padding: 0 1px; }

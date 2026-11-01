@@ -203,8 +203,14 @@ export interface Notificacion {
   conflicto_id: string | null;
   mensaje: string;
   leida: boolean;
+  leida_en?: string | null; // cuándo se leyó (las leídas se borran una semana después)
   created_at: string;
 }
+
+/** Una notificación leída hace más de una semana ya no se guarda (si no se sabe cuándo se leyó, cuenta desde que llegó). */
+export const DIAS_NOTIFICACION_LEIDA = 7;
+export const notificacionCaducada = (n: Pick<Notificacion, 'leida' | 'leida_en' | 'created_at'>, ahora = Date.now()) =>
+  n.leida && Date.parse(n.leida_en ?? n.created_at) < ahora - DIAS_NOTIFICACION_LEIDA * 86_400_000;
 
 /** Campos de un evento que edita el usuario (lo único que viaja al servidor). */
 export type DatosEvento = Pick<

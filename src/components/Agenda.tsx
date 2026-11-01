@@ -9,8 +9,9 @@ import {
   ir, useAvisosParroquiales, useIdsPendientes, useIntencionesTipos, useLugares, useMinistros, useNombresTipos, useParroquia, usePerfiles, useSecretarias,
   useTiposEvento,
 } from '../lib/hooks';
-import { usePrefDiocesanos } from '../lib/preferencias';
+import { ponerVistaCompacta, usePrefDiocesanos, useVistaCompacta } from '../lib/preferencias';
 import { claveTipo, llevaIntenciones, puedeEditarIntenciones, type Evento, type EventoDiocesano, type Perfil } from '../types';
+import { BuscarEventos } from './BuscarEventos';
 import { CalendarioMes, type MarcaDia } from './CalendarioMes';
 import { FormularioDiocesano } from './Diocesanos';
 import { EventoForm } from './EventoForm';
@@ -61,6 +62,12 @@ export function Agenda({ ruta, perfil, soloDiocesana = false }: { ruta: string[]
   const intencionesTipos = useIntencionesTipos(perfil.parroquia_id);
   const nombresTipos = useNombresTipos(perfil.parroquia_id);
   const pendientes = useIdsPendientes();
+  const vistaCompacta = useVistaCompacta();
+  const [buscando, setBuscando] = useState(false);
+  // Tarjetas compactas que se desplegaron al tocarlas (se vuelven a contraer al cambiar de vista o de día).
+  const [abiertas, setAbiertas] = useState<Set<string>>(new Set());
+  const alternar = (id: string) => setAbiertas((s) => { const n = new Set(s); if (n.has(id)) n.delete(id); else n.add(id); return n; });
+  useEffect(() => setAbiertas(new Set()), [vistaCompacta, fecha, modo]);
 
   // «En curso» y «Sigue» en la agenda de hoy se ponen al día cada minuto.
   const [, setLatido] = useState(0);
@@ -159,6 +166,8 @@ export function Agenda({ ruta, perfil, soloDiocesana = false }: { ruta: string[]
   const dias = Array.from({ length: 7 }, (_, i) => sumarDias(ini, i));
   const mostrar = modo === 'semana' ? dias.map(claveDia) : [fecha];
 
+  const ahoraISO = new Date().toISOString();   // se renueva cada minuto (latido)
+
   /** En la agenda de hoy: el evento que está ocurriendo y el primero que sigue. */
   const momentoDe = (k: string, lista: Evento[]) => {
     const m = new Map<string, 'ahora' | 'siguiente'>();
@@ -212,11 +221,24 @@ export function Agenda({ ruta, perfil, soloDiocesana = false }: { ruta: string[]
           <button className={modo === 'semana' ? 'on' : ''} onClick={() => setModo('semana')}>Semana</button>
           <button className={modo === 'mes' ? 'on' : ''} onClick={() => setModo('mes')}>Mes</button>
         </div>
-        {!soloDiocesana && (
-          <a className="chip" href="#/parroquiales">
-            <Icono n="megafono" size={18} />Avisos{nAvisos > 0 && <span className="num">{nAvisos}</span>}
-          </a>
-        )}
+        <div className="herramientas">
+          <button className="icono-btn claro" onClick={() => setBuscando(true)} aria-label="Buscar eventos" title="Buscar eventos">
+            <Icono n="buscar" size={20} />
+          </button>
+          <div className="segmentos iconos" role="group" aria-label="Cómo ver los eventos">
+            <button className={!vistaCompacta ? 'on' : ''} onClick={() => ponerVistaCompacta(false)} aria-label="Vista detallada" aria-pressed={!vistaCompacta} title="Vista detallada">
+              <Icono n="tarjetas" size={18} />
+            </button>
+            <button className={vistaCompacta ? 'on' : ''} onClick={() => ponerVistaCompacta(true)} aria-label="Vista compacta: solo horario y evento" aria-pressed={vistaCompacta} title="Vista compacta: solo horario y evento">
+              <Icono n="lista" size={18} />
+            </button>
+          </div>
+          {!soloDiocesana && (
+            <a className="chip" href="#/parroquiales">
+              <Icono n="megafono" size={18} />Avisos{nAvisos > 0 && <span className="num">{nAvisos}</span>}
+            </a>
+          )}
+        </div>
       </div>
 
       {mostrar.map((k) => {
@@ -239,9 +261,15 @@ export function Agenda({ ruta, perfil, soloDiocesana = false }: { ruta: string[]
             )}
             {vacio && modo === 'semana' && <div className="ayuda" style={{ margin: '0 2px 8px' }}>Sin eventos</div>}
             {dio.map((d) => <TarjetaDiocesana key={d.id} evento={d} onClick={() => ir(`agenda/${fecha}/dio:${d.id}`)} />)}
-            {lista.map((e) => (
+            {lista.map((e) => {
+              // Ya terminó (gris), ocurre ahora (verde) o está por venir. Lo ya terminado se contrae solo.
+              const fase = e.fin <= ahoraISO ? 'pasado' : e.inicio <= ahoraISO ? 'curso' : 'proximo';
+              const contraible = vistaCompacta || fase === 'pasado';
+              const desplegada = abiertas.has(e.id);
+              return (
               <TarjetaEvento
                 key={e.id} evento={e} lugares={lugares} perfiles={perfiles} ministros={ministros} secretarias={secretarias}
+                fase={fase} compacta={contraible && !desplegada} puedeContraer={contraible && desplegada} onAlternar={() => alternar(e.id)}
                 nombresTipos={nombresTipos} color={colores[claveTipo(e)]} momento={momentos.get(e.id)}
                 sinEnviar={pendientes.has(e.id)} onClick={() => ir(`agenda/${fecha}/${e.id}`)}
                 nIntenciones={conteo.get(e.id) ?? 0}
@@ -250,10 +278,18 @@ export function Agenda({ ruta, perfil, soloDiocesana = false }: { ruta: string[]
                   ? () => ir(`agenda/${fecha}/${e.id}/${puedeEditarIntenciones(perfil, e) ? 'editar-intenciones' : 'intenciones'}`)
                   : undefined}
               />
-            ))}
+              );
+            })}
           </section>
         );
       })}
+
+      {buscando && (
+        <BuscarEventos
+          onCerrar={() => setBuscando(false)}
+          onElegir={(k, ruta) => { setBuscando(false); ir(`agenda/${k}/${ruta}`); }}
+        />
+      )}
 
       <button className="fab" onClick={() => ir(`agenda/${fecha}/nuevo`)} aria-label="Nuevo evento">
         <Icono n="mas" size={24} strokeWidth={2.6} />Nuevo
