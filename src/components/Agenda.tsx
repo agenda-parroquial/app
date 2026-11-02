@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '../lib/db';
 import { useAuth } from '../lib/auth';
@@ -180,6 +180,63 @@ export function Agenda({ ruta, perfil, soloDiocesana = false }: { ruta: string[]
     return m;
   };
 
+  // ---- «Ahora»: al abrir el día de hoy (o la semana en curso) la agenda se coloca en el evento que ocurre o el que sigue ----
+  /** Identifica lo que se está viendo; el desplazamiento automático se hace una vez por cada una. */
+  const claveDeVista = (f: string) => (modo === 'mes' ? '' : modo === 'dia' ? `d${f}` : `s${claveIni}`);
+  const claveVista = claveDeVista(fecha);
+  const { anclaId, hayAntes } = useMemo(() => {
+    if (modo === 'mes' || !mostrar.includes(hoy)) return { anclaId: null, hayAntes: false };
+    const ahora = new Date().toISOString();
+    let vistos = 0;
+    for (const k of mostrar) {
+      for (const e of porDia.get(k) ?? []) {
+        if (k >= hoy && e.estado !== 'cancelado' && e.fin > ahora) return { anclaId: e.id, hayAntes: vistos > 0 };
+        vistos++;
+      }
+    }
+    return { anclaId: null, hayAntes: false };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [modo, fecha, claveIni, hoy, porDia, ahoraISO.slice(0, 16)]);
+
+  /** Desplaza la agenda para que el evento que sigue (o el que está en curso) quede arriba, bajo los encabezados fijos. */
+  const irAhora = (suave: boolean) => {
+    const el = anclaId ? document.querySelector<HTMLElement>(`[data-evento="${anclaId}"]`) : null;
+    if (!el) return;
+    let tope = document.querySelector('.top')?.getBoundingClientRect().bottom ?? 0;
+    const tabs = document.querySelector('.tabs');
+    if (tabs && getComputedStyle(tabs).position === 'sticky') tope = Math.max(tope, tabs.getBoundingClientRect().bottom);
+    const titulo = el.closest('section')?.querySelector('.dia-titulo.pegado');
+    if (titulo && getComputedStyle(titulo).position === 'sticky') tope += titulo.getBoundingClientRect().height;
+    const quieto = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    window.scrollTo({ top: Math.max(0, el.getBoundingClientRect().top + window.scrollY - tope - 8), behavior: suave && !quieto ? 'smooth' : 'auto' });
+  };
+
+  const yaColocada = useRef('');
+  useEffect(() => {
+    // Si no hay evento que seguir (o no hay nada arriba), se deja la agenda como está y no se vuelve a intentar en esta vista.
+    const cerrar = window.setTimeout(() => { yaColocada.current = claveVista; }, 2000);
+    return () => window.clearTimeout(cerrar);
+  }, [claveVista]);
+  useEffect(() => {
+    if (!anclaId || yaColocada.current === claveVista) return;
+    yaColocada.current = claveVista;
+    if (hayAntes) requestAnimationFrame(() => irAhora(false));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [anclaId, claveVista]);
+
+  // El botón flotante «Ahora» aparece solo cuando ese evento ya no está en pantalla (y dice hacia dónde queda).
+  const [lejos, setLejos] = useState<'arriba' | 'abajo' | null>(null);
+  useEffect(() => {
+    const el = anclaId ? document.querySelector<HTMLElement>(`[data-evento="${anclaId}"]`) : null;
+    if (!el || !('IntersectionObserver' in window)) { setLejos(null); return; }
+    const tope = Math.ceil(document.querySelector('.top')?.getBoundingClientRect().height ?? 0);
+    const obs = new IntersectionObserver(([ent]) => {
+      setLejos(ent.isIntersecting ? null : ent.boundingClientRect.top < (ent.rootBounds?.top ?? 0) ? 'arriba' : 'abajo');
+    }, { rootMargin: `-${tope}px 0px -64px 0px` });
+    obs.observe(el);
+    return () => { obs.disconnect(); setLejos(null); };
+  }, [anclaId, eventos, vistaCompacta, abiertas]);
+
   return (
     <>
       <div className="barra-agenda">
@@ -210,7 +267,7 @@ export function Agenda({ ruta, perfil, soloDiocesana = false }: { ruta: string[]
           <Icono n="izquierda" size={22} />
         </button>
         <h2>{mesAnio(dia)}</h2>
-        <button className="btn sec chico" onClick={() => irDia(hoy)}>Hoy</button>
+        <button className="btn sec chico" onClick={() => { irDia(hoy); if (anclaId && claveDeVista(hoy) === claveVista) irAhora(true); }}>Hoy</button>
         <button className="icono-btn claro" onClick={() => paso(1)} aria-label={modo === 'mes' ? 'Mes siguiente' : 'Semana siguiente'}>
           <Icono n="derecha" size={22} />
         </button>
@@ -286,6 +343,12 @@ export function Agenda({ ruta, perfil, soloDiocesana = false }: { ruta: string[]
           onCerrar={() => irDia(fecha)}
           onElegir={(k, ruta) => ir(`agenda/${k}/${ruta}`)}
         />
+      )}
+
+      {lejos && !accion && (
+        <button className="ahora-flota" onClick={() => irAhora(true)} aria-label={`Ir al evento en curso o el que sigue (queda ${lejos === 'arriba' ? 'arriba' : 'abajo'})`}>
+          <Icono n={lejos} size={18} strokeWidth={2.4} />Ahora
+        </button>
       )}
 
       <button className="fab" onClick={() => ir(`agenda/${fecha}/nuevo`)} aria-label="Nuevo evento">

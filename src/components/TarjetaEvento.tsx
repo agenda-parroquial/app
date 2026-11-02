@@ -59,7 +59,7 @@ export function TarjetaEvento({
   if (compacta) {
     return (
       <div
-        className={clases} onClick={onAlternar} style={estilo} role="button" tabIndex={0} aria-expanded={false}
+        data-evento={e.id} className={clases} onClick={onAlternar} style={estilo} role="button" tabIndex={0} aria-expanded={false}
         onKeyDown={(ev) => { if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); onAlternar?.(); } }}
       >
         <span className="rango">{horaDe(e.inicio)}<small> – {horaDe(e.fin)}</small></span>
@@ -73,7 +73,7 @@ export function TarjetaEvento({
   }
 
   return (
-    <div className={clases} onClick={onClick} style={estilo}>
+    <div data-evento={e.id} className={clases} onClick={onClick} style={estilo}>
       {puedeContraer && (
         <button className="contraer" aria-label="Contraer" onClick={(ev) => { ev.stopPropagation(); onAlternar?.(); }}>
           <Icono n="arriba" size={18} />
