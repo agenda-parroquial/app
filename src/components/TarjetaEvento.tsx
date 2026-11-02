@@ -1,5 +1,5 @@
 import type { CSSProperties, ReactNode } from 'react';
-import { horaDe } from '../lib/fechas';
+import { diaBreve, fechaDe, horaDe } from '../lib/fechas';
 import { nombreCelebrante, nombreCreador, nombreEditor, nombreTipo, type Evento, type Lugar, type Ministro, type Perfil, type Secretaria } from '../types';
 import { Icono } from './Iconos';
 
@@ -24,6 +24,8 @@ interface Props {
   momento?: 'ahora' | 'siguiente';
   /** Si ya terminó (gris) o está ocurriendo ahora mismo (verde); un evento por venir se ve normal. */
   fase?: 'pasado' | 'curso' | 'proximo';
+  /** Muestra también el día del evento bajo su horario (para listas que no están agrupadas por día, como Conflictos). */
+  mostrarDia?: boolean;
   /** Vista compacta: solo el horario y el evento; al tocarla se despliega (`onAlternar`). */
   compacta?: boolean;
   /** Muestra el botón para volver a contraer una tarjeta que se desplegó. */
@@ -40,7 +42,7 @@ export const nombreLugar = (e: Evento, lugares: Lugar[]) =>
   (e.lugar_id && lugares.find((l) => l.id === e.lugar_id)?.nombre) || e.lugar_texto || 'Sin lugar';
 
 export function TarjetaEvento({
-  evento: e, lugares, perfiles, ministros = SIN_MINISTROS, secretarias = SIN_SECRETARIAS, nombresTipos, sinEnviar, onClick, onIntenciones, nIntenciones = 0, color, momento, fase, compacta, puedeContraer, onAlternar, children,
+  evento: e, lugares, perfiles, ministros = SIN_MINISTROS, secretarias = SIN_SECRETARIAS, nombresTipos, sinEnviar, onClick, onIntenciones, nIntenciones = 0, color, momento, mostrarDia, fase, compacta, puedeContraer, onAlternar, children,
 }: Props) {
   const celebrante = nombreCelebrante(e, perfiles, ministros);
   const creador = !e.misa_fija_id ? nombreCreador(e, perfiles, secretarias) : null;
@@ -80,6 +82,7 @@ export function TarjetaEvento({
       <div className="cuando">
         <span className="hora">{horaDe(e.inicio)}</span>
         <span className="hasta">{horaDe(e.fin)}</span>
+        {mostrarDia && <span className="dia">{diaBreve(fechaDe(e.inicio))}</span>}
       </div>
       <div className="cuerpo">
         <div className="titulo">{e.titulo || tipo}</div>

@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '../lib/db';
-import { fechaDe, fechaHoraCorta } from '../lib/fechas';
+import { deClave, diaLargo, fechaDe, fechaHoraCorta } from '../lib/fechas';
 import { useAuth } from '../lib/auth';
 import { ir, useIdsPendientes, useLugares, useMinistros, useNombresTipos, usePerfiles, useSecretarias } from '../lib/hooks';
 import { useEstadoSync, esErrorDeRed, mensajeDeError } from '../lib/sync';
@@ -27,6 +27,12 @@ function valor(campo: string, v: unknown, lugares: Lugar[], perfiles: Perfil[], 
   if (campo === 'tipo') return TIPOS_EVENTO[v as Evento['tipo']] ?? String(v);
   return String(v);
 }
+
+/** «domingo, 8 de noviembre» con mayúscula inicial. */
+const diaTexto = (iso: string) => {
+  const t = diaLargo(deClave(fechaDe(iso)));
+  return t.charAt(0).toUpperCase() + t.slice(1);
+};
 
 export function Conflictos() {
   const lugares = useLugares();
@@ -88,11 +94,16 @@ export function Conflictos() {
 
       {traslapes.map(({ c, a, b }) => (
         <div className="grupo" key={c.id}>
-          <h3 style={{ marginBottom: 8 }}>Empalme de horario</h3>
+          <h3 style={{ marginBottom: 2 }}>Empalme de horario</h3>
+          {/* El día del empalme (si los dos eventos caen en días distintos, por pasar de la medianoche, se dicen los dos) */}
+          <div className="ayuda" style={{ margin: '0 0 10px', fontWeight: 700, color: 'var(--vino)' }}>
+            <Icono n="calendario" size={14} style={{ display: 'inline', verticalAlign: '-2px', marginRight: 5 }} />
+            {fechaDe(a.inicio) === fechaDe(b.inicio) ? diaTexto(a.inicio) : `${diaTexto(a.inicio)} y ${diaTexto(b.inicio)}`}
+          </div>
           {[a, b].map((e, i) => (
             <div key={e.id}>
               {i === 1 && <div className="vs">⟷ choca con ⟷</div>}
-              <TarjetaEvento evento={e} lugares={lugares} perfiles={perfiles} ministros={ministros} secretarias={secretarias} nombresTipos={nombresTipos} sinEnviar={pendientes.has(e.id)}>
+              <TarjetaEvento evento={e} lugares={lugares} perfiles={perfiles} ministros={ministros} secretarias={secretarias} nombresTipos={nombresTipos} sinEnviar={pendientes.has(e.id)} mostrarDia>
                 <div className="fila" style={{ marginTop: 10 }}>
                   <button className="btn chico" onClick={() => ir(`agenda/${fechaDe(e.inicio)}/${e.id}`)}>Cambiar horario o lugar</button>
                   {puedeCancelarAqui && <button className="btn peligro chico" onClick={() => void cancelar(e)}>Cancelar</button>}

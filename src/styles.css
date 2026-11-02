@@ -621,3 +621,4 @@ fieldset.campos:disabled { opacity: .72; }
 .res .que b { display: block; font-size: .98rem; line-height: 1.3; }
 .res .que .ayuda { margin: 2px 0 0; overflow-wrap: anywhere; }
 .res mark { background: rgba(201, 162, 75, .35); color: inherit; border-radius: 3px; padding: 0 1px; }
+.tarjeta .cuando .dia { margin-top: 5px; font-size: .74rem; font-weight: 700; color: var(--vino); background: var(--vino-50); border-radius: 6px; padding: 1px 6px; white-space: nowrap; }
