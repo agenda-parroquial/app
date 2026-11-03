@@ -49,7 +49,7 @@ function BannerActualizacion() {
   });
   if (!hayNueva) return null;
   return (
-    <div className="actualizar">
+    <div className="actualizar arriba">
       Hay una versión nueva de la app.
       <button onClick={() => void updateServiceWorker(true)}>Actualizar</button>
     </div>

@@ -236,44 +236,47 @@ input[type='date']::-webkit-date-and-time-value, input[type='time']::-webkit-dat
 /* Parte de arriba de la agenda (D/S/M, mes y días): fija bajo el encabezado. En el celular se esconde al bajar y reaparece al subir. */
 .cabecera-agenda {
   position: sticky; top: var(--alto-top); z-index: 6; background: var(--crema);
-  margin: 0 -16px; padding: 4px 16px 2px; transition: transform .22s ease, box-shadow .22s;
+  margin: -10px -16px 0; padding: 6px 16px 4px; transition: transform .22s ease, box-shadow .22s;
 }
 .cabecera-agenda.pegada { box-shadow: 0 8px 10px -8px rgba(63, 17, 32, .3); }
 .cabecera-agenda.oculta { transform: translateY(-110%); box-shadow: none; }
 @media (min-width: 860px) { .cabecera-agenda.oculta { transform: none; } }
-.navfecha { display: flex; align-items: center; gap: 8px; margin: 2px 0 12px; }
-.navfecha h2 { flex: 1; text-align: center; font-size: 1.28rem; }
+.navfecha { display: flex; align-items: center; gap: 6px; margin: 0 0 6px; }
+.navfecha h2 { flex: 1; text-align: center; font-size: 1.02rem; }
 .navfecha h2::first-letter, .dia-titulo > span:first-child::first-letter { text-transform: uppercase; }
 .navfecha .btn { min-width: 0; }
+.navfecha .btn.chico { min-height: 32px; padding: 2px 12px; font-size: .86rem; }
+.navfecha .icono-btn { width: 34px; height: 34px; }
 
-.semana { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; margin-bottom: 14px; }
+.semana { display: grid; grid-template-columns: repeat(7, 1fr); gap: 5px; margin-bottom: 4px; }
 .semana button {
-  background: #fff; border: 1px solid var(--linea); border-radius: 14px; padding: 8px 0 7px; cursor: pointer; min-height: 66px;
-  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px; box-shadow: var(--sombra-1);
+  background: #fff; border: 1px solid var(--linea); border-radius: 12px; padding: 4px 0 4px; cursor: pointer; min-height: 50px;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 0; box-shadow: var(--sombra-1);
   transition: background .15s, transform .08s; -webkit-tap-highlight-color: transparent;
 }
 .semana button:active { transform: scale(.95); }
-.semana small { text-transform: capitalize; color: var(--gris); font-size: .74rem; font-weight: 650; }
-.semana b { font-size: 1.12rem; line-height: 1.25; font-variant-numeric: tabular-nums; }
+.semana small { text-transform: capitalize; color: var(--gris); font-size: .7rem; font-weight: 650; line-height: 1.2; }
+.semana b { font-size: 1rem; line-height: 1.15; font-variant-numeric: tabular-nums; }
 .semana .sel { background: var(--vino); border-color: var(--vino); color: #fff; box-shadow: 0 5px 14px rgba(91, 26, 43, .32); }
 .semana .sel small { color: #f0dfe3; }
 .semana .hoy:not(.sel) { border-color: var(--oro); box-shadow: 0 0 0 2px var(--oro-100); }
-.semana i { display: block; width: 6px; height: 6px; border-radius: 50%; background: var(--oro); margin-top: 3px; }
+.semana i { display: block; width: 5px; height: 5px; border-radius: 50%; background: var(--oro); margin-top: 2px; }
 .semana i.sin { visibility: hidden; }
 .semana i.mal { background: var(--alerta); }
 .semana i.dio { background: var(--dio); }
 .semana .sel i { background: #fff; }
 
-.barra-agenda { display: flex; align-items: center; justify-content: space-between; gap: 6px; margin: 2px 0 12px; flex-wrap: nowrap; }
+.barra-agenda { display: flex; align-items: center; justify-content: space-between; gap: 6px; margin: 0 0 6px; flex-wrap: nowrap; }
 /* siempre en una sola línea, también en teléfonos angostos: D S M, lupa, vistas y Avisos */
 /* D / S / M ocupa el espacio que dejó la lupa: se estira hasta donde empiezan las otras herramientas */
 .barra-agenda > .segmentos { flex-wrap: nowrap; flex: 1 1 auto; max-width: 230px; }
 .barra-agenda > .segmentos button { flex: 1; min-width: 36px; }
-.barra-agenda .segmentos button { padding: 6px 0; justify-content: center; font-weight: 750; }
-.barra-agenda .segmentos.iconos button { width: 40px; }
+.barra-agenda .segmentos { padding: 2px; border-radius: 10px; }
+.barra-agenda .segmentos button { padding: 2px 0; min-height: 30px; justify-content: center; font-weight: 750; }
+.barra-agenda .segmentos.iconos button { width: 38px; }
 .barra-agenda .herramientas { flex-wrap: nowrap; gap: 6px; flex: 0 0 auto; }
-.barra-agenda .icono-btn { width: 40px; height: 40px; }
-.barra-agenda .chip { padding: 5px 10px 5px 8px; gap: 5px; font-size: .86rem; min-height: 40px; }
+.barra-agenda .icono-btn { width: 36px; height: 36px; }
+.barra-agenda .chip { padding: 3px 10px 3px 8px; gap: 5px; font-size: .84rem; min-height: 34px; }
 /* en teléfonos, «Avisos» queda como icono con su número para que todo quepa en una línea */
 @media (max-width: 359px) { .barra-agenda .chip .txt { display: none; } .barra-agenda .chip { padding: 5px 9px; } }
 @media (max-width: 350px) {
@@ -283,11 +286,11 @@ input[type='date']::-webkit-date-and-time-value, input[type='time']::-webkit-dat
 }
 
 .dia-titulo {
-  display: flex; align-items: center; gap: 10px; margin: 22px 2px 10px;
+  display: flex; align-items: center; gap: 10px; margin: 12px 2px 8px;
   font-family: var(--serif); font-size: 1.1rem; font-weight: 600; color: var(--vino);
 }
 .dia-titulo::after { content: ''; flex: 1; height: 1px; background: linear-gradient(90deg, var(--oro), rgba(201, 162, 75, 0)); }
-.dia-titulo.pegado { position: sticky; top: calc(var(--alto-top) + var(--barra-h, 0px)); transition: top .22s ease; z-index: 5; background: var(--crema); padding: 8px 2px; margin-top: 12px; }
+.dia-titulo.pegado { position: sticky; top: calc(var(--alto-top) + var(--barra-h, 0px)); transition: top .22s ease; z-index: 5; background: var(--crema); padding: 6px 2px; margin-top: 6px; }
 @media (min-width: 860px) { .dia-titulo.pegado { position: static; } }
 
 /* tarjeta de evento */
@@ -503,6 +506,8 @@ input[type='date']::-webkit-date-and-time-value, input[type='time']::-webkit-dat
   background: var(--oro); color: var(--vino-osc); padding: 9px 16px; display: flex; gap: 10px; align-items: center;
   justify-content: center; font-weight: 650; font-size: .92rem;
 }
+/* El aviso de versión nueva va al borde de la pantalla: en iPhone ese borde es la franja de la hora y la batería, donde no se puede tocar */
+.actualizar.arriba { padding-top: calc(9px + env(safe-area-inset-top)); }
 .actualizar button { background: var(--vino); color: #fff; border: 0; border-radius: 8px; padding: 6px 14px; cursor: pointer; font-weight: 650; }
 .aviso-vencimiento { margin: 10px 16px 0; }
 

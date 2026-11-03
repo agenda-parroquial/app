@@ -202,6 +202,8 @@ export function Agenda({ ruta, perfil, soloDiocesana = false }: { ruta: string[]
   const cabRef = useRef<HTMLDivElement>(null);
   const centinelaRef = useRef<HTMLDivElement>(null);
   const bloqueoBarra = useRef(0);
+  const ocultable = useRef(false);
+  ocultable.current = modo === 'semana';   // solo en Semana la barra se esconde al bajar; en Día y Mes se queda fija
   const ocultarBarra = useRef<(() => void) | undefined>(undefined);
   useEffect(() => {
     const cab = cabRef.current, cen = centinelaRef.current;
@@ -224,14 +226,14 @@ export function Agenda({ ruta, perfil, soloDiocesana = false }: { ruta: string[]
       const y = window.scrollY;
       const umbral = cen.getBoundingClientRect().top + y - altoTop();   // desde aquí la barra ya no está en su lugar de origen
       cab.classList.toggle('pegada', y > umbral);
-      if (grande.matches || y <= umbral) poner(false);
+      if (grande.matches || !ocultable.current || y <= umbral) poner(false);
       else if (Date.now() >= bloqueoBarra.current) {
         if (y > ultimo + 4) poner(true);
         else if (y < ultimo - 4) poner(false);
       }
       if (Math.abs(y - ultimo) > 4) ultimo = y;
     };
-    ocultarBarra.current = () => { bloqueoBarra.current = Date.now() + 1500; if (!grande.matches) poner(true); };
+    ocultarBarra.current = () => { bloqueoBarra.current = Date.now() + 1500; if (!grande.matches && ocultable.current) poner(true); };
     const alCambiar = () => { colocar(); alDesplazar(); };
     colocar(); alDesplazar();
     window.addEventListener('scroll', alDesplazar, { passive: true });
@@ -249,7 +251,7 @@ export function Agenda({ ruta, perfil, soloDiocesana = false }: { ruta: string[]
     let tope = document.querySelector('.top')?.getBoundingClientRect().bottom ?? 0;
     const tabs = document.querySelector('.tabs');
     if (tabs && getComputedStyle(tabs).position === 'sticky') tope = Math.max(tope, tabs.getBoundingClientRect().bottom);
-    if (window.matchMedia('(min-width: 860px)').matches) tope += cabRef.current?.offsetHeight ?? 0;
+    if (window.matchMedia('(min-width: 860px)').matches || !ocultable.current) tope += cabRef.current?.offsetHeight ?? 0;
     return tope;
   };
 
@@ -257,7 +259,7 @@ export function Agenda({ ruta, perfil, soloDiocesana = false }: { ruta: string[]
   const irAhora = (suave: boolean) => {
     const el = anclaId ? document.querySelector<HTMLElement>(`[data-evento="${anclaId}"]`) : null;
     if (!el) return;
-    ocultarBarra.current?.();   // en el celular la barra se esconde para que el evento quede arriba y no se vuelva a mostrar con este desplazamiento
+    ocultarBarra.current?.();   // en Semana (celular) la barra se esconde para que el evento quede arriba y no reaparezca con este desplazamiento
     let tope = topeFijo();
     const titulo = el.closest('section')?.querySelector('.dia-titulo.pegado');
     if (titulo && getComputedStyle(titulo).position === 'sticky') tope += titulo.getBoundingClientRect().height;
@@ -289,7 +291,7 @@ export function Agenda({ ruta, perfil, soloDiocesana = false }: { ruta: string[]
     }, { rootMargin: `-${tope}px 0px -64px 0px` });
     obs.observe(el);
     return () => { obs.disconnect(); setLejos(null); };
-  }, [anclaId, eventos, vistaCompacta, abiertas]);
+  }, [anclaId, modo, eventos, vistaCompacta, abiertas]);
 
   return (
     <>
