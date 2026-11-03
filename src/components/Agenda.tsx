@@ -198,13 +198,67 @@ export function Agenda({ ruta, perfil, soloDiocesana = false }: { ruta: string[]
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [modo, fecha, claveIni, hoy, porDia, ahoraISO.slice(0, 16)]);
 
+  // ---- La parte de arriba (D/S/M, mes, días) queda fija: en pantallas grandes siempre; en el celular se esconde al bajar y reaparece al subir ----
+  const cabRef = useRef<HTMLDivElement>(null);
+  const centinelaRef = useRef<HTMLDivElement>(null);
+  const bloqueoBarra = useRef(0);
+  const ocultarBarra = useRef<(() => void) | undefined>(undefined);
+  useEffect(() => {
+    const cab = cabRef.current, cen = centinelaRef.current;
+    if (!cab || !cen) return;
+    const raiz = document.documentElement;
+    const grande = window.matchMedia('(min-width: 860px)');
+    const altoTop = () => document.querySelector('.top')?.getBoundingClientRect().height ?? 0;
+    let ultimo = window.scrollY;
+    const poner = (oculta: boolean) => {
+      cab.classList.toggle('oculta', oculta);
+      raiz.style.setProperty('--barra-h', oculta || grande.matches ? '0px' : `${cab.offsetHeight}px`);
+    };
+    // Por debajo del encabezado vino y, en pantallas grandes, de la franja de pestañas que también es fija
+    const colocar = () => {
+      const tabs = document.querySelector('.tabs');
+      const fija = tabs && getComputedStyle(tabs).position === 'sticky' ? tabs.getBoundingClientRect().height : 0;
+      cab.style.top = `${altoTop() + fija}px`;
+    };
+    const alDesplazar = () => {
+      const y = window.scrollY;
+      const umbral = cen.getBoundingClientRect().top + y - altoTop();   // desde aquí la barra ya no está en su lugar de origen
+      cab.classList.toggle('pegada', y > umbral);
+      if (grande.matches || y <= umbral) poner(false);
+      else if (Date.now() >= bloqueoBarra.current) {
+        if (y > ultimo + 4) poner(true);
+        else if (y < ultimo - 4) poner(false);
+      }
+      if (Math.abs(y - ultimo) > 4) ultimo = y;
+    };
+    ocultarBarra.current = () => { bloqueoBarra.current = Date.now() + 1500; if (!grande.matches) poner(true); };
+    const alCambiar = () => { colocar(); alDesplazar(); };
+    colocar(); alDesplazar();
+    window.addEventListener('scroll', alDesplazar, { passive: true });
+    window.addEventListener('resize', alCambiar);
+    return () => {
+      window.removeEventListener('scroll', alDesplazar);
+      window.removeEventListener('resize', alCambiar);
+      raiz.style.removeProperty('--barra-h');
+      ocultarBarra.current = undefined;
+    };
+  }, []);
+
+  /** Lo que queda fijo arriba de la lista: el encabezado vino y, en pantallas grandes, la franja de pestañas y esta barra. */
+  const topeFijo = () => {
+    let tope = document.querySelector('.top')?.getBoundingClientRect().bottom ?? 0;
+    const tabs = document.querySelector('.tabs');
+    if (tabs && getComputedStyle(tabs).position === 'sticky') tope = Math.max(tope, tabs.getBoundingClientRect().bottom);
+    if (window.matchMedia('(min-width: 860px)').matches) tope += cabRef.current?.offsetHeight ?? 0;
+    return tope;
+  };
+
   /** Desplaza la agenda para que el evento que sigue (o el que está en curso) quede arriba, bajo los encabezados fijos. */
   const irAhora = (suave: boolean) => {
     const el = anclaId ? document.querySelector<HTMLElement>(`[data-evento="${anclaId}"]`) : null;
     if (!el) return;
-    let tope = document.querySelector('.top')?.getBoundingClientRect().bottom ?? 0;
-    const tabs = document.querySelector('.tabs');
-    if (tabs && getComputedStyle(tabs).position === 'sticky') tope = Math.max(tope, tabs.getBoundingClientRect().bottom);
+    ocultarBarra.current?.();   // en el celular la barra se esconde para que el evento quede arriba y no se vuelva a mostrar con este desplazamiento
+    let tope = topeFijo();
     const titulo = el.closest('section')?.querySelector('.dia-titulo.pegado');
     if (titulo && getComputedStyle(titulo).position === 'sticky') tope += titulo.getBoundingClientRect().height;
     const quieto = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -229,7 +283,7 @@ export function Agenda({ ruta, perfil, soloDiocesana = false }: { ruta: string[]
   useEffect(() => {
     const el = anclaId ? document.querySelector<HTMLElement>(`[data-evento="${anclaId}"]`) : null;
     if (!el || !('IntersectionObserver' in window)) { setLejos(null); return; }
-    const tope = Math.ceil(document.querySelector('.top')?.getBoundingClientRect().height ?? 0);
+    const tope = Math.ceil(topeFijo());
     const obs = new IntersectionObserver(([ent]) => {
       setLejos(ent.isIntersecting ? null : ent.boundingClientRect.top < (ent.rootBounds?.top ?? 0) ? 'arriba' : 'abajo');
     }, { rootMargin: `-${tope}px 0px -64px 0px` });
@@ -239,6 +293,7 @@ export function Agenda({ ruta, perfil, soloDiocesana = false }: { ruta: string[]
 
   return (
     <>
+      <div className="cabecera-agenda" ref={cabRef}>
       <div className="barra-agenda">
         <div className="segmentos" role="group" aria-label="Vista">
           <button className={modo === 'dia' ? 'on' : ''} onClick={() => setModo('dia')} aria-label="Día" title="Día">D</button>
@@ -273,8 +328,6 @@ export function Agenda({ ruta, perfil, soloDiocesana = false }: { ruta: string[]
         </button>
       </div>
 
-      {modo === 'mes' && <CalendarioMes mes={dia} seleccionado={fecha} hoy={hoy} marcas={marcas} onElegir={irDia} />}
-
       {modo !== 'mes' && <div className="semana">
         {dias.map((d) => {
           const k = claveDia(d);
@@ -294,6 +347,10 @@ export function Agenda({ ruta, perfil, soloDiocesana = false }: { ruta: string[]
           );
         })}
       </div>}
+      </div>
+      <div ref={centinelaRef} style={{ height: 0 }} />
+
+      {modo === 'mes' && <CalendarioMes mes={dia} seleccionado={fecha} hoy={hoy} marcas={marcas} onElegir={irDia} />}
 
       {mostrar.map((k) => {
         const lista = porDia.get(k) ?? [];

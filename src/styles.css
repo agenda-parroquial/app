@@ -233,6 +233,14 @@ input[type='date']::-webkit-date-and-time-value, input[type='time']::-webkit-dat
 .volver:hover { background: var(--vino-100); }
 
 /* ---------- agenda ---------- */
+/* Parte de arriba de la agenda (D/S/M, mes y días): fija bajo el encabezado. En el celular se esconde al bajar y reaparece al subir. */
+.cabecera-agenda {
+  position: sticky; top: var(--alto-top); z-index: 6; background: var(--crema);
+  margin: 0 -16px; padding: 4px 16px 2px; transition: transform .22s ease, box-shadow .22s;
+}
+.cabecera-agenda.pegada { box-shadow: 0 8px 10px -8px rgba(63, 17, 32, .3); }
+.cabecera-agenda.oculta { transform: translateY(-110%); box-shadow: none; }
+@media (min-width: 860px) { .cabecera-agenda.oculta { transform: none; } }
 .navfecha { display: flex; align-items: center; gap: 8px; margin: 2px 0 12px; }
 .navfecha h2 { flex: 1; text-align: center; font-size: 1.28rem; }
 .navfecha h2::first-letter, .dia-titulo > span:first-child::first-letter { text-transform: uppercase; }
@@ -279,7 +287,7 @@ input[type='date']::-webkit-date-and-time-value, input[type='time']::-webkit-dat
   font-family: var(--serif); font-size: 1.1rem; font-weight: 600; color: var(--vino);
 }
 .dia-titulo::after { content: ''; flex: 1; height: 1px; background: linear-gradient(90deg, var(--oro), rgba(201, 162, 75, 0)); }
-.dia-titulo.pegado { position: sticky; top: var(--alto-top); z-index: 5; background: var(--crema); padding: 8px 2px; margin-top: 12px; }
+.dia-titulo.pegado { position: sticky; top: calc(var(--alto-top) + var(--barra-h, 0px)); transition: top .22s ease; z-index: 5; background: var(--crema); padding: 8px 2px; margin-top: 12px; }
 @media (min-width: 860px) { .dia-titulo.pegado { position: static; } }
 
 /* tarjeta de evento */
