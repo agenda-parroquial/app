@@ -233,14 +233,12 @@ input[type='date']::-webkit-date-and-time-value, input[type='time']::-webkit-dat
 .volver:hover { background: var(--vino-100); }
 
 /* ---------- agenda ---------- */
-/* Parte de arriba de la agenda (D/S/M, mes y días): fija bajo el encabezado. En el celular se esconde al bajar y reaparece al subir. */
+/* Parte de arriba de la agenda (D/S/M, mes y días): fija bajo el encabezado */
 .cabecera-agenda {
   position: sticky; top: var(--alto-top); z-index: 6; background: var(--crema);
   margin: -10px -16px 0; padding: 6px 16px 4px; transition: transform .22s ease, box-shadow .22s;
 }
 .cabecera-agenda.pegada { box-shadow: 0 8px 10px -8px rgba(63, 17, 32, .3); }
-.cabecera-agenda.oculta { transform: translateY(-110%); box-shadow: none; }
-@media (min-width: 860px) { .cabecera-agenda.oculta { transform: none; } }
 .navfecha { display: flex; align-items: center; gap: 6px; margin: 0 0 6px; }
 .navfecha h2 { flex: 1; text-align: center; font-size: 1.02rem; }
 .navfecha h2::first-letter, .dia-titulo > span:first-child::first-letter { text-transform: uppercase; }
@@ -344,7 +342,7 @@ input[type='date']::-webkit-date-and-time-value, input[type='time']::-webkit-dat
 
 .fab {
   position: fixed; right: 18px; bottom: calc(86px + env(safe-area-inset-bottom)); z-index: 15;
-  display: inline-flex; align-items: center; gap: 8px; height: 54px; padding: 0 22px 0 18px; border-radius: 999px; border: 0;
+  display: grid; place-items: center; width: 56px; height: 56px; padding: 0; border-radius: 50%; border: 0;
   background: var(--oro); color: var(--vino-osc); font-weight: 800; font-size: 1rem; letter-spacing: .01em;
   box-shadow: 0 8px 22px rgba(91, 26, 43, .34), 0 2px 4px rgba(0, 0, 0, .12); cursor: pointer; -webkit-tap-highlight-color: transparent;
   transition: transform .1s, box-shadow .15s;
